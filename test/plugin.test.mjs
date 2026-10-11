@@ -224,7 +224,13 @@ test('built plugin handles light commands, touch displays, and scene browsing ov
       env: { ...process.env, NODE_OPTIONS: '' },
     });
     childClosed = once(child, 'close');
-    child.on('message', message => ipc.push(message));
+    child.on('message', message => {
+      // IPC traces and WebSocket feedback have no cross-channel delivery order.
+      // Deliberately delay scene-list traces so assertions cannot assume one.
+      if (message.request?.params?.name === 'list_scenes') {
+        setTimeout(() => ipc.push(message), 50);
+      } else ipc.push(message);
+    });
     const [socket] = await connected;
     const send = message => socket.send(JSON.stringify(message));
     assert.deepEqual(await webSocketMessages.wait(message => message.event === 'registerPlugin', 'plugin registration'), {
@@ -533,6 +539,8 @@ test('built plugin handles light commands, touch displays, and scene browsing ov
     const firstSceneList = await webSocketMessages.wait(message => hasSceneDisplay(message, sceneDialContext, 'browsing', 0),
       'the first press loads the scene list without playing it', from);
     assert.match(dialCanvas(firstSceneList, sceneDialContext), /Example Scene/);
+    await ipc.wait(message => message.request?.params?.name === 'list_scenes',
+      'scene-list request reaches the independent IPC trace', beforeSceneDial);
     assert.equal(ipc.messages.slice(beforeSceneDial).filter(message => message.request?.params?.name === 'list_scenes').length, 1,
       'one physical down/up pair loads the list once');
 
