@@ -146,7 +146,7 @@ test("manual selection saves settings through the inspector context and only rea
   ui.change("auto-launch", true);
   assert.deepEqual(ui.commands("setSettings").at(-1).payload,
     { deviceId: DEVICE_A.id, sceneName: "Synthetic scene", powerMode: "toggle", autoLaunch: true });
-  assert.deepEqual(ui.commands("sendToPlugin").map((message) => message.payload.event), ["devices", "scenes"]);
+  assert.deepEqual(ui.commands("sendToPlugin").map((message) => message.payload.event), ["commandStatus", "devices", "scenes"]);
 });
 
 test("ignores unmatched and stale responses after the selected device changes", () => {
@@ -182,16 +182,44 @@ test("a timed-out request recovers controls and ignores its late reply", () => {
   assert.equal(ui.elements.get("device").children[1].value, DEVICE_B.id);
 });
 
-test("backend strings are literal text, not HTML, and failures allow retry", () => {
+test("device names are literal text and unknown backend failures remain private while allowing retry", () => {
   const ui = inspector();
   ui.respond("devices", { devices: [{ ...DEVICE_A, name: '<img src=x onerror="bad()">' }] });
   assert.equal(ui.elements.get("device").children[1].textContent, '<img src=x onerror="bad()"> (TEST-MODEL)');
   ui.click("refresh");
   ui.respond("devices", { error: "<b>Could not connect</b>" });
-  assert.equal(ui.elements.get("status").textContent, "<b>Could not connect</b>");
+  assert.match(ui.elements.get("status").textContent, /Unable to load the lists/);
+  assert.doesNotMatch(ui.elements.get("status").textContent, /<b>|Could not connect/);
   assert.equal(ui.elements.get("status").dataset.kind, "error");
   assert.equal(ui.elements.get("refresh").disabled, false);
   assert.doesNotMatch(script, /innerHTML|insertAdjacentHTML|eval\(/);
+});
+
+test("command feedback rejects other keys, stale outcomes, and unrecognized errors in both languages", () => {
+  for (const language of ["en", "ko"]) {
+    const ui = inspector({ language });
+    const deliver = payload => ui.socket.receive({ event: "sendToPropertyInspector", context: "TEST-ACTION-CONTEXT",
+      payload: { event: "commandStatus", actionContext: "TEST-ACTION-CONTEXT", ...payload } });
+    const status = ui.elements.get("command-status");
+    deliver({ state: "success", sequence: 10 });
+    const success = status.textContent;
+    for (const payload of [
+      { state: "error", sequence: 11, actionContext: "OTHER-CONTEXT", errorCode: "DEVICE_ERROR" },
+      { state: "error", sequence: 9, errorCode: "DEVICE_ERROR" },
+      { state: "error", sequence: -1, errorCode: "DEVICE_ERROR" },
+      { state: "unexpected", sequence: 11 },
+    ]) {
+      deliver(payload);
+      assert.equal(status.textContent, success);
+    }
+    for (const errorCode of ["FUTURE_ERROR", "__proto__", "constructor"]) {
+      deliver({ state: "error", sequence: 12, errorCode, error: "PRIVATE-DEVICE-ID <script>raw backend</script>" });
+      assert.match(status.textContent, language === "ko" ? /요청을 처리하지 못했습니다/ : /request could not be completed/);
+      assert.doesNotMatch(status.textContent, /PRIVATE|backend|script/);
+    }
+    deliver({ state: "error", sequence: 13, errorCode: "BUSY" });
+    assert.match(status.textContent, language === "ko" ? /명령을 처리 중/ : /command is already running/);
+  }
 });
 
 test("rejects malformed responses without crashing and recovers on a matching invalid reply", () => {
@@ -282,4 +310,25 @@ test("UI has no remote dependencies and restricts connections to the local Strea
   assert.match(html, /connect-src ws:\/\/127\.0\.0\.1:\*/);
   assert.doesNotMatch(html, /(?:src|href)="https?:/);
   assert.match(html, /role="status" aria-live="polite"/);
+});
+
+test("button results are localized, separate from list refresh, and clear errors after success", () => {
+  for (const language of ["en", "ko"]) {
+    const ui = inspector({ language });
+    assert.equal(ui.requests("commandStatus").length, 1, "opening a key requests its last result");
+    const deliver = payload => ui.socket.receive({ event: "sendToPropertyInspector", context: "TEST-ACTION-CONTEXT",
+      payload: { event: "commandStatus", actionContext: "TEST-ACTION-CONTEXT", ...payload } });
+    deliver({ state: "running", sequence: 1 });
+    assert.match(ui.elements.get("command-status").textContent, language === "ko" ? /처리 중/ : /Running/);
+    deliver({ state: "error", sequence: 2, errorCode: "DEVICE_ERROR", error: "PRIVATE-DEVICE-ID raw backend" });
+    assert.match(ui.elements.get("command-status").textContent, language === "ko" ? /조명이 응답하지/ : /light did not respond/);
+    assert.equal(ui.elements.get("command-status").dataset.kind, "error");
+    ui.respond("devices", { devices: [DEVICE_A] });
+    assert.equal(ui.elements.get("command-status").dataset.kind, "error", "list completion must not replace command feedback");
+    deliver({ state: "success", sequence: 3 });
+    assert.match(ui.elements.get("command-status").textContent, language === "ko" ? /완료/ : /completed/);
+    assert.equal(ui.elements.get("command-status").dataset.kind, "success");
+    assert.doesNotMatch(ui.elements.get("command-status").textContent, /PRIVATE|backend|응답하지|did not respond/);
+    assert.equal(ui.commands("setSettings").length, 0, "transient results must not be persisted in profiles");
+  }
 });

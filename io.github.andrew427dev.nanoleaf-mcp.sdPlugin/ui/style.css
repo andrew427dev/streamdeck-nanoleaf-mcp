@@ -21,7 +21,11 @@ select:focus-visible, button:focus-visible, input:focus-visible { outline: 2px s
 select:disabled, button:disabled { opacity: .55; cursor: default; }
 .button-row { text-align: right; }
 #status { margin-top: 10px; color: #c9c9ce; overflow-wrap: anywhere; }
-#status[data-kind="error"], .hint { color: #ffcc94; }
+#status[data-kind="error"], #command-status[data-kind="error"], .hint { color: #ffcc94; }
+.command-result { border: 1px solid #55555b; border-radius: 5px; padding: 8px 10px; margin-bottom: 12px; }
+#command-heading { margin-bottom: 3px; font-weight: 600; }
+#command-status { margin: 0; color: #c9c9ce; overflow-wrap: anywhere; }
+#command-status[data-kind="success"] { color: #b4e2c0; }
 .hint { margin: -3px 0 12px 86px; overflow-wrap: anywhere; }
 .checkbox { display: flex; align-items: flex-start; gap: 8px; line-height: 1.5; padding-top: 10px; border-top: 1px solid #45454b; }
 .checkbox input { flex-shrink: 0; margin: 3px 0 0; accent-color: #9abfff; }

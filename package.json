@@ -1,6 +1,6 @@
 {
   "name": "streamdeck-nanoleaf-mcp",
-  "version": "0.1.0-beta.1",
+  "version": "0.1.0-beta.2",
   "private": true,
   "type": "module",
   "description": "Community macOS Stream Deck plugin for Nanoleaf Desktop local MCP control",

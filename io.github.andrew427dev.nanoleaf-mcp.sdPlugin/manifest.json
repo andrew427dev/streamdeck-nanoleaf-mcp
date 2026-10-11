@@ -2,7 +2,7 @@
   "$schema": "https://schemas.elgato.com/streamdeck/plugins/manifest.json",
   "Name": "Nanoleaf MCP",
   "UUID": "io.github.andrew427dev.nanoleaf-mcp",
-  "Version": "0.1.0.0",
+  "Version": "0.1.0.2",
   "Author": "andrew427dev",
   "Description": "Control power and existing scenes through Nanoleaf Desktop's local MCP server. Unofficial macOS beta.",
   "URL": "https://github.com/andrew427dev/streamdeck-nanoleaf-mcp",

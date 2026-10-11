@@ -12,6 +12,11 @@
     <main>
       <p class="intro" data-i18n="intro">Open Nanoleaf Desktop and connect your light before refreshing.</p>
 
+      <section class="command-result" aria-labelledby="command-heading">
+        <p id="command-heading" data-i18n="commandHeading">Last key press</p>
+        <p id="command-status" role="status" aria-live="polite" data-kind="info">No result for this key in this plugin session.</p>
+      </section>
+
       <div class="field">
         <label for="device" data-i18n="device">Device</label>
         <select id="device" aria-describedby="device-hint" disabled></select>

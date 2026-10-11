@@ -25,6 +25,10 @@
       disconnected: "Disconnected from Stream Deck. Select this key again to reconnect.",
       invalid: "Unable to load the lists. Check Nanoleaf Desktop, then refresh.",
       setupError: "Unable to open these settings. Select this key again in Stream Deck.",
+      commandHeading: "Last key press",
+      commandIdle: "No result for this key in this plugin session.",
+      commandRunning: "Running this key’s command…",
+      commandSuccess: "This key’s last command completed.",
       errors: {
         APP_CONNECTION: "Open Nanoleaf Desktop and enable its MCP server, then try again.",
         APP_TIMEOUT: "Nanoleaf Desktop did not respond in time. Check the app, then try again.",
@@ -59,6 +63,10 @@
       disconnected: "Stream Deck 연결이 끊겼습니다. 이 키를 다시 선택해 주세요.",
       invalid: "목록을 불러오지 못했습니다. Nanoleaf Desktop을 확인한 뒤 새로고침해 주세요.",
       setupError: "설정을 열지 못했습니다. Stream Deck에서 이 키를 다시 선택해 주세요.",
+      commandHeading: "이 키의 마지막 실행",
+      commandIdle: "플러그인 실행 이후 이 키의 기록이 없습니다.",
+      commandRunning: "이 키의 명령을 처리 중입니다…",
+      commandSuccess: "이 키의 마지막 명령을 완료했습니다.",
       errors: {
         APP_CONNECTION: "Nanoleaf Desktop을 열고 MCP 서버를 활성화한 뒤 다시 시도해 주세요.",
         APP_TIMEOUT: "Nanoleaf Desktop의 응답 시간이 초과되었습니다. 앱 상태를 확인한 뒤 다시 시도해 주세요.",
@@ -81,6 +89,7 @@
     sceneField: element("scene-field"), powerField: element("power-field"),
     deviceHint: element("device-hint"), sceneHint: element("scene-hint"),
     refresh: element("refresh"), autoLaunch: element("auto-launch"), status: element("status"),
+    commandStatus: element("command-status"),
   };
   let words = translations.en;
   let socket;
@@ -90,6 +99,7 @@
   let actionContext = "";
   let sessionId = "";
   let sequence = 0;
+  let commandSequence = -1;
   let isScene = false;
   let settings = normalizeSettings({});
   let devices = [];
@@ -111,6 +121,18 @@
   function status(message, error = false) {
     ui.status.textContent = message;
     ui.status.dataset.kind = error ? "error" : "info";
+  }
+
+  function receiveCommandStatus(payload) {
+    if (!payload || payload.event !== "commandStatus" || payload.actionContext !== actionContext
+      || !Number.isSafeInteger(payload.sequence) || payload.sequence < 0 || payload.sequence < commandSequence
+      || !["idle", "running", "success", "error"].includes(payload.state)) return;
+    commandSequence = payload.sequence;
+    const messages = { idle: words.commandIdle, running: words.commandRunning, success: words.commandSuccess };
+    const knownCode = Object.prototype.hasOwnProperty.call(words.errors, payload.errorCode);
+    ui.commandStatus.textContent = payload.state === "error"
+      ? words.errors[knownCode ? payload.errorCode : "INTERNAL_ERROR"] : messages[payload.state];
+    ui.commandStatus.dataset.kind = payload.state === "error" ? "error" : payload.state === "success" ? "success" : "info";
   }
 
   function connected() { return registered && socket?.readyState === WebSocket.OPEN; }
@@ -222,8 +244,7 @@
     }
     if (typeof payload.error === "string" && payload.error) {
       const knownCode = Object.prototype.hasOwnProperty.call(words.errors, payload.errorCode);
-      status(knownCode ? words.errors[payload.errorCode]
-        : words === translations.ko ? words.invalid : payload.error.slice(0, 500), true);
+      status(knownCode ? words.errors[payload.errorCode] : words.invalid, true);
       controls();
       return;
     }
@@ -294,6 +315,9 @@
       actionContext = actionData.context;
       sessionId = `${uuid}:${Date.now().toString(36)}:${Math.random().toString(36).slice(2)}`;
       sequence = 0;
+      commandSequence = -1;
+      ui.commandStatus.textContent = words.commandIdle;
+      ui.commandStatus.dataset.kind = "info";
       isScene = action.endsWith(".scene");
       settings = normalizeSettings(actionData.payload?.settings);
       devices = [];
@@ -306,6 +330,7 @@
         try {
           socket.send(JSON.stringify({ event: registerEvent, uuid }));
           registered = true;
+          send("sendToPlugin", { event: "commandStatus" });
           refresh();
         } catch {
           registered = false;
@@ -319,7 +344,10 @@
         if (!message || typeof message !== "object") return;
         if (message.action && message.action !== action) return;
         if (message.context && message.context !== uuid && message.context !== actionContext) return;
-        if (message.event === "sendToPropertyInspector") receiveLists(message.payload);
+        if (message.event === "sendToPropertyInspector") {
+          if (message.payload?.event === "commandStatus") receiveCommandStatus(message.payload);
+          else receiveLists(message.payload);
+        }
         if (message.event === "didReceiveSettings") receiveSettings(message.payload?.settings);
       };
       socket.onclose = socket.onerror = () => { registered = false; cancelAll(); status(words.disconnected, true); controls(); };

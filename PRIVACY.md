@@ -12,6 +12,8 @@ This local connection does not imply that Nanoleaf Desktop itself works entirely
 
 The plugin processes device identifiers, available scene names, and light state to populate button settings and perform the action you select. The selected device ID, scene name, power action, and app-launch preference are stored in Stream Deck's local button settings.
 
+Last-command status is kept in plugin memory, associated with the local button context, and cleared on plugin restart. It uses predefined status/error codes rather than raw backend messages; it is not written into profile settings or sent to a cloud service.
+
 Device IDs and custom scene names can be identifying or personal. Exported Stream Deck profiles, backups, and synchronized copies may include them. Review a profile before sharing it. Plugin installation does not distribute the maintainer's personal profiles, device state files, or scene definitions.
 
 ## Reports and diagnostics

@@ -13,18 +13,51 @@ const controller = new LightController({
 });
 
 class LightAction extends SingletonAction {
+  // Keep only safe, recent outcomes in memory, never in Stream Deck profile settings.
+  #results = new Map();
+  #sequence = 0;
   constructor(kind) { super(); this.kind = kind; }
+
+  #status(context, state, errorCode, expectedSequence) {
+    // A previous command may finish after a newer press was rejected as BUSY.
+    // Preserve the latest press's result instead of showing an unrelated completion.
+    if (expectedSequence !== undefined && this.#results.get(context)?.sequence !== expectedSequence) return;
+    const result = { event: 'commandStatus', actionContext: context, sequence: ++this.#sequence, state };
+    if (state === 'error') result.errorCode = errorCode;
+    this.#results.delete(context);
+    this.#results.set(context, result);
+    if (this.#results.size > 256) this.#results.delete(this.#results.keys().next().value);
+    void this.#sendStatus(context);
+    return result.sequence;
+  }
+
+  async #sendStatus(context) {
+    if (streamDeck.ui.action?.id !== context) return;
+    const result = this.#results.get(context)
+      ?? { event: 'commandStatus', actionContext: context, sequence: 0, state: 'idle' };
+    await streamDeck.ui.sendToPropertyInspector(result).catch(() => {});
+  }
+
   async onKeyDown(ev) {
+    const attempt = this.#status(ev.action.id, 'running');
     try {
       await controller.execute(this.kind, ev.payload.settings);
-      await ev.action.showOk();
     } catch (error) {
       // Log only an allowlisted code: no backend strings, settings, or device identifiers.
-      streamDeck.logger.error(safeError(error).code);
+      const { code } = safeError(error);
+      this.#status(ev.action.id, 'error', code, attempt);
+      streamDeck.logger.error(code);
       await ev.action.showAlert().catch(() => {});
+      return;
     }
+    this.#status(ev.action.id, 'success', undefined, attempt);
+    await ev.action.showOk().catch(() => {});
   }
   async onSendToPlugin(ev) {
+    if (ev.payload?.event === 'commandStatus') {
+      await this.#sendStatus(ev.action.id);
+      return;
+    }
     const response = await controller.inspect(ev.payload);
     if (response && streamDeck.ui.action?.id === ev.action.id) {
       await streamDeck.ui.sendToPropertyInspector(response).catch(() => {});

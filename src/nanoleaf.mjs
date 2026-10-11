@@ -27,6 +27,11 @@ export class NanoleafError extends Error {
 }
 
 const fail = code => new NanoleafError(code);
+// Internal marker only: public messages remain the allowlisted APP_ERROR.
+class ExpiredSessionError extends NanoleafError {
+  constructor() { super('APP_ERROR'); }
+}
+const READ_ONLY_TOOLS = new Set(['list_devices', 'list_scenes', 'get_light_state']);
 const isRecord = value => value !== null && typeof value === 'object' && !Array.isArray(value);
 
 function checkedText(value) {
@@ -159,6 +164,7 @@ export class NanoleafClient {
   #initializing;
   #protocol;
   #sessionId;
+  #sessionEpoch = 0;
 
   constructor({ fetchImpl = globalThis.fetch, timeoutMs = 8000,
     sleep = ms => new Promise(resolve => setTimeout(resolve, ms)), now = () => performance.now() } = {}) {
@@ -173,7 +179,10 @@ export class NanoleafClient {
   async #post(method, params, { notification = false, timeoutMs = this.#timeoutMs, initialize = false } = {}) {
     const id = notification ? undefined : randomUUID();
     const controller = new AbortController();
+    const epoch = this.#sessionEpoch;
+    const sessionId = this.#sessionId;
     let reader;
+    let body;
     let timer;
     let timedOut = false;
     const timeout = new Promise((_, reject) => {
@@ -198,12 +207,16 @@ export class NanoleafClient {
         body: JSON.stringify({ jsonrpc: '2.0', ...(notification ? {} : { id }), method,
           ...(params === undefined ? {} : { params }) }),
       });
+      body = response.body;
       if (timedOut || !response.ok || notification) {
         // This body is intentionally not parsed: an error page can contain private identifiers.
         if (response.body) void response.body.cancel().catch(() => {});
         if (timedOut) throw fail('APP_TIMEOUT');
         if (!response.ok) {
-          if (response.status === 404 && this.#sessionId) this.#resetSession();
+          if (response.status === 404 && sessionId) {
+            if (epoch === this.#sessionEpoch) this.#resetSession();
+            throw new ExpiredSessionError();
+          }
           throw fail('APP_ERROR');
         }
         return;
@@ -211,6 +224,7 @@ export class NanoleafClient {
       const message = await readMessage(response, id, value => { reader = value; });
       const result = validateMessage(message, id);
       if (initialize) {
+        if (epoch !== this.#sessionEpoch) throw new ExpiredSessionError();
         const sessionId = response.headers.get('mcp-session-id');
         if (sessionId !== null && (!/^[\x21-\x7e]+$/.test(sessionId) || sessionId.length > 1024)) {
           throw fail('PROTOCOL_ERROR');
@@ -226,35 +240,46 @@ export class NanoleafClient {
       if (timedOut) throw fail('APP_TIMEOUT');
       if (error instanceof NanoleafError) throw error;
       // Do not retain backend errors in `cause`: logs must remain safe to share.
-      this.#resetSession();
+      if (epoch === this.#sessionEpoch) this.#resetSession();
       throw fail('APP_CONNECTION');
     } finally {
       clearTimeout(timer);
       cancelReader(reader);
+      // Header validation can fail before a reader exists. Release that body too.
+      if (!reader && body) void body.cancel().catch(() => {});
+      controller.abort();
     }
   }
 
   #resetSession() {
+    this.#sessionEpoch++;
     this.#initializing = undefined;
     this.#protocol = undefined;
     this.#sessionId = undefined;
   }
 
-  async #initialize() {
+  async #initialize(timeoutMs = this.#timeoutMs) {
     if (!this.#initializing) {
+      const epoch = this.#sessionEpoch;
+      const deadline = this.#now() + timeoutMs;
+      const remaining = () => {
+        const ms = deadline - this.#now();
+        if (ms <= 0) throw fail('APP_TIMEOUT');
+        return ms;
+      };
       this.#initializing = (async () => {
         const result = await this.#post('initialize', {
           protocolVersion: PROTOCOL_VERSION,
           capabilities: {},
-          clientInfo: { name: 'streamdeck-nanoleaf-mcp', version: '0.1.0-beta.1' },
-        }, { initialize: true });
+          clientInfo: { name: 'streamdeck-nanoleaf-mcp', version: '0.1.0-beta.2' },
+        }, { initialize: true, timeoutMs: remaining() });
         if (!SUPPORTED_PROTOCOLS.has(result.protocolVersion) || !isRecord(result.capabilities?.tools)) {
           throw fail('PROTOCOL_ERROR');
         }
         this.#protocol = result.protocolVersion;
-        await this.#post('notifications/initialized', undefined, { notification: true });
+        await this.#post('notifications/initialized', undefined, { notification: true, timeoutMs: remaining() });
       })().catch(error => {
-        this.#resetSession();
+        if (epoch === this.#sessionEpoch) this.#resetSession();
         throw error;
       });
     }
@@ -262,12 +287,34 @@ export class NanoleafClient {
   }
 
   async #call(name, args, timeoutMs = this.#timeoutMs) {
-    await this.#initialize();
-    return resultsFrom(await this.#post('tools/call', { name, arguments: args }, { timeoutMs }));
+    if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) throw fail('INVALID_ARGUMENT');
+    const deadline = this.#now() + timeoutMs;
+    const remaining = () => {
+      const ms = deadline - this.#now();
+      if (ms <= 0) throw fail('APP_TIMEOUT');
+      return ms;
+    };
+    for (let attempt = 0; ; attempt++) {
+      // Bound only this caller's wait for shared initialization. Once the tool
+      // starts, #post alone owns its timer so timeout always includes cleanup.
+      let timer;
+      const budget = remaining();
+      try {
+        await Promise.race([this.#initialize(budget), new Promise((_, reject) => {
+          timer = setTimeout(() => reject(fail('APP_TIMEOUT')), budget);
+        })]);
+      } finally { clearTimeout(timer); }
+      try {
+        return resultsFrom(await this.#post('tools/call', { name, arguments: args }, { timeoutMs: remaining() }));
+      } catch (error) {
+        // Only a read rejected by an expired session is replayed, once. Never replay a mutation.
+        if (!(error instanceof ExpiredSessionError) || !READ_ONLY_TOOLS.has(name) || attempt > 0) throw error;
+      }
+    }
   }
 
-  async listDevices() {
-    const rows = await this.#call('list_devices', {});
+  async listDevices({ timeoutMs = this.#timeoutMs } = {}) {
+    const rows = await this.#call('list_devices', {}, timeoutMs);
     return rows.map(row => {
       if (!isRecord(row)) throw fail('PROTOCOL_ERROR');
       const id = row.id ?? row.device ?? row.serialNumber ?? row.serial;
@@ -284,9 +331,9 @@ export class NanoleafClient {
     return scenesFrom(await this.#call('list_scenes', { devices: [{ device: deviceId }] }), deviceId);
   }
 
-  async getState(deviceId) {
+  async getState(deviceId, { timeoutMs = this.#timeoutMs } = {}) {
     checkedText(deviceId);
-    const rows = await this.#call('get_light_state', { devices: [{ device: deviceId }] });
+    const rows = await this.#call('get_light_state', { devices: [{ device: deviceId }] }, timeoutMs);
     const data = deviceResult(rows, deviceId);
     // Nanoleaf Desktop 3.0.1 nests the selected device's light state in data.fixtures.
     // Fixture id 0 represents the NL82K2 USB light; never infer the owning device.

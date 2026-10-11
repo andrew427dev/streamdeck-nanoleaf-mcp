@@ -20,6 +20,15 @@ const MCP_PRELOAD = `
 let power = true;
 let scene = 'Example Scene';
 const send = message => process.send?.(message);
+let holdNextPower = false;
+let releasePower;
+let failNextPower = false;
+process.on('message', message => {
+  if (message.type === 'hold-next-power') holdNextPower = true;
+  if (message.type === 'release-power') { releasePower?.(); releasePower = undefined; }
+  if (message.type === 'fail-next-power') failNextPower = true;
+  send({ type: 'control-ready', command: message.type });
+});
 globalThis.fetch = async (url, options) => {
   if (url !== 'http://127.0.0.1:15765/mcp' || options?.method !== 'POST') {
     send({ type: 'unexpected-fetch' });
@@ -46,6 +55,14 @@ globalThis.fetch = async (url, options) => {
     case 'set_light_state':
       if (args.states?.length !== 1 || args.states[0].device !== 'TEST-DEVICE'
         || typeof args.states[0].power !== 'boolean') throw new Error('Invalid synthetic power command');
+      if (holdNextPower) {
+        holdNextPower = false;
+        await new Promise(resolve => { releasePower = resolve; send({ type: 'power-held' }); });
+      }
+      if (failNextPower) {
+        failNextPower = false;
+        return reply({ isError: true, content: [{ type: 'text', text: 'PRIVATE-BACKEND-DETAILS TEST-DEVICE' }] });
+      }
       power = args.states[0].power;
       return result(device({}));
     case 'play_scene':
@@ -98,7 +115,7 @@ function registrationInfo() {
     },
     devicePixelRatio: 2,
     devices: [{ id: STREAM_DECK, name: 'Synthetic Stream Deck', size: { columns: 5, rows: 3 }, type: 0 }],
-    plugin: { uuid: PLUGIN, version: '0.1.0.1' },
+    plugin: { uuid: PLUGIN, version: '0.1.0.2' },
   };
 }
 
@@ -184,6 +201,12 @@ test('built plugin registers and handles inspector, validation, power, and scene
     send(actionEvent('keyDown', 'power', powerContext));
     await webSocketMessages.wait(message => message.event === 'showAlert' && message.context === powerContext,
       'missing-settings alert');
+    const invalidResult = await webSocketMessages.wait(message => message.event === 'sendToPropertyInspector'
+      && message.context === powerContext && message.payload?.event === 'commandStatus'
+      && message.payload.state === 'error', 'safe validation result in the inspector');
+    assert.equal(invalidResult.payload.errorCode, 'INVALID_ARGUMENT');
+    assert.deepEqual(Object.keys(invalidResult.payload).sort(), ['actionContext', 'errorCode', 'event', 'sequence', 'state']);
+    assert.equal(invalidResult.payload.actionContext, powerContext);
     assert.equal(ipc.messages.length, 0, 'invalid settings must not contact the MCP client');
 
     let from = webSocketMessages.messages.length;
@@ -212,6 +235,12 @@ test('built plugin registers and handles inspector, validation, power, and scene
     send(actionEvent('keyDown', 'power', powerContext, powerSettings));
     await webSocketMessages.wait(message => message.event === 'showOk' && message.context === powerContext,
       'power success feedback', from);
+    const powerSuccess = await webSocketMessages.wait(message => message.event === 'sendToPropertyInspector'
+      && message.context === powerContext && message.payload?.event === 'commandStatus'
+      && message.payload.state === 'success', 'power completion in the inspector', from);
+    assert.equal('errorCode' in powerSuccess.payload, false, 'success clears previous validation error');
+    assert.ok(webSocketMessages.messages.slice(from).some(message => message.context === powerContext
+      && message.payload?.state === 'running'), 'button execution reports running first');
     const powerRequest = await ipc.wait(message => message.request?.params?.name === 'set_light_state', 'synthetic power command');
     assert.deepEqual(powerRequest.request.params.arguments, { states: [{ device: DEVICE, power: false }] });
 
@@ -220,16 +249,83 @@ test('built plugin registers and handles inspector, validation, power, and scene
     from = webSocketMessages.messages.length;
     send(actionEvent('willAppear', 'scene', sceneContext, sceneSettings));
     send({ event: 'propertyInspectorDidAppear', action: `${PLUGIN}.scene`, context: sceneContext, device: STREAM_DECK });
+    send({ event: 'sendToPlugin', action: `${PLUGIN}.scene`, context: sceneContext, payload: { event: 'commandStatus' } });
+    const sceneIdle = await webSocketMessages.wait(message => message.event === 'sendToPropertyInspector'
+      && message.context === sceneContext && message.payload?.event === 'commandStatus'
+      && message.payload.state === 'idle', 'new key has no other key result', from);
+    assert.equal(sceneIdle.payload.actionContext, sceneContext);
     send(actionEvent('keyDown', 'scene', sceneContext, sceneSettings));
     await webSocketMessages.wait(message => message.event === 'showOk' && message.context === sceneContext,
       'scene success feedback', from);
     const sceneRequest = await ipc.wait(message => message.request?.params?.name === 'play_scene', 'synthetic scene command');
     assert.deepEqual(sceneRequest.request.params.arguments, { scenes: [{ device: DEVICE, name: 'Ocean' }] });
 
+    // A second key of the same action type must not inherit this key's result.
+    const otherPowerContext = 'TEST-OTHER-POWER-CONTEXT';
+    send(actionEvent('willAppear', 'power', otherPowerContext, powerSettings));
+    send({ event: 'propertyInspectorDidDisappear', action: `${PLUGIN}.scene`, context: sceneContext, device: STREAM_DECK });
+    send({ event: 'propertyInspectorDidAppear', action: `${PLUGIN}.power`, context: otherPowerContext, device: STREAM_DECK });
+    send({ event: 'sendToPlugin', action: `${PLUGIN}.power`, context: otherPowerContext, payload: { event: 'commandStatus' } });
+    const otherPowerResult = await webSocketMessages.wait(message => message.event === 'sendToPropertyInspector'
+      && message.context === otherPowerContext && message.payload?.event === 'commandStatus', 'same-type key isolation');
+    assert.equal(otherPowerResult.payload.state, 'idle');
+
+    // Execute a different key while another inspector is visible, then reopen its own inspector.
+    from = webSocketMessages.messages.length;
+    send(actionEvent('keyDown', 'power', powerContext));
+    await webSocketMessages.wait(message => message.event === 'showAlert' && message.context === powerContext,
+      'hidden key validation feedback', from);
+    assert.equal(webSocketMessages.messages.slice(from).some(message => message.event === 'sendToPropertyInspector'), false,
+      'a hidden key must not overwrite the selected key status');
+    send({ event: 'propertyInspectorDidAppear', action: `${PLUGIN}.power`, context: powerContext, device: STREAM_DECK });
+    send({ event: 'sendToPlugin', action: `${PLUGIN}.power`, context: powerContext, payload: { event: 'commandStatus' } });
+    const restoredResult = await webSocketMessages.wait(message => message.event === 'sendToPropertyInspector'
+      && message.context === powerContext && message.payload?.event === 'commandStatus'
+      && message.payload.state === 'error', 'last result restored after opening the key', from);
+    assert.equal(restoredResult.payload.errorCode, 'INVALID_ARGUMENT');
+    assert.ok(restoredResult.payload.sequence > powerSuccess.payload.sequence);
+
+    // A newer BUSY rejection must remain the last press, even when the older command finishes.
+    child.send({ type: 'hold-next-power' });
+    await ipc.wait(message => message.type === 'control-ready' && message.command === 'hold-next-power', 'power gate setup');
+    from = webSocketMessages.messages.length;
+    send(actionEvent('keyDown', 'power', powerContext, powerSettings));
+    await ipc.wait(message => message.type === 'power-held', 'held synthetic power mutation');
+    send(actionEvent('keyDown', 'power', powerContext, powerSettings));
+    const busyResult = await webSocketMessages.wait(message => message.event === 'sendToPropertyInspector'
+      && message.context === powerContext && message.payload?.errorCode === 'BUSY', 'busy error explanation', from);
+    child.send({ type: 'release-power' });
+    await webSocketMessages.wait(message => message.event === 'showOk' && message.context === powerContext,
+      'older held command completion', from);
+    from = webSocketMessages.messages.length;
+    send({ event: 'sendToPlugin', action: `${PLUGIN}.power`, context: powerContext, payload: { event: 'commandStatus' } });
+    const lastPress = await webSocketMessages.wait(message => message.event === 'sendToPropertyInspector'
+      && message.context === powerContext && message.payload?.event === 'commandStatus', 'latest press result', from);
+    assert.deepEqual(lastPress.payload, busyResult.payload);
+
+    child.send({ type: 'fail-next-power' });
+    await ipc.wait(message => message.type === 'control-ready' && message.command === 'fail-next-power', 'synthetic backend failure setup');
+    from = webSocketMessages.messages.length;
+    send(actionEvent('keyDown', 'power', powerContext, powerSettings));
+    const backendError = await webSocketMessages.wait(message => message.event === 'sendToPropertyInspector'
+      && message.context === powerContext && message.payload?.state === 'error', 'redacted backend failure', from);
+    assert.equal(backendError.payload.errorCode, 'APP_ERROR');
+    await webSocketMessages.wait(message => message.event === 'showAlert' && message.context === powerContext,
+      'backend failure key feedback', from);
+    from = webSocketMessages.messages.length;
+    send(actionEvent('keyDown', 'power', powerContext, powerSettings));
+    const recovered = await webSocketMessages.wait(message => message.event === 'sendToPropertyInspector'
+      && message.context === powerContext && message.payload?.state === 'success', 'success clears busy and backend errors', from);
+    assert.equal('errorCode' in recovered.payload, false);
+    for (const message of webSocketMessages.messages.filter(item => item.payload?.event === 'commandStatus')) {
+      assert.equal(message.context, message.payload.actionContext, 'result must be bound to its action context');
+      assert.doesNotMatch(JSON.stringify(message.payload), /PRIVATE|TEST-DEVICE|Example Strip|Ocean/);
+    }
+
     assert.equal(child.exitCode, null, 'the bundled plugin must remain running');
     assert.equal(ipc.messages.some(message => message.type === 'unexpected-fetch'), false);
     assert.equal(ipc.messages.filter(message => message.request?.method === 'initialize').length, 1);
-    assert.equal(ipc.messages.filter(message => message.request?.params?.name === 'set_light_state').length, 1);
+    assert.equal(ipc.messages.filter(message => message.request?.params?.name === 'set_light_state').length, 4);
     assert.equal(ipc.messages.filter(message => message.request?.params?.name === 'play_scene').length, 1);
     assert.equal(webSocketMessages.messages.some(message => message.payload?.requestId === 'ignored-request'), false);
     assert.equal(webSocketMessages.messages.some(message => message.context === 'TEST-UNKNOWN-CONTEXT'), false);

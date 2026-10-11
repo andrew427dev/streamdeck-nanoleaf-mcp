@@ -58,7 +58,7 @@ test('initializes once, selects the fixed endpoint, and preserves only public de
     'initialize', 'notifications/initialized', 'tools/call', 'tools/call',
   ]);
   assert.equal(calls[0].request.params.protocolVersion, '2025-03-26');
-  assert.equal(calls[0].request.params.clientInfo.version, '0.1.0-beta.1');
+  assert.equal(calls[0].request.params.clientInfo.version, '0.1.0-beta.2');
   assert.deepEqual(calls[2].request.params, { name: 'list_devices', arguments: {} });
   assert.equal(calls[1].request.id, undefined);
   const ids = calls.filter(call => call.request.id).map(call => call.request.id);
@@ -332,4 +332,144 @@ test('invalid input never reaches the local server', async () => {
   await assert.rejects(client.listScenes(''), { code: 'INVALID_ARGUMENT' });
   await assert.rejects(client.setPower(DEVICE, 'on'), { code: 'INVALID_ARGUMENT' });
   await assert.rejects(client.playScene(DEVICE, ''), { code: 'INVALID_ARGUMENT' });
+});
+
+test('rejected response headers cancel the unread body and abort the request', async () => {
+  for (const headers of [
+    { 'content-type': 'text/html' },
+    { 'content-type': 'application/json', 'content-length': String(1024 * 1024 + 1) },
+  ]) {
+    let cancelled = 0;
+    let signal;
+    const { client } = server((_request, options) => {
+      signal = options.signal;
+      return new Response(new ReadableStream({ cancel() { cancelled++; } }), { headers });
+    });
+    await assert.rejects(client.listDevices(), { code: 'PROTOCOL_ERROR' });
+    assert.equal(cancelled, 1);
+    assert.equal(signal.aborted, true);
+  }
+});
+
+test('expired sessions retry each read-only tool once with fresh initialization', async () => {
+  for (const name of ['list_devices', 'list_scenes', 'get_light_state']) {
+    let reads = 0;
+    let sessions = 0;
+    const { client, calls } = server(request => {
+      if (++reads === 1) return new Response('private expired session', { status: 404 });
+      const rows = name === 'list_devices' ? [] : name === 'list_scenes' ? scenes(['Ocean'])
+        : device({ fixtures: [{ id: 0, power: true }] });
+      return json(rpc(request, tool(rows)));
+    }, { session: () => `SESSION-${++sessions}` });
+    if (name === 'list_devices') assert.deepEqual(await client.listDevices(), []);
+    if (name === 'list_scenes') assert.deepEqual(await client.listScenes(DEVICE), ['Ocean']);
+    if (name === 'get_light_state') assert.deepEqual(await client.getState(DEVICE), { power: true });
+    assert.equal(reads, 2);
+    assert.equal(sessions, 2);
+    assert.equal(calls.at(-1).options.headers['Mcp-Session-Id'], 'SESSION-2');
+  }
+});
+
+test('read recovery is bounded and does not retry non-session failures', async () => {
+  for (const [status, session, expectedReads] of [[404, 'SESSION', 2], [404, undefined, 1], [503, 'SESSION', 1]]) {
+    const { client, calls } = server(() => new Response('private', { status }), { session });
+    await assert.rejects(client.listDevices(), { code: 'APP_ERROR' });
+    assert.equal(calls.filter(call => call.request.method === 'tools/call').length, expectedReads);
+  }
+});
+
+test('a late stale response cannot invalidate the session refreshed by another read', async () => {
+  let release;
+  let oldReads = 0;
+  let sessions = 0;
+  const { client, calls } = server((request, options) => {
+    if (options.headers['Mcp-Session-Id'] === 'SESSION-1') {
+      if (++oldReads === 1) return new Promise(resolve => { release = () => resolve(new Response(null, { status: 404 })); });
+      return new Response(null, { status: 404 });
+    }
+    return json(rpc(request, tool([])));
+  }, { session: () => `SESSION-${++sessions}` });
+  const delayed = client.listDevices();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(await client.listDevices(), []);
+  release();
+  assert.deepEqual(await delayed, []);
+  assert.equal(sessions, 2);
+  assert.equal(calls.at(-1).options.headers['Mcp-Session-Id'], 'SESSION-2');
+});
+
+test('an expired session during play_scene never replays the mutation', async () => {
+  let sessions = 0;
+  const { client, calls } = server(request => request.params.name === 'list_scenes'
+    ? json(rpc(request, tool(scenes(['Ocean'])))) : new Response(null, { status: 404 }),
+  { session: () => `SESSION-${++sessions}` });
+  await assert.rejects(client.playScene(DEVICE, 'Ocean'), { code: 'APP_ERROR' });
+  assert.equal(sessions, 1);
+  assert.equal(calls.filter(call => call.request.params?.name === 'play_scene').length, 1);
+});
+
+test('read time budgets include initialization and do not send a late tool call', async () => {
+  let release;
+  const backend = server(request => json(rpc(request, tool([]))));
+  const client = new NanoleafClient({ fetchImpl: async (url, options) => {
+    if (JSON.parse(options.body).method === 'initialize') {
+      await new Promise(resolve => { release = resolve; });
+    }
+    return backend.fetchImpl(url, options);
+  } });
+  await assert.rejects(client.listDevices({ timeoutMs: 20 }), { code: 'APP_TIMEOUT' });
+  release();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(backend.calls.filter(call => call.request.method === 'tools/call').length, 0);
+});
+
+test('session recovery cannot start another read after the total time budget expires', async () => {
+  let clock = 0;
+  const backend = server(() => {
+    clock += 21;
+    return new Response(null, { status: 404 });
+  }, { session: 'SESSION' });
+  const client = new NanoleafClient({ fetchImpl: backend.fetchImpl, now: () => clock });
+  await assert.rejects(client.getState(DEVICE, { timeoutMs: 20 }), { code: 'APP_TIMEOUT' });
+  assert.equal(backend.calls.filter(call => call.request.method === 'initialize').length, 1);
+  assert.equal(backend.calls.filter(call => call.request.method === 'tools/call').length, 1);
+});
+
+test('invalid read time budgets never reach the server', async () => {
+  const client = new NanoleafClient({ fetchImpl: () => { assert.fail('Unexpected request'); } });
+  for (const timeoutMs of [0, -1, NaN, Infinity, '20']) {
+    await assert.rejects(client.listDevices({ timeoutMs }), { code: 'INVALID_ARGUMENT' });
+    await assert.rejects(client.getState(DEVICE, { timeoutMs }), { code: 'INVALID_ARGUMENT' });
+  }
+});
+
+test('tool timeout finishes transport cleanup before rejecting the caller', async () => {
+  let stream;
+  let signal;
+  const backend = server((_request, options) => {
+    signal = options.signal;
+    stream = openStream([]);
+    return stream.response;
+  });
+  // A fixed clock deterministically exposes two competing full-budget timers.
+  const client = new NanoleafClient({ fetchImpl: backend.fetchImpl, timeoutMs: 20, now: () => 0 });
+  await assert.rejects(client.listDevices(), { code: 'APP_TIMEOUT' });
+  assert.equal(signal.aborted, true);
+  assert.equal(stream.cancelled, 1);
+});
+
+test('a short initialization waiter times out without cancelling another caller or sending a late tool', async () => {
+  let release;
+  const backend = server(request => json(rpc(request, tool([]))));
+  const client = new NanoleafClient({ fetchImpl: async (url, options) => {
+    if (JSON.parse(options.body).method === 'initialize') await new Promise(resolve => { release = resolve; });
+    return backend.fetchImpl(url, options);
+  } });
+  const first = client.listDevices({ timeoutMs: 1000 });
+  await new Promise(resolve => setImmediate(resolve));
+  await assert.rejects(client.listDevices({ timeoutMs: 20 }), { code: 'APP_TIMEOUT' });
+  release();
+  assert.deepEqual(await first, []);
+  assert.equal(backend.calls.filter(call => call.request.method === 'initialize').length, 1);
+  assert.equal(backend.calls.filter(call => call.request.method === 'tools/call').length, 1);
 });
