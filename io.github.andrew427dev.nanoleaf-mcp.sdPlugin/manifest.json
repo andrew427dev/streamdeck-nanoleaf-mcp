@@ -1,0 +1,61 @@
+{
+  "$schema": "https://schemas.elgato.com/streamdeck/plugins/manifest.json",
+  "Name": "Nanoleaf MCP",
+  "UUID": "io.github.andrew427dev.nanoleaf-mcp",
+  "Version": "0.1.0.0",
+  "Author": "andrew427dev",
+  "Description": "Control power and existing scenes through Nanoleaf Desktop's local MCP server. Unofficial macOS beta.",
+  "URL": "https://github.com/andrew427dev/streamdeck-nanoleaf-mcp",
+  "Category": "Nanoleaf MCP",
+  "CategoryIcon": "imgs/category",
+  "Icon": "imgs/plugin",
+  "CodePath": "bin/plugin.js",
+  "SDKVersion": 3,
+  "Software": {
+    "MinimumVersion": "7.1"
+  },
+  "OS": [
+    {
+      "Platform": "mac",
+      "MinimumVersion": "13"
+    }
+  ],
+  "Nodejs": {
+    "Version": "24"
+  },
+  "PropertyInspectorPath": "ui/index.html",
+  "Actions": [
+    {
+      "UUID": "io.github.andrew427dev.nanoleaf-mcp.power",
+      "Name": "Power",
+      "Tooltip": "Turn a selected light on, off, or toggle its power.",
+      "Icon": "imgs/power-action",
+      "Controllers": [
+        "Keypad"
+      ],
+      "States": [
+        {
+          "Image": "imgs/power-key",
+          "TitleAlignment": "bottom",
+          "FontSize": 12
+        }
+      ]
+    },
+    {
+      "UUID": "io.github.andrew427dev.nanoleaf-mcp.scene",
+      "Name": "Scene",
+      "Tooltip": "Play an existing Nanoleaf Desktop scene on a selected light.",
+      "Icon": "imgs/scene-action",
+      "Controllers": [
+        "Keypad"
+      ],
+      "States": [
+        {
+          "Image": "imgs/scene-key",
+          "TitleAlignment": "bottom",
+          "FontSize": 12
+        }
+      ]
+    }
+  ]
+}

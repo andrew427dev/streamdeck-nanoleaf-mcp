@@ -1,0 +1,12 @@
+node_modules/
+dist/
+*.streamDeckPlugin
+*.sdPlugin/bin/
+*.sdPlugin/imgs/*.png
+*.sdPlugin/logs/
+*.sdPlugin/LICENSE
+*.sdPlugin/THIRD-PARTY-NOTICES.txt
+.DS_Store
+coverage/
+.env*
+*.log

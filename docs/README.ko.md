@@ -1,0 +1,63 @@
+# Nanoleaf MCP for Stream Deck
+
+Stream Deck에서 Nanoleaf Desktop의 전원과 저장된 씬을 제어하는 macOS용 비공식 오픈소스 플러그인입니다.
+
+[English](../README.md) · [릴리스](https://github.com/andrew427dev/streamdeck-nanoleaf-mcp/releases) · [개인정보 안내](../PRIVACY.md)
+
+**v0.1.0-beta.1은 베타 버전입니다.** 새 플러그인을 이용한 실제 Stream Deck 버튼 검증이 아직 필요합니다. 이전에 별도 로컬 헬퍼로 수행한 검증은 이 플러그인의 동작 검증을 대신하지 않습니다.
+
+## 기능
+
+- **Power:** 선택한 장치의 전원을 켜거나 끄고, 현재 상태를 반전할 수 있습니다.
+- **Scene:** Nanoleaf Desktop에 이미 저장된 씬을 실행합니다.
+- 버튼 설정의 드롭다운에서 장치와 씬을 선택합니다.
+- 버튼을 누를 때 Nanoleaf Desktop을 실행하도록 설정할 수 있습니다. 기본값은 꺼짐이며 버튼마다 따로 설정합니다.
+
+플러그인은 같은 컴퓨터의 `http://127.0.0.1:15765/mcp`로 요청을 보냅니다. API 키나 유료 AI 서비스가 필요하지 않습니다. 설치 후 사용에는 별도의 헬퍼·단축어·Node.js 설치가 필요하지 않으며, Stream Deck에 포함된 실행 환경을 사용합니다. Nanoleaf Desktop 자체는 별도로 클라우드나 로컬 네트워크에 연결할 수 있습니다.
+
+## 필요 환경과 호환성
+
+- macOS 13 이상
+- Stream Deck 7.1 이상
+- 장치 연결과 설정이 완료된 Nanoleaf Desktop 3.x
+
+Nanoleaf Desktop 3.0.1에서 장치 목록·씬 목록·조명 상태의 읽기 전용 조회를 확인했습니다. 이번 베타에서는 PC Screen Mirror Lightstrip(NL82K2)만 목록에 표시하며 제어를 지원합니다. 다른 장치와 이후 앱 버전의 호환성은 별도 검증이 필요합니다. 이번 버전은 Windows를 지원하지 않습니다.
+
+## 설치와 버튼 설정
+
+1. [릴리스 페이지](https://github.com/andrew427dev/streamdeck-nanoleaf-mcp/releases)에서 `io.github.andrew427dev.nanoleaf-mcp.streamDeckPlugin`을 받으세요.
+2. 설치 파일을 두 번 클릭한 뒤 Stream Deck의 설치 안내를 따라 주세요.
+3. Nanoleaf Desktop을 열고 앱에서 장치가 정상 작동하는지 확인해 주세요.
+4. 원하시면 Stream Deck에 **Nanoleaf** 폴더를 만드세요. 폴더 안에서 **Nanoleaf MCP** 작업 분류의 **Power** 또는 **Scene**을 버튼에 끌어다 놓으세요.
+5. 장치를 선택한 뒤 Power는 **On**, **Off**, **Toggle** 중 하나를, Scene은 저장된 씬을 선택해 주세요.
+6. Stream Deck의 제목 입력란에 **ON**, **OFF** 또는 씬 이름을 적어 주세요. 버튼을 누르면 선택한 동작이 실행됩니다. 켜기·끄기 버튼과 씬별 버튼을 각각 만들 수 있습니다.
+
+씬은 Nanoleaf Desktop에 저장된 것을 사용합니다. 플러그인에 씬 정의가 포함되어 있지는 않습니다. 설치 시 기존 헬퍼·단축어·버튼을 옮기거나 교체하지 않으므로, 기존 구성을 유지한 채 새 버튼을 시험하실 수 있습니다.
+
+## 문제 해결
+
+- **연결되지 않을 때:** Nanoleaf Desktop을 열고 버전을 확인한 뒤 다시 시도해 주세요. 버튼별 자동 실행 옵션을 켜지 않았다면 앱이 실행 중이어야 합니다.
+- **장치나 씬이 없을 때:** Nanoleaf Desktop에서 연결 상태와 저장된 씬을 확인한 뒤 버튼 설정의 목록을 새로 고쳐 주세요.
+- **운영체제의 권한 요청이 표시될 때:** Nanoleaf Desktop이 실제로 요청하는 권한을 확인하고 필요한 접근을 허용해 주세요. 시스템 전체의 보호 기능을 끄실 필요는 없습니다.
+- **응답 시간이 초과될 때:** 요청이 이미 장치에 적용되었을 수 있습니다. 조명 상태를 확인한 뒤 다시 누르세요. 변경 요청을 자동 재전송하지 않습니다.
+- **앱 업데이트 후 작동하지 않을 때:** 오류 보고에 앱과 플러그인 버전을 적어 주세요. 로그나 스크린샷을 첨부하기 전 장치 ID·씬 이름·개인 경로 등은 지워 주세요.
+
+## 개발과 검증
+
+개발 환경에는 Node.js 24와 npm을 사용합니다. 설치된 플러그인은 Stream Deck에 포함된 Node.js 24 환경에서 실행됩니다.
+
+```sh
+npm ci
+npm test
+npm run build
+npm run validate
+npm run pack
+```
+
+자동 테스트는 플러그인을 빌드한 뒤 합성 장치와 모의 응답을 사용합니다. 설치 파일의 동작 검사는 임시 로컬 WebSocket 서버를 사용하며 Nanoleaf 요청을 모두 가짜 응답으로 대체하므로 실제 조명을 변경하지 않습니다. 테스트나 패키지 검증을 통과했다고 실제 하드웨어 호환성까지 확인된 것은 아닙니다. 기여와 검증 기준은 [CONTRIBUTING.md](../CONTRIBUTING.md)에 안내되어 있습니다.
+
+## 개인정보와 라이선스
+
+장치 ID와 씬 이름은 Stream Deck의 로컬 버튼 설정에 저장됩니다. 내보낸 프로필에도 포함될 수 있으므로 공유 전 확인해 주세요. 자세한 내용은 [PRIVACY.md](../PRIVACY.md)와 [SECURITY.md](../SECURITY.md)를 참고해 주세요.
+
+이 프로젝트가 작성한 코드는 [MIT 라이선스](../LICENSE)로 제공되며, 의존성에는 각각의 라이선스가 적용됩니다. Nanoleaf와 Stream Deck 명칭은 연동 대상을 설명하기 위해 사용합니다. 이 프로젝트는 해당 업체와 제휴하거나 공식 승인을 받은 제품이 아닙니다. Nanoleaf의 독점 씬 정의나 앱 에셋은 배포하지 않습니다.

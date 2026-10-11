@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src ws://127.0.0.1:*; base-uri 'none'; form-action 'none'">
+    <title>Nanoleaf Local MCP</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="inspector.js" defer></script>
+  </head>
+  <body>
+    <main>
+      <p class="intro" data-i18n="intro">Open Nanoleaf Desktop and connect your light before refreshing.</p>
+
+      <div class="field">
+        <label for="device" data-i18n="device">Device</label>
+        <select id="device" aria-describedby="device-hint" disabled></select>
+      </div>
+      <p id="device-hint" class="hint" hidden></p>
+
+      <div id="scene-field" class="field" hidden>
+        <label for="scene" data-i18n="scene">Scene</label>
+        <select id="scene" aria-describedby="scene-hint" disabled></select>
+      </div>
+      <p id="scene-hint" class="hint" hidden></p>
+
+      <div id="power-field" class="field" hidden>
+        <label for="power-mode" data-i18n="powerMode">Power mode</label>
+        <select id="power-mode" disabled>
+          <option value="toggle" data-i18n="toggle">Toggle on / off</option>
+          <option value="on" data-i18n="on">On</option>
+          <option value="off" data-i18n="off">Off</option>
+        </select>
+      </div>
+
+      <div class="button-row">
+        <button id="refresh" type="button" data-i18n="refresh" disabled>Refresh lists</button>
+      </div>
+      <p id="status" role="status" aria-live="polite" data-kind="info">Connecting to Stream Deck…</p>
+
+      <label class="checkbox" for="auto-launch">
+        <input id="auto-launch" type="checkbox" aria-describedby="launch-help" disabled>
+        <span data-i18n="autoLaunch">Open Nanoleaf Desktop when a key is pressed</span>
+      </label>
+      <p id="launch-help" class="help" data-i18n="launchHelp">Optional. Only key presses may open the app; refreshing does not. Leave this off if you already keep Nanoleaf Desktop running.</p>
+      <p class="footer" data-i18n="privacy">Settings stay in your Stream Deck profile. No AI account or API key is needed.</p>
+    </main>
+  </body>
+</html>

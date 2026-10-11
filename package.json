@@ -1,0 +1,19 @@
+{
+  "name": "streamdeck-nanoleaf-mcp",
+  "version": "0.1.0-beta.1",
+  "private": true,
+  "type": "module",
+  "description": "Community macOS Stream Deck plugin for Nanoleaf Desktop local MCP control",
+  "license": "MIT",
+  "author": "andrew427dev",
+  "repository": "github:andrew427dev/streamdeck-nanoleaf-mcp",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "test": "npm run build && node --test",
+    "build": "node scripts/build.mjs",
+    "validate": "streamdeck validate io.github.andrew427dev.nanoleaf-mcp.sdPlugin",
+    "pack": "npm run build && npm run validate && streamdeck pack io.github.andrew427dev.nanoleaf-mcp.sdPlugin --output dist --force"
+  },
+  "dependencies": { "@elgato/streamdeck": "3.0.2" },
+  "devDependencies": { "@elgato/cli": "1.10.2", "esbuild": "0.28.2", "sharp": "0.35.5", "ws": "8.22.0" }
+}
