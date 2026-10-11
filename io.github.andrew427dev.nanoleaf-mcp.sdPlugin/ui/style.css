@@ -12,13 +12,13 @@ p { margin: 0 0 12px; line-height: 1.5; }
 .intro { color: #d0d0d5; }
 .field { display: grid; grid-template-columns: 76px minmax(0, 1fr); align-items: center; gap: 10px; margin-bottom: 10px; }
 .field > label { text-align: right; color: #c9c9ce; }
-select, button { min-height: 30px; border: 1px solid #55555b; border-radius: 5px; color: inherit; background: #414146; font: inherit; }
-select { width: 100%; min-width: 0; padding: 4px 6px; }
+select, button, input[type="number"] { min-height: 30px; border: 1px solid #55555b; border-radius: 5px; color: inherit; background: #414146; font: inherit; }
+select, input[type="number"] { width: 100%; min-width: 0; padding: 4px 6px; }
 button { padding: 5px 12px; cursor: pointer; }
 button:hover:enabled { background: #515159; }
 button:active:enabled { background: #393940; }
 select:focus-visible, button:focus-visible, input:focus-visible { outline: 2px solid #8fb6ff; outline-offset: 2px; }
-select:disabled, button:disabled { opacity: .55; cursor: default; }
+select:disabled, button:disabled, input:disabled { opacity: .55; cursor: default; }
 .button-row { text-align: right; }
 #status { margin-top: 10px; color: #c9c9ce; overflow-wrap: anywhere; }
 #status[data-kind="error"], #command-status[data-kind="error"], .hint { color: #ffcc94; }
@@ -27,6 +27,7 @@ select:disabled, button:disabled { opacity: .55; cursor: default; }
 #command-status { margin: 0; color: #c9c9ce; overflow-wrap: anywhere; }
 #command-status[data-kind="success"] { color: #b4e2c0; }
 .hint { margin: -3px 0 12px 86px; overflow-wrap: anywhere; }
+#brightness-help, #display-help { color: #b1b1ba; }
 .checkbox { display: flex; align-items: flex-start; gap: 8px; line-height: 1.5; padding-top: 10px; border-top: 1px solid #45454b; }
 .checkbox input { flex-shrink: 0; margin: 3px 0 0; accent-color: #9abfff; }
 .help { margin: 7px 0 14px 21px; color: #b1b1ba; }

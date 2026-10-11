@@ -1,18 +1,25 @@
 # Nanoleaf MCP for Stream Deck
 
-Control power and saved scenes in Nanoleaf Desktop from Stream Deck. This is an unofficial, open-source plugin for macOS.
+Control power, brightness, and saved scenes in Nanoleaf Desktop from Stream Deck. This is an unofficial, open-source plugin for macOS.
 
 [한국어 안내](docs/README.ko.md) · [Releases](https://github.com/andrew427dev/streamdeck-nanoleaf-mcp/releases) · [Privacy](PRIVACY.md)
 
-**v0.1.0-beta.2 is a beta.** Power on/off and saved-scene buttons, plus the settings UI, were tested on a physical Stream Deck + with beta.1. The beta.2 recovery changes are covered by automated tests; physical cold-start/automatic-launch testing remains pending.
+**v0.3.0-beta.1 adds live power feedback, brightness controls, and two Stream Deck + dial actions.** Touch-to-change visualization, press-to-toggle power, and scene browsing/playback were confirmed on a physical Stream Deck + with Nanoleaf Desktop 3.0.1 and Stream Deck 7.6.0 on macOS. This remains a beta; other hardware and app versions need separate testing.
 
 ## Features
 
 - **Power:** turn a selected device on, off, or toggle its power.
+- **Live power icon:** green ON, gray OFF, or a question mark when state is unavailable. Visible controls share read-only polling, approximately every two seconds after each response; polling never opens the app. Custom Stream Deck icons override plugin images.
+- **Brightness Up / Down:** separate physical key actions, initially 5 percentage points per press.
+- **Brightness Dial:** turn to adjust brightness (initially 2 percentage points per tick), press to toggle power, and tap its touch-strip area to cycle **bar → ring → large number**. The display preference is saved per dial and selectable in settings. Live feedback updates while idle. A display tap never changes the light or launches Desktop; rotation and power presses respect the action's app-launch option.
+- **Scene Browser:** add a second dial. The first press or tap opens saved scenes; rotate to select, then press or tap to play. Three rows show nearby names and the selected scene. Browsing changes no lighting state. Loading/applying ignores duplicate gestures, and failed commands are never automatically replayed. The scene list/selection remains in memory, not profile settings. Leaving and reopening the profile resets the browser for a fresh list. Long touches have no action.
+- Successful key presses no longer show the green check overlay. Actual-state feedback, error alerts, and command status in settings remain available.
 - **Scene:** play a scene already saved in Nanoleaf Desktop.
 - Choose devices and scenes from dropdowns in the button settings.
 - See the last button command's progress, success, or a safe error explanation in the settings, separately from list-refresh status.
-- Optionally launch Nanoleaf Desktop when a button is pressed. This is off by default and configured separately for each button.
+- Optionally launch Nanoleaf Desktop for lighting commands or when opening the Scene Browser. This is off by default and configured separately for each button or dial. A brightness-display tap never launches the app.
+
+For brightness adjustments, choose a step from 1 to 100 percentage points and optionally enable app launch for key presses or dial rotation. Adjustments are clamped to 0–100 and send no power or scene change; pressing the brightness dial is a separate power-toggle gesture. Fast same-direction input is combined; direction changes retain order. Pending movement is dropped if a command fails or the control is removed/reconfigured. Commands already sent are not replayed or undone. Do not operate power/scene and brightness simultaneously: a busy device safely rejects competing changes.
 
 Requests go to Nanoleaf Desktop at `http://127.0.0.1:15765/mcp`. No API key or paid AI service is required. End users do not need a separate helper, Shortcut, or Node.js installation; Stream Deck supplies the plugin runtime. Nanoleaf Desktop may independently use the cloud or local network.
 
@@ -22,7 +29,7 @@ Requests go to Nanoleaf Desktop at `http://127.0.0.1:15765/mcp`. No API key or p
 - Stream Deck 7.1 or later.
 - Nanoleaf Desktop 3.x, with the device connected and set up in the app.
 
-Device/scene discovery, light state, physical power on/off and saved-scene buttons, and the settings UI were verified with beta.1, Nanoleaf Desktop 3.0.1, Stream Deck 7.6.0, and Stream Deck + on macOS. This beta only exposes the PC Screen Mirror Lightstrip (NL82K2). Other devices and future app versions need separate testing. Windows is not supported in this release.
+Earlier betas verified device/scene discovery, light state, physical power and scene buttons, brightness keys/rotation, and the settings UI. v0.3.0-beta.1 additionally verified physical brightness-display touch, dial power presses, scene-list opening/rotation, and both touch and press playback. Testing used Nanoleaf Desktop 3.0.1, Stream Deck 7.6.0, and Stream Deck + on macOS. Cold-start automatic launch was not re-tested on v0.3.0-beta.1. This beta only exposes the PC Screen Mirror Lightstrip (NL82K2). Other devices and future app versions need separate testing. Windows is not supported in this release.
 
 ## Install and set up
 
@@ -34,6 +41,13 @@ Device/scene discovery, light state, physical power on/off and saved-scene butto
 6. Give the button a title in Stream Deck, such as **ON**, **OFF**, or your scene name. Press it to apply the selected action. You can make separate On and Off buttons and as many scene buttons as you need.
 
 The plugin uses your existing saved scenes; it does not include scene definitions. Installing it does not migrate or replace existing helper scripts, Shortcuts, or buttons. You can leave those in place while testing new buttons.
+
+### Brightness keys and Stream Deck + dials
+
+1. Add **Brightness Down** and **Brightness Up** to keys, select the device, and choose the adjustment step.
+2. On Stream Deck +, add **Brightness Dial** to a dial. Turn for brightness, press for power, and tap the display directly above that dial to cycle bar, ring, and number views.
+3. Add **Scene Browser** to another dial and select the device. Press or tap to open the list, turn to select, then press or tap to play. Touch confirms the highlighted scene; it does not select a separate row by its screen position.
+4. Enable automatic launch for each control if you want it to open Nanoleaf Desktop when needed. Otherwise, Desktop must already be running. Opening the settings or changing the brightness visualization never launches Desktop.
 
 ## Troubleshooting
 

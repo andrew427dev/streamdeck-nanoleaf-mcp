@@ -1,5 +1,36 @@
 # Changelog
 
+## 0.3.0-beta.1 — 2026-10-11
+
+- First public release of the improvements developed in the internal 0.2.0 betas: live power icons, brightness decrease/increase keys, queued dial brightness adjustment, three brightness visualizations, and removal of green success-check overlays.
+
+- Brightness dial gestures: rotate for brightness, press to toggle power, and tap the touch strip to cycle display modes. Long taps do nothing.
+- New Scene Browser dial: first press/tap opens saved scenes, rotation chooses without applying, then press/tap plays the selection. Lists remain in memory and reset when the action disappears.
+- Ignore duplicate gestures while reading/applying; cancel stale scene commands before transmission when a control disappears or is reconfigured. Never replay ambiguous changes.
+- Separate safe loading, empty-list, failure, selection, and applied feedback; preserve original profiles and existing key actions.
+- Include the complete zod MIT notice alongside the other bundled dependency licenses, with a regression check for packaged notices.
+- Remove temporary diagnostic instrumentation from the installed build. The earlier physical dial trace confirmed dialDown and dialUp delivery and saved a changed preference after restart; the earlier intermittent failure's cause was not established.
+- Validation: 147 automated tests, official plugin validation, and packaging passed. Both dial layouts and Korean settings, including automatic-launch preferences, were checked in the installed Stream Deck app. Only the temporary test profile was changed; original profiles and helper files remained byte-for-byte unchanged.
+- On 2026-10-11, the tester confirmed physical Stream Deck + operation: touching the brightness display changes its visualization, pressing the brightness dial toggles power, and the Scene Browser opens the list, selects by rotation, and plays the selection through both touch and dial press. Cold-start automatic launch was not re-tested on this build. Hardware testing used a separate temporary profile.
+
+## 0.2.0-beta.2 — Internal development build (not separately released)
+
+- Press the brightness dial to cycle bar, ring, and large-number displays; remember the choice per dial and expose it in English/Korean settings.
+- Keep live brightness/power feedback separate from lighting commands. Display-only changes do not launch Desktop or cancel queued brightness adjustments.
+- Remove green success-check overlays from power, scene, and brightness keys. Preserve error alerts and command outcomes in settings.
+- Migrate cached dial layouts automatically while retaining existing device, step, launch, and title settings.
+- Add renderer, settings, and bundled SDK regression coverage for display cycling and feedback: 113 automated tests passed. Official validation and packaging passed; bar/ring/number rendering and Korean settings were verified in the installed Stream Deck app. Physical press-to-cycle verification is separate from automated testing.
+
+## 0.2.0-beta.1 — Internal development build (not separately released)
+
+- Live ON/OFF/unknown power icons based on measured device state, with shared read-only polling only while controls are visible.
+- Separate brightness increase/decrease key actions with configurable percentage-point steps.
+- Stream Deck + brightness dial with adjustable rotation step and percentage/bar feedback.
+- Bounded, per-device brightness input queue: combine same-direction movement, retain reversals, and cancel pending input after failure, disappearance, or reconfiguration.
+- Brightness-only MCP requests preserve power/scene fields; automatic launch remains an explicit per-control choice.
+- Synthetic backend, settings, state/queue, and bundled SDK regression coverage: 99 automated tests passed.
+- The user confirmed live power feedback, brightness increase/decrease keys, and the brightness dial on a physical Stream Deck + with Nanoleaf Desktop 3.0.1 and Stream Deck 7.6.0 on macOS. Installed only in the temporary test profile; original profiles and the existing helper remain unchanged. Cold-start launch was not re-tested on this build. This version remains an unpublished development beta.
+
 ## 0.1.0-beta.2 — 2026-10-11
 
 ### Fixed

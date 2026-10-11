@@ -1,0 +1,10 @@
+{
+  "$schema": "https://schemas.elgato.com/streamdeck/plugins/layout.json",
+  "id": "nanoleaf-scenes",
+  "controller": "Encoder",
+  "items": [
+    { "key": "canvas", "type": "pixmap", "rect": [0, 0, 200, 100], "zOrder": 0 },
+    { "key": "title", "type": "text", "rect": [12, 6, 176, 20], "zOrder": 1,
+      "font": { "size": 14, "weight": 600 }, "alignment": "left" }
+  ]
+}

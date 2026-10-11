@@ -14,6 +14,8 @@ The plugin processes device identifiers, available scene names, and light state 
 
 Last-command status is kept in plugin memory, associated with the local button context, and cleared on plugin restart. It uses predefined status/error codes rather than raw backend messages; it is not written into profile settings or sent to a cloud service.
 
+Visible power keys and brightness dials periodically read the selected device's state for feedback. These reads never launch Nanoleaf Desktop. Measured state stays in memory and is not written to profiles. Brightness step and display-mode settings are stored locally alongside the device and app-launch preference. Tapping the brightness display changes only its local display preference; pressing that dial toggles power. Scene Browser lists and selections are kept only in memory, and browsing does not change the light. Explicitly opening or applying a scene may launch Desktop only when that action's auto-launch setting is enabled.
+
 Device IDs and custom scene names can be identifying or personal. Exported Stream Deck profiles, backups, and synchronized copies may include them. Review a profile before sharing it. Plugin installation does not distribute the maintainer's personal profiles, device state files, or scene definitions.
 
 ## Reports and diagnostics

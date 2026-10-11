@@ -58,7 +58,7 @@ test('initializes once, selects the fixed endpoint, and preserves only public de
     'initialize', 'notifications/initialized', 'tools/call', 'tools/call',
   ]);
   assert.equal(calls[0].request.params.protocolVersion, '2025-03-26');
-  assert.equal(calls[0].request.params.clientInfo.version, '0.1.0-beta.2');
+  assert.equal(calls[0].request.params.clientInfo.version, '0.3.0-beta.1');
   assert.deepEqual(calls[2].request.params, { name: 'list_devices', arguments: {} });
   assert.equal(calls[1].request.id, undefined);
   const ids = calls.filter(call => call.request.id).map(call => call.request.id);
@@ -80,6 +80,83 @@ test('concurrent reads share one initialization', async () => {
   const { client, calls } = server(request => json(rpc(request, tool([]))));
   await Promise.all([client.listDevices(), client.listDevices()]);
   assert.equal(calls.filter(call => call.request.method === 'initialize').length, 1);
+});
+
+test('inactive mutation guards stop before any network request', async () => {
+  const { client, calls } = server(() => { throw new Error('must not contact server'); });
+  for (const [method, value] of [['playScene', 'Ocean'], ['setPower', true], ['setBrightness', 50]]) {
+    await assert.rejects(client[method](DEVICE, value, { isCurrent: () => false }), { code: 'BUSY' });
+    await assert.rejects(client[method](DEVICE, value, { isCurrent: true }), { code: 'INVALID_ARGUMENT' });
+  }
+  assert.equal(calls.length, 0);
+});
+
+test('a guard invalidated during initialization stops every mutation before transmission', async () => {
+  for (const [method, value] of [['playScene', 'Ocean'], ['setPower', true], ['setBrightness', 50]]) {
+    let release;
+    let active = true;
+    const started = new Promise(resolve => { release = resolve; });
+    const backend = server(request => json(rpc(request, tool(device({})))));
+    const client = new NanoleafClient({ fetchImpl: async (url, options) => {
+      if (JSON.parse(options.body).method === 'initialize') await started;
+      return backend.fetchImpl(url, options);
+    } });
+    const running = client[method](DEVICE, value, { isCurrent: () => active });
+    active = false;
+    release();
+    await assert.rejects(running, { code: 'BUSY' });
+    assert.equal(backend.calls.filter(call => call.request.method === 'tools/call').length, 0);
+  }
+});
+
+test('a scene guard invalidated while listing scenes prevents the scene mutation', async () => {
+  let release;
+  let entered;
+  let active = true;
+  const reading = new Promise(resolve => { entered = resolve; });
+  const { client, calls } = server(async request => {
+    if (request.params.name === 'list_scenes') {
+      entered();
+      await new Promise(resolve => { release = resolve; });
+      return json(rpc(request, tool(scenes(['Ocean']))));
+    }
+    throw new Error('must not send a cancelled mutation');
+  });
+  const running = client.playScene(DEVICE, 'Ocean', { isCurrent: () => active });
+  await reading;
+  active = false;
+  release();
+  await assert.rejects(running, { code: 'BUSY' });
+  assert.equal(calls.filter(call => call.request.params?.name === 'play_scene').length, 0);
+});
+
+test('a scene guard invalidated during readiness sleep ends polling without a mutation', async () => {
+  let time = 0;
+  let active = true;
+  const backend = server(request => json(rpc(request, tool(scenes([])))));
+  const client = new NanoleafClient({ fetchImpl: backend.fetchImpl, now: () => time,
+    sleep: async ms => { time += ms; active = false; } });
+  await assert.rejects(client.playScene(DEVICE, 'Ocean', { isCurrent: () => active }), { code: 'BUSY' });
+  assert.equal(backend.calls.filter(call => call.request.params?.name === 'list_scenes').length, 1);
+  assert.equal(backend.calls.filter(call => call.request.params?.name === 'play_scene').length, 0);
+});
+
+test('cancelling an already transmitted mutation does not send a compensating or repeated command', async () => {
+  let release;
+  let entered;
+  let active = true;
+  const transmitted = new Promise(resolve => { entered = resolve; });
+  const { client, calls } = server(async request => {
+    entered();
+    await new Promise(resolve => { release = resolve; });
+    return json(rpc(request, tool(device({}))));
+  });
+  const running = client.setPower(DEVICE, true, { isCurrent: () => active });
+  await transmitted;
+  active = false;
+  release();
+  await running;
+  assert.equal(calls.filter(call => call.request.params?.name === 'set_light_state').length, 1);
 });
 
 test('normalizes scene names and fixture-zero state without modifying the device', async () => {
@@ -104,6 +181,50 @@ test('accepts device-scoped fixture state in standard JSON text tool output', as
     content: [{ type: 'text', text: JSON.stringify({ results: device({ fixtures: [{ id: 0, power: false }] }) }) }],
   })));
   assert.deepEqual(await client.getState(DEVICE), { power: false });
+});
+
+test('state brightness is a finite number in the 0–100 range, including fractional device readings', async () => {
+  for (const brightness of [0, 42.5, 100]) {
+    const { client } = server(request => json(rpc(request, tool(
+      device({ fixtures: [{ id: 0, power: true, brightness }] }),
+    ))));
+    assert.equal((await client.getState(DEVICE)).brightness, brightness);
+  }
+  for (const brightness of [-1, 100.1, '42', false, {}]) {
+    const { client } = server(request => json(rpc(request, tool(
+      device({ fixtures: [{ id: 0, power: true, brightness }] }),
+    ))));
+    await assert.rejects(client.getState(DEVICE), { code: 'PROTOCOL_ERROR' });
+  }
+});
+
+test('brightness updates send only device and brightness, never power or scene', async () => {
+  const { client, calls } = server(request => json(rpc(request, tool(device({})))));
+  for (const brightness of [0, 42, 100]) await client.setBrightness(DEVICE, brightness);
+  assert.deepEqual(calls.filter(call => call.request.method === 'tools/call').map(call => call.request.params),
+    [0, 42, 100].map(brightness => ({ name: 'set_light_state', arguments: { states: [{ device: DEVICE, brightness }] } })));
+});
+
+test('invalid brightness settings are rejected before any request', async () => {
+  const { client, calls } = server(() => { throw new Error('must not contact server'); });
+  for (const brightness of [-1, 101, 1.5, NaN, Infinity, '50', true, null, undefined]) {
+    await assert.rejects(client.setBrightness(DEVICE, brightness), { code: 'INVALID_ARGUMENT' });
+  }
+  await assert.rejects(client.setBrightness('', 50), { code: 'INVALID_ARGUMENT' });
+  assert.equal(calls.length, 0);
+});
+
+test('brightness failures and expired sessions never replay a mutation', async () => {
+  for (const [response, code] of [
+    [() => new Response('Session expired', { status: 404 }), 'APP_ERROR'],
+    [() => { throw new TypeError('private backend information'); }, 'APP_CONNECTION'],
+    [request => json(rpc(request, tool([{ device: DEVICE, ok: false }]))), 'DEVICE_ERROR'],
+    [request => json(rpc(request, tool([{ device: 'OTHER-DEVICE', ok: true, data: {} }]))), 'DEVICE_ERROR'],
+  ]) {
+    const { client, calls } = server(response, { session: 'TEST-SESSION' });
+    await assert.rejects(client.setBrightness(DEVICE, 50), { code });
+    assert.equal(calls.filter(call => call.request.params?.name === 'set_light_state').length, 1);
+  }
 });
 
 test('state requires an exact device match and one unambiguous fixture zero', async () => {

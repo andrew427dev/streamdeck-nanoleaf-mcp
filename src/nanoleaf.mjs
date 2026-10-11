@@ -14,7 +14,8 @@ const MESSAGES = {
   PROTOCOL_ERROR: 'Nanoleaf Desktop returned an unsupported or invalid response.',
   DEVICE_ERROR: 'The Nanoleaf device did not complete the request. Check its connection.',
   SCENE_NOT_READY: 'The selected scene is not ready on this device. Check the scene in Nanoleaf Desktop.',
-  INVALID_ARGUMENT: 'Select a valid device, scene, or power setting.',
+  INVALID_ARGUMENT: 'Select a valid device, scene, power, or brightness setting.',
+  BUSY: 'This command was cancelled because its control is no longer active.',
 };
 
 /** A safe error for display or logging: backend messages and identifiers are never included. */
@@ -27,6 +28,10 @@ export class NanoleafError extends Error {
 }
 
 const fail = code => new NanoleafError(code);
+function checkCurrent(isCurrent) {
+  if (isCurrent !== undefined && typeof isCurrent !== 'function') throw fail('INVALID_ARGUMENT');
+  if (isCurrent && !isCurrent()) throw fail('BUSY');
+}
 // Internal marker only: public messages remain the allowlisted APP_ERROR.
 class ExpiredSessionError extends NanoleafError {
   constructor() { super('APP_ERROR'); }
@@ -271,7 +276,7 @@ export class NanoleafClient {
         const result = await this.#post('initialize', {
           protocolVersion: PROTOCOL_VERSION,
           capabilities: {},
-          clientInfo: { name: 'streamdeck-nanoleaf-mcp', version: '0.1.0-beta.2' },
+          clientInfo: { name: 'streamdeck-nanoleaf-mcp', version: '0.3.0-beta.1' },
         }, { initialize: true, timeoutMs: remaining() });
         if (!SUPPORTED_PROTOCOLS.has(result.protocolVersion) || !isRecord(result.capabilities?.tools)) {
           throw fail('PROTOCOL_ERROR');
@@ -286,7 +291,7 @@ export class NanoleafClient {
     await this.#initializing;
   }
 
-  async #call(name, args, timeoutMs = this.#timeoutMs) {
+  async #call(name, args, timeoutMs = this.#timeoutMs, { isCurrent } = {}) {
     if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) throw fail('INVALID_ARGUMENT');
     const deadline = this.#now() + timeoutMs;
     const remaining = () => {
@@ -295,6 +300,7 @@ export class NanoleafClient {
       return ms;
     };
     for (let attempt = 0; ; attempt++) {
+      checkCurrent(isCurrent);
       // Bound only this caller's wait for shared initialization. Once the tool
       // starts, #post alone owns its timer so timeout always includes cleanup.
       let timer;
@@ -304,6 +310,7 @@ export class NanoleafClient {
           timer = setTimeout(() => reject(fail('APP_TIMEOUT')), budget);
         })]);
       } finally { clearTimeout(timer); }
+      checkCurrent(isCurrent);
       try {
         return resultsFrom(await this.#post('tools/call', { name, arguments: args }, { timeoutMs: remaining() }));
       } catch (error) {
@@ -348,28 +355,43 @@ export class NanoleafClient {
       result.scene = state.scene;
     }
     if (state.brightness !== undefined && state.brightness !== null) {
-      if (!Number.isFinite(state.brightness)) throw fail('PROTOCOL_ERROR');
+      if (!Number.isFinite(state.brightness) || state.brightness < 0 || state.brightness > 100) {
+        throw fail('PROTOCOL_ERROR');
+      }
       result.brightness = state.brightness;
     }
     return result;
   }
 
-  async setPower(deviceId, power) {
+  async setPower(deviceId, power, options) {
     checkedText(deviceId);
     if (typeof power !== 'boolean') throw fail('INVALID_ARGUMENT');
-    deviceResult(await this.#call('set_light_state', { states: [{ device: deviceId, power }] }), deviceId);
+    deviceResult(await this.#call('set_light_state', { states: [{ device: deviceId, power }] },
+      this.#timeoutMs, options), deviceId);
   }
 
-  async playScene(deviceId, scene) {
+  async setBrightness(deviceId, brightness, options) {
+    checkedText(deviceId);
+    if (!Number.isInteger(brightness) || brightness < 0 || brightness > 100) throw fail('INVALID_ARGUMENT');
+    // Omit power and colour so changing brightness preserves the current power and scene.
+    deviceResult(await this.#call('set_light_state', { states: [{ device: deviceId, brightness }] },
+      this.#timeoutMs, options), deviceId);
+  }
+
+  async playScene(deviceId, scene, { isCurrent } = {}) {
     checkedText(deviceId);
     checkedText(scene);
+    checkCurrent(isCurrent);
     await this.#initialize();
+    checkCurrent(isCurrent);
     const deadline = this.#now() + SCENE_READY_MS;
     let ready = false;
     while (this.#now() < deadline) {
+      checkCurrent(isCurrent);
       try {
         const rows = await this.#call('list_scenes', { devices: [{ device: deviceId }] },
-          Math.min(this.#timeoutMs, Math.max(1, deadline - this.#now())));
+          Math.min(this.#timeoutMs, Math.max(1, deadline - this.#now())), { isCurrent });
+        checkCurrent(isCurrent);
         ready = scenesFrom(rows, deviceId).includes(scene);
         if (ready) break;
       } catch (error) {
@@ -378,7 +400,9 @@ export class NanoleafClient {
       const remaining = deadline - this.#now();
       if (remaining > 0) await this.#sleep(Math.min(POLL_MS, remaining));
     }
+    checkCurrent(isCurrent);
     if (!ready || this.#now() >= deadline) throw fail('SCENE_NOT_READY');
-    deviceResult(await this.#call('play_scene', { scenes: [{ device: deviceId, name: scene }] }), deviceId);
+    deviceResult(await this.#call('play_scene', { scenes: [{ device: deviceId, name: scene }] },
+      this.#timeoutMs, { isCurrent }), deviceId);
   }
 }

@@ -19,6 +19,8 @@ const STREAM_DECK = 'TEST-STREAM-DECK';
 const MCP_PRELOAD = `
 let power = true;
 let scene = 'Example Scene';
+let brightness = 50;
+let offline = false;
 const send = message => process.send?.(message);
 let holdNextPower = false;
 let releasePower;
@@ -27,6 +29,8 @@ process.on('message', message => {
   if (message.type === 'hold-next-power') holdNextPower = true;
   if (message.type === 'release-power') { releasePower?.(); releasePower = undefined; }
   if (message.type === 'fail-next-power') failNextPower = true;
+  if (message.type === 'external-state') { power = message.power; brightness = message.brightness; }
+  if (message.type === 'offline') offline = true;
   send({ type: 'control-ready', command: message.type });
 });
 globalThis.fetch = async (url, options) => {
@@ -51,10 +55,20 @@ globalThis.fetch = async (url, options) => {
   switch (request.params.name) {
     case 'list_devices': return result([{ id: 'TEST-DEVICE', name: 'Example Strip', model: 'NL82K2' }]);
     case 'list_scenes': return result(device({ effects: [{ name: 'Example Scene' }, { name: 'Ocean' }] }));
-    case 'get_light_state': return result(device({ fixtures: [{ id: 0, power, scene, brightness: 50 }] }));
+    case 'get_light_state':
+      if (offline) throw new Error('Synthetic offline');
+      return result(device({ fixtures: [{ id: 0, power, scene, brightness }] }));
     case 'set_light_state':
-      if (args.states?.length !== 1 || args.states[0].device !== 'TEST-DEVICE'
-        || typeof args.states[0].power !== 'boolean') throw new Error('Invalid synthetic power command');
+      if (args.states?.length !== 1 || args.states[0].device !== 'TEST-DEVICE') throw new Error('Invalid synthetic command');
+      if ('brightness' in args.states[0]) {
+        if (Object.keys(args.states[0]).sort().join(',') !== 'brightness,device'
+          || !Number.isInteger(args.states[0].brightness) || args.states[0].brightness < 0 || args.states[0].brightness > 100) {
+          throw new Error('Brightness must not change scene or power');
+        }
+        brightness = args.states[0].brightness;
+        return result(device({}));
+      }
+      if (typeof args.states[0].power !== 'boolean') throw new Error('Invalid synthetic power command');
       if (holdNextPower) {
         holdNextPower = false;
         await new Promise(resolve => { releasePower = resolve; send({ type: 'power-held' }); });
@@ -67,7 +81,7 @@ globalThis.fetch = async (url, options) => {
       return result(device({}));
     case 'play_scene':
       if (args.scenes?.length !== 1 || args.scenes[0].device !== 'TEST-DEVICE'
-        || args.scenes[0].name !== 'Ocean') throw new Error('Invalid synthetic scene command');
+        || !['Example Scene', 'Ocean'].includes(args.scenes[0].name)) throw new Error('Invalid synthetic scene command');
       scene = args.scenes[0].name;
       return result(device({}));
     default: throw new Error('Unknown synthetic MCP tool');
@@ -115,20 +129,46 @@ function registrationInfo() {
     },
     devicePixelRatio: 2,
     devices: [{ id: STREAM_DECK, name: 'Synthetic Stream Deck', size: { columns: 5, rows: 3 }, type: 0 }],
-    plugin: { uuid: PLUGIN, version: '0.1.0.2' },
+    plugin: { uuid: PLUGIN, version: '0.3.0.1' },
   };
 }
 
 function actionEvent(event, kind, context, settings = {}) {
   return {
     event, action: `${PLUGIN}.${kind}`, context, device: STREAM_DECK,
-    payload: { settings, coordinates: { column: 0, row: 0 }, controller: 'Keypad',
+    payload: { settings, coordinates: { column: 0, row: 0 }, controller: kind.endsWith('-dial') ? 'Encoder' : 'Keypad',
       isInMultiAction: false, resources: {}, state: 0 },
   };
 }
 
-test('built plugin registers and handles inspector, validation, power, and scene over Stream Deck WebSocket',
-  { timeout: 10_000 }, async t => {
+function touchEvent(kind, context, settings, hold = false) {
+  const event = actionEvent('touchTap', kind, context, settings);
+  event.payload.tapPos = [40, 30];
+  event.payload.hold = hold;
+  return event;
+}
+
+function dialCanvas(message, context) {
+  if (message.event !== 'setFeedback' || message.context !== context
+    || typeof message.payload?.canvas !== 'string') return '';
+  const prefix = 'data:image/svg+xml;base64,';
+  if (!message.payload.canvas.startsWith(prefix)) return '';
+  return Buffer.from(message.payload.canvas.slice(prefix.length), 'base64').toString('utf8');
+}
+
+function hasDialDisplay(message, context, mode, brightness) {
+  const svg = dialCanvas(message, context);
+  return svg.includes(`data-display-mode="${mode}"`) && svg.includes(`>${brightness}<`);
+}
+
+function hasSceneDisplay(message, context, status, selectedIndex) {
+  const svg = dialCanvas(message, context);
+  return svg.includes(`data-scene-status="${status}"`)
+    && (selectedIndex === undefined || svg.includes(`data-selected-index="${selectedIndex}"`));
+}
+
+test('built plugin handles light commands, touch displays, and scene browsing over Stream Deck WebSocket',
+  { timeout: 30_000 }, async t => {
     try {
       await access(join(SOURCE, 'bin', 'plugin.js'));
     } catch (error) {
@@ -233,8 +273,6 @@ test('built plugin registers and handles inspector, validation, power, and scene
     const powerSettings = { deviceId: DEVICE, powerMode: 'toggle', autoLaunch: false };
     send(actionEvent('didReceiveSettings', 'power', powerContext, powerSettings));
     send(actionEvent('keyDown', 'power', powerContext, powerSettings));
-    await webSocketMessages.wait(message => message.event === 'showOk' && message.context === powerContext,
-      'power success feedback', from);
     const powerSuccess = await webSocketMessages.wait(message => message.event === 'sendToPropertyInspector'
       && message.context === powerContext && message.payload?.event === 'commandStatus'
       && message.payload.state === 'success', 'power completion in the inspector', from);
@@ -255,8 +293,9 @@ test('built plugin registers and handles inspector, validation, power, and scene
       && message.payload.state === 'idle', 'new key has no other key result', from);
     assert.equal(sceneIdle.payload.actionContext, sceneContext);
     send(actionEvent('keyDown', 'scene', sceneContext, sceneSettings));
-    await webSocketMessages.wait(message => message.event === 'showOk' && message.context === sceneContext,
-      'scene success feedback', from);
+    await webSocketMessages.wait(message => message.event === 'sendToPropertyInspector'
+      && message.context === sceneContext && message.payload?.event === 'commandStatus'
+      && message.payload.state === 'success', 'scene completion in the inspector', from);
     const sceneRequest = await ipc.wait(message => message.request?.params?.name === 'play_scene', 'synthetic scene command');
     assert.deepEqual(sceneRequest.request.params.arguments, { scenes: [{ device: DEVICE, name: 'Ocean' }] });
 
@@ -295,8 +334,8 @@ test('built plugin registers and handles inspector, validation, power, and scene
     const busyResult = await webSocketMessages.wait(message => message.event === 'sendToPropertyInspector'
       && message.context === powerContext && message.payload?.errorCode === 'BUSY', 'busy error explanation', from);
     child.send({ type: 'release-power' });
-    await webSocketMessages.wait(message => message.event === 'showOk' && message.context === powerContext,
-      'older held command completion', from);
+    await webSocketMessages.wait(message => message.event === 'setImage' && message.context === powerContext
+      && message.payload?.image === 'imgs/power-on-key.png', 'older held command measured completion', from);
     from = webSocketMessages.messages.length;
     send({ event: 'sendToPlugin', action: `${PLUGIN}.power`, context: powerContext, payload: { event: 'commandStatus' } });
     const lastPress = await webSocketMessages.wait(message => message.event === 'sendToPropertyInspector'
@@ -330,4 +369,241 @@ test('built plugin registers and handles inspector, validation, power, and scene
     assert.equal(webSocketMessages.messages.some(message => message.payload?.requestId === 'ignored-request'), false);
     assert.equal(webSocketMessages.messages.some(message => message.context === 'TEST-UNKNOWN-CONTEXT'), false);
     assert.equal(webSocketMessages.messages.some(message => message.event === 'invalid-json'), false);
+
+    // The power icon reflects measured state, including changes made outside the plugin.
+    from = webSocketMessages.messages.length;
+    child.send({ type: 'external-state', power: true, brightness: 50 });
+    await ipc.wait(message => message.type === 'control-ready' && message.command === 'external-state', 'external state setup');
+    await webSocketMessages.wait(message => message.event === 'setImage' && message.context === powerContext
+      && message.payload?.image === 'imgs/power-on-key.png', 'live power icon', from);
+
+    const dialContext = 'TEST-DIAL';
+    const brightnessSettings = { deviceId: DEVICE, autoLaunch: false };
+    const dialSettings = { ...brightnessSettings, brightnessStep: 2, retainedCustomOption: 'keep-me' };
+    send(actionEvent('willAppear', 'brightness-dial', dialContext, dialSettings));
+    await webSocketMessages.wait(message => message.event === 'setFeedbackLayout' && message.context === dialContext
+      && message.payload?.layout === 'layouts/brightness.json', 'custom dial layout replaces saved built-in layout');
+    await webSocketMessages.wait(message => hasDialDisplay(message, dialContext, 'bar', '50%'), 'initial dial brightness');
+
+    const increaseContext = 'TEST-INCREASE';
+    send(actionEvent('willAppear', 'brightness-up', increaseContext, brightnessSettings));
+    from = webSocketMessages.messages.length;
+    send(actionEvent('keyDown', 'brightness-up', increaseContext, brightnessSettings));
+    await webSocketMessages.wait(message => hasDialDisplay(message, dialContext, 'bar', '55%'),
+      'shared brightness after increase key press', from);
+
+    const decreaseContext = 'TEST-DECREASE';
+    const customStep = { ...brightnessSettings, brightnessStep: 10 };
+    send(actionEvent('willAppear', 'brightness-down', decreaseContext, customStep));
+    from = webSocketMessages.messages.length;
+    send(actionEvent('keyDown', 'brightness-down', decreaseContext, customStep));
+    await webSocketMessages.wait(message => hasDialDisplay(message, dialContext, 'bar', '45%'),
+      'shared brightness after decrease key with custom step', from);
+
+    from = webSocketMessages.messages.length;
+    const rotation = actionEvent('dialRotate', 'brightness-dial', dialContext, dialSettings);
+    rotation.payload.ticks = 3;
+    send(rotation);
+    await webSocketMessages.wait(message => hasDialDisplay(message, dialContext, 'bar', '51%'), 'dial rotation and bar', from);
+    const brightnessWrites = ipc.messages.filter(message => message.request?.params?.name === 'set_light_state'
+      && 'brightness' in message.request.params.arguments.states[0]);
+    assert.deepEqual(brightnessWrites.map(message => message.request.params.arguments.states[0]),
+      [55, 45, 51].map(value => ({ device: DEVICE, brightness: value })));
+
+    // Touching changes only presentation, even if rapid touches carry stale settings.
+    const mutationsBeforeDisplay = ipc.messages.filter(message => ['set_light_state', 'play_scene'].includes(message.request?.params?.name)).length;
+    from = webSocketMessages.messages.length;
+    for (let tap = 0; tap < 3; tap++) send(touchEvent('brightness-dial', dialContext, dialSettings));
+    await webSocketMessages.wait(message => message.event === 'setSettings' && message.context === dialContext
+      && message.payload?.displayMode === 'bar', 'rapid touches cycle back to bar', from);
+    const cycledSettings = webSocketMessages.messages.slice(from)
+      .filter(message => message.event === 'setSettings' && message.context === dialContext);
+    assert.deepEqual(cycledSettings.map(message => message.payload), ['ring', 'number', 'bar']
+      .map(displayMode => ({ ...dialSettings, displayMode })), 'each touch preserves unrelated settings and advances once');
+    await webSocketMessages.wait(message => hasDialDisplay(message, dialContext, 'bar', '51%'),
+      'touching preserves measured brightness', from);
+
+    // A preference explicitly changed in the inspector becomes the next touch's base.
+    send(actionEvent('didReceiveSettings', 'brightness-dial', dialContext, cycledSettings[0].payload));
+    from = webSocketMessages.messages.length;
+    send(touchEvent('brightness-dial', dialContext, dialSettings));
+    const persistedDisplay = await webSocketMessages.wait(message => message.event === 'setSettings' && message.context === dialContext
+      && message.payload?.displayMode === 'number', 'number display follows inspector selection and is persisted', from);
+    await webSocketMessages.wait(message => hasDialDisplay(message, dialContext, 'number', '51%'), 'number display after touch', from);
+    send(actionEvent('willDisappear', 'brightness-dial', dialContext, persistedDisplay.payload));
+    from = webSocketMessages.messages.length;
+    send(actionEvent('willAppear', 'brightness-dial', dialContext, persistedDisplay.payload));
+    await webSocketMessages.wait(message => hasDialDisplay(message, dialContext, 'number', '51%'),
+      'saved number display is restored when the page reappears', from);
+
+    // Unknown configuration has a safe default without silently rewriting the profile.
+    const invalidDialContext = 'TEST-INVALID-DIAL';
+    const invalidDisplaySettings = { ...dialSettings, displayMode: 'unrecognized-display' };
+    from = webSocketMessages.messages.length;
+    send(actionEvent('willAppear', 'brightness-dial', invalidDialContext, invalidDisplaySettings));
+    await webSocketMessages.wait(message => hasDialDisplay(message, invalidDialContext, 'bar', '51%'),
+      'invalid saved display mode falls back to bar', from);
+    assert.equal(webSocketMessages.messages.slice(from).some(message => message.event === 'setSettings'), false,
+      'normal appearance and state rendering never save settings');
+    send(touchEvent('brightness-dial', invalidDialContext, invalidDisplaySettings));
+    await webSocketMessages.wait(message => message.event === 'setSettings' && message.context === invalidDialContext
+      && message.payload?.displayMode === 'ring', 'invalid initial mode cycles from bar to ring', from);
+    send(actionEvent('willDisappear', 'brightness-dial', invalidDialContext, invalidDisplaySettings));
+
+    from = webSocketMessages.messages.length;
+    send(actionEvent('dialUp', 'brightness-dial', dialContext, persistedDisplay.payload));
+    send(touchEvent('brightness-dial', dialContext, persistedDisplay.payload, true));
+    await new Promise(resolve => setTimeout(resolve, 100));
+    assert.equal(webSocketMessages.messages.slice(from).some(message => message.event === 'setSettings'), false,
+      'releasing the dial and holding its touchscreen do not cycle the display');
+    assert.equal(ipc.messages.filter(message => ['set_light_state', 'play_scene'].includes(message.request?.params?.name)).length,
+      mutationsBeforeDisplay, 'display touches, release, and hold do not mutate light power, brightness, or scene');
+
+    // One physical press toggles measured power once; release must not toggle it back.
+    from = webSocketMessages.messages.length;
+    const beforeDialPower = ipc.messages.length;
+    send(actionEvent('dialDown', 'brightness-dial', dialContext, persistedDisplay.payload));
+    send(actionEvent('dialUp', 'brightness-dial', dialContext, persistedDisplay.payload));
+    await webSocketMessages.wait(message => hasDialDisplay(message, dialContext, 'number', 'OFF'),
+      'physical dial press turns the light off', from);
+    await new Promise(resolve => setTimeout(resolve, 100));
+    assert.deepEqual(ipc.messages.slice(beforeDialPower)
+      .filter(message => message.request?.params?.name === 'set_light_state')
+      .map(message => message.request.params.arguments), [{ states: [{ device: DEVICE, power: false }] }],
+    'down plus up performs only one toggle without a brightness or scene write');
+    assert.equal(webSocketMessages.messages.slice(from).some(message => message.event === 'setSettings'), false,
+      'a physical press never changes the display preference');
+    child.send({ type: 'external-state', power: true, brightness: 51 });
+    await webSocketMessages.wait(message => hasDialDisplay(message, dialContext, 'number', '51%'),
+      'dial display follows an external power restoration', from);
+
+    // Changing presentation in the inspector must not cancel an already queued rotation.
+    from = webSocketMessages.messages.length;
+    send({ event: 'propertyInspectorDidAppear', action: `${PLUGIN}.brightness-dial`, context: dialContext, device: STREAM_DECK });
+    const concurrentRotation = actionEvent('dialRotate', 'brightness-dial', dialContext, persistedDisplay.payload);
+    concurrentRotation.payload.ticks = 1;
+    send(concurrentRotation);
+    send(actionEvent('didReceiveSettings', 'brightness-dial', dialContext, { ...persistedDisplay.payload, displayMode: 'bar' }));
+    await webSocketMessages.wait(message => hasDialDisplay(message, dialContext, 'bar', '53%'),
+      'queued brightness completes using the newly selected display', from);
+    await webSocketMessages.wait(message => message.event === 'sendToPropertyInspector' && message.context === dialContext
+      && message.payload?.event === 'commandStatus' && message.payload.state === 'success',
+    'display-only setting changes preserve the pending command result', from);
+    assert.equal(webSocketMessages.messages.slice(from).some(message => message.event === 'sendToPropertyInspector'
+      && message.context === dialContext && message.payload?.event === 'commandStatus'
+      && ['idle', 'error'].includes(message.payload.state)), false,
+    'display-only settings neither reset nor reject an in-flight brightness command');
+    assert.deepEqual(ipc.messages.filter(message => message.request?.params?.name === 'set_light_state'
+      && 'brightness' in message.request.params.arguments.states[0])
+      .map(message => message.request.params.arguments.states[0]),
+    [55, 45, 51, 53].map(value => ({ device: DEVICE, brightness: value })),
+    'the concurrent rotation is applied exactly once without changing power or scene');
+
+    // Reconfiguration cancels pending dial/key movement and clears "running" feedback.
+    from = webSocketMessages.messages.length;
+    send({ event: 'propertyInspectorDidAppear', action: `${PLUGIN}.brightness-up`, context: increaseContext, device: STREAM_DECK });
+    send(actionEvent('keyDown', 'brightness-up', increaseContext, brightnessSettings));
+    send(actionEvent('didReceiveSettings', 'brightness-up', increaseContext, { ...brightnessSettings, brightnessStep: 3 }));
+    await webSocketMessages.wait(message => message.event === 'sendToPropertyInspector' && message.context === increaseContext
+      && message.payload?.event === 'commandStatus' && message.payload.state === 'idle', 'cancelled command resets status', from);
+    await new Promise(resolve => setTimeout(resolve, 100));
+    assert.equal(ipc.messages.filter(message => message.request?.params?.name === 'set_light_state').length, 9);
+
+    // A scene dial does no discovery or light command until explicitly opened.
+    const sceneDialContext = 'TEST-SCENE-DIAL';
+    const sceneDialSettings = { deviceId: DEVICE, autoLaunch: true };
+    const beforeSceneDial = ipc.messages.length;
+    from = webSocketMessages.messages.length;
+    send(actionEvent('willAppear', 'scene-dial', sceneDialContext, sceneDialSettings));
+    await webSocketMessages.wait(message => hasSceneDisplay(message, sceneDialContext, 'idle'),
+      'scene dial initially invites the user to open the list', from);
+    const unopenedSceneRotation = actionEvent('dialRotate', 'scene-dial', sceneDialContext, sceneDialSettings);
+    unopenedSceneRotation.payload.ticks = 1;
+    send(unopenedSceneRotation);
+    send(actionEvent('dialUp', 'scene-dial', sceneDialContext, sceneDialSettings));
+    send(touchEvent('scene-dial', sceneDialContext, sceneDialSettings, true));
+    await new Promise(resolve => setTimeout(resolve, 100));
+    assert.equal(ipc.messages.slice(beforeSceneDial).some(message =>
+      ['list_scenes', 'set_light_state', 'play_scene'].includes(message.request?.params?.name)), false,
+    'appearance, idle rotation, release, and hold do not load scenes or mutate the light even with auto-launch enabled');
+
+    from = webSocketMessages.messages.length;
+    send(actionEvent('dialDown', 'scene-dial', sceneDialContext, sceneDialSettings));
+    send(actionEvent('dialUp', 'scene-dial', sceneDialContext, sceneDialSettings));
+    const firstSceneList = await webSocketMessages.wait(message => hasSceneDisplay(message, sceneDialContext, 'browsing', 0),
+      'the first press loads the scene list without playing it', from);
+    assert.match(dialCanvas(firstSceneList, sceneDialContext), /Example Scene/);
+    assert.equal(ipc.messages.slice(beforeSceneDial).filter(message => message.request?.params?.name === 'list_scenes').length, 1,
+      'one physical down/up pair loads the list once');
+
+    from = webSocketMessages.messages.length;
+    const sceneRotation = actionEvent('dialRotate', 'scene-dial', sceneDialContext, sceneDialSettings);
+    sceneRotation.payload.ticks = 1;
+    send(sceneRotation);
+    const oceanSelection = await webSocketMessages.wait(message => hasSceneDisplay(message, sceneDialContext, 'browsing', 1),
+      'rotation selects the next scene', from);
+    assert.match(dialCanvas(oceanSelection, sceneDialContext), /Ocean/);
+    assert.equal(ipc.messages.slice(beforeSceneDial).some(message =>
+      ['set_light_state', 'play_scene'].includes(message.request?.params?.name)), false,
+    'opening and rotating only browse names, without changing the light');
+
+    from = webSocketMessages.messages.length;
+    send(actionEvent('dialDown', 'scene-dial', sceneDialContext, sceneDialSettings));
+    send(actionEvent('dialUp', 'scene-dial', sceneDialContext, sceneDialSettings));
+    await webSocketMessages.wait(message => hasSceneDisplay(message, sceneDialContext, 'browsing', 1),
+      'a second physical press applies the selected scene and keeps the list open', from);
+    await new Promise(resolve => setTimeout(resolve, 100));
+    assert.deepEqual(ipc.messages.slice(beforeSceneDial)
+      .filter(message => message.request?.params?.name === 'play_scene')
+      .map(message => message.request.params.arguments), [{ scenes: [{ device: DEVICE, name: 'Ocean' }] }],
+    'scene down/up sends exactly one selected-scene command');
+
+    from = webSocketMessages.messages.length;
+    const previousScene = actionEvent('dialRotate', 'scene-dial', sceneDialContext, sceneDialSettings);
+    previousScene.payload.ticks = -1;
+    send(previousScene);
+    await webSocketMessages.wait(message => hasSceneDisplay(message, sceneDialContext, 'browsing', 0),
+      'reverse rotation selects the previous scene', from);
+    from = webSocketMessages.messages.length;
+    send(touchEvent('scene-dial', sceneDialContext, sceneDialSettings));
+    await webSocketMessages.wait(message => hasSceneDisplay(message, sceneDialContext, 'browsing', 0),
+      'touch applies the selected scene without closing the browser', from);
+    await new Promise(resolve => setTimeout(resolve, 100));
+    assert.deepEqual(ipc.messages.slice(beforeSceneDial)
+      .filter(message => message.request?.params?.name === 'play_scene')
+      .map(message => message.request.params.arguments), [
+      { scenes: [{ device: DEVICE, name: 'Ocean' }] },
+      { scenes: [{ device: DEVICE, name: 'Example Scene' }] },
+    ], 'a short touch applies only the currently selected scene once');
+
+    // A new context can also open its browser by touchscreen; its first touch never plays.
+    const touchSceneContext = 'TEST-TOUCH-SCENE-DIAL';
+    send(actionEvent('willAppear', 'scene-dial', touchSceneContext, sceneDialSettings));
+    from = webSocketMessages.messages.length;
+    const beforeFirstSceneTouch = ipc.messages.length;
+    send(touchEvent('scene-dial', touchSceneContext, sceneDialSettings));
+    await webSocketMessages.wait(message => hasSceneDisplay(message, touchSceneContext, 'browsing', 0),
+      'first touchscreen tap loads a context-local scene browser', from);
+    assert.equal(ipc.messages.slice(beforeFirstSceneTouch).some(message =>
+      ['set_light_state', 'play_scene'].includes(message.request?.params?.name)), false,
+    'the first touchscreen tap does not accidentally apply another dial\'s selection');
+    send(actionEvent('willDisappear', 'scene-dial', sceneDialContext, sceneDialSettings));
+    send(actionEvent('willDisappear', 'scene-dial', touchSceneContext, sceneDialSettings));
+
+    from = webSocketMessages.messages.length;
+    child.send({ type: 'offline' });
+    await webSocketMessages.wait(message => message.event === 'setImage' && message.context === powerContext
+      && message.payload?.image === 'imgs/power-unknown-key.png', 'unknown power when disconnected', from);
+    await webSocketMessages.wait(message => hasDialDisplay(message, dialContext, 'bar', '—'),
+      'unknown brightness when disconnected retains selected display', from);
+    assert.equal(ipc.messages.filter(message => message.request?.params?.name === 'set_light_state').length, 9,
+      'background polling must not mutate the light');
+    const settingsWrites = webSocketMessages.messages.filter(message => message.event === 'setSettings');
+    assert.equal(settingsWrites.length, 5, 'only explicit touchscreen taps save display preferences');
+    assert.ok(settingsWrites.every(message => [dialContext, invalidDialContext].includes(message.context)
+      && ['bar', 'ring', 'number'].includes(message.payload.displayMode)
+      && !['power', 'brightness', 'scene'].some(key => key in message.payload)),
+    'measured light state must not be saved into personal profile settings');
+    assert.equal(webSocketMessages.messages.some(message => message.event === 'showOk'), false,
+      'successful power, scene, brightness key, and dial commands never show the green check overlay');
   });

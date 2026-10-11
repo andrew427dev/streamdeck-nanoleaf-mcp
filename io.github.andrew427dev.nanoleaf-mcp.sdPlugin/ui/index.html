@@ -38,6 +38,23 @@
         </select>
       </div>
 
+      <div id="brightness-field" class="field" hidden>
+        <label for="brightness-step" data-i18n="brightnessStep">Step (%p)</label>
+        <input id="brightness-step" type="number" min="1" max="100" step="1" inputmode="numeric" aria-describedby="brightness-help" disabled>
+      </div>
+      <p id="brightness-help" class="hint" data-i18n="brightnessHelp" hidden>Change per key press, in percentage points (1–100). Default: 5.</p>
+
+      <div id="display-field" class="field" hidden>
+        <label for="display-mode" data-i18n="displayMode">Display</label>
+        <select id="display-mode" aria-describedby="display-help" disabled>
+          <option value="bar" data-i18n="displayBar">Bar</option>
+          <option value="ring" data-i18n="displayRing">Ring</option>
+          <option value="number" data-i18n="displayNumber">Number</option>
+        </select>
+      </div>
+      <p id="display-help" class="hint" data-i18n="displayHelp" hidden>Turn: adjust brightness · Press the dial: toggle power · Tap the touch strip: switch display. Bar → Ring → Number. Display changes never change the light or open the app.</p>
+      <p id="scene-browser-help" class="hint" data-i18n="sceneBrowserHelp" hidden>Press the dial or tap its touch-strip section to open the saved scene list. Turn to select a scene, then press or tap again to play it. Up to three scene names appear at a time. Selection is temporary and is not saved in your profile.</p>
+
       <div class="button-row">
         <button id="refresh" type="button" data-i18n="refresh" disabled>Refresh lists</button>
       </div>

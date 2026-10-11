@@ -2,9 +2,9 @@
   "$schema": "https://schemas.elgato.com/streamdeck/plugins/manifest.json",
   "Name": "Nanoleaf MCP",
   "UUID": "io.github.andrew427dev.nanoleaf-mcp",
-  "Version": "0.1.0.2",
+  "Version": "0.3.0.1",
   "Author": "andrew427dev",
-  "Description": "Control power and existing scenes through Nanoleaf Desktop's local MCP server. Unofficial macOS beta.",
+  "Description": "Control power, brightness, and existing scenes through Nanoleaf Desktop's local MCP server. Unofficial macOS beta.",
   "URL": "https://github.com/andrew427dev/streamdeck-nanoleaf-mcp",
   "Category": "Nanoleaf MCP",
   "CategoryIcon": "imgs/category",
@@ -35,7 +35,7 @@
       ],
       "States": [
         {
-          "Image": "imgs/power-key",
+          "Image": "imgs/power-unknown-key",
           "TitleAlignment": "bottom",
           "FontSize": 12
         }
@@ -52,6 +52,86 @@
       "States": [
         {
           "Image": "imgs/scene-key",
+          "TitleAlignment": "bottom",
+          "FontSize": 12
+        }
+      ]
+    },
+    {
+      "UUID": "io.github.andrew427dev.nanoleaf-mcp.brightness-up",
+      "Name": "Brightness Up",
+      "Tooltip": "Increase the selected light's brightness by a configurable step.",
+      "Icon": "imgs/brightness-up-action",
+      "Controllers": [
+        "Keypad"
+      ],
+      "States": [
+        {
+          "Image": "imgs/brightness-up-key",
+          "TitleAlignment": "bottom",
+          "FontSize": 12
+        }
+      ]
+    },
+    {
+      "UUID": "io.github.andrew427dev.nanoleaf-mcp.brightness-down",
+      "Name": "Brightness Down",
+      "Tooltip": "Decrease the selected light's brightness by a configurable step.",
+      "Icon": "imgs/brightness-down-action",
+      "Controllers": [
+        "Keypad"
+      ],
+      "States": [
+        {
+          "Image": "imgs/brightness-down-key",
+          "TitleAlignment": "bottom",
+          "FontSize": 12
+        }
+      ]
+    },
+    {
+      "UUID": "io.github.andrew427dev.nanoleaf-mcp.brightness-dial",
+      "Name": "Brightness Dial",
+      "Tooltip": "Turn to adjust brightness, press to toggle power, and tap the touch strip to change the display.",
+      "Icon": "imgs/brightness-dial-action",
+      "Controllers": [
+        "Encoder"
+      ],
+      "Encoder": {
+        "layout": "layouts/brightness.json",
+        "TriggerDescription": {
+          "Rotate": "Adjust brightness",
+          "Push": "Toggle power",
+          "Touch": "Cycle bar / ring / number display"
+        }
+      },
+      "States": [
+        {
+          "Image": "imgs/brightness-dial-key",
+          "TitleAlignment": "bottom",
+          "FontSize": 12
+        }
+      ]
+    },
+    {
+      "UUID": "io.github.andrew427dev.nanoleaf-mcp.scene-dial",
+      "Name": "Scene Browser",
+      "Tooltip": "Press or tap to open saved scenes, turn to select, then press or tap to play.",
+      "Icon": "imgs/scene-dial-action",
+      "Controllers": [
+        "Encoder"
+      ],
+      "Encoder": {
+        "layout": "layouts/scenes.json",
+        "TriggerDescription": {
+          "Rotate": "Select scene",
+          "Push": "Open scenes / play selection",
+          "Touch": "Open scenes / play selection"
+        }
+      },
+      "States": [
+        {
+          "Image": "imgs/scene-dial-key",
           "TitleAlignment": "bottom",
           "FontSize": 12
         }

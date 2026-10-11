@@ -9,6 +9,7 @@ function setup(overrides = {}) {
     listDevices: async () => [device], listScenes: async () => ['Example Scene'],
     getState: async () => ({ power: true }),
     setPower: async (...args) => { calls.push(['power', ...args]); },
+    setBrightness: async (...args) => { calls.push(['brightness', ...args]); },
     playScene: async (...args) => { calls.push(['scene', ...args]); }, ...overrides,
   };
   let launches = 0;
@@ -83,6 +84,124 @@ test('scene sends selected stored name without modification', async () => {
   const { controller, calls } = setup();
   await controller.execute('scene', { deviceId: device.id, sceneName: 'Example Scene' });
   assert.deepEqual(calls, [['scene', device.id, 'Example Scene']]);
+});
+test('brightness buttons use the current value and clamp to 0–100 without power or scene mutations', async () => {
+  let brightness = 50;
+  const { controller, calls } = setup({ getState: async () => ({ power: false, scene: 'Example', brightness }) });
+  for (const [current, delta, expected] of [[50, 5, 55], [50, -5, 45], [98, 5, 100], [2, -5, 0],
+    [0, -100, 0], [100, 100, 100], [42.5, 5, 48]]) {
+    brightness = current;
+    await controller.execute('brightness', { deviceId: device.id, brightnessDelta: delta });
+    assert.deepEqual(calls.at(-1), ['brightness', device.id, expected]);
+  }
+  assert.equal(calls.length, 7);
+});
+test('invalid brightness deltas do not discover devices or mutate', async () => {
+  let reads = 0;
+  const { controller, calls, launchCount } = setup({ listDevices: async () => { reads++; return [device]; } });
+  for (const brightnessDelta of [undefined, null, '5', true, 0, 0.5, -101, 101, NaN, Infinity]) {
+    await assert.rejects(controller.execute('brightness', { deviceId: device.id, brightnessDelta, autoLaunch: true }),
+      { code: 'INVALID_ARGUMENT' });
+  }
+  assert.equal(reads + calls.length + launchCount(), 0);
+});
+test('missing or invalid current brightness fails safely and releases its lock', async () => {
+  const { controller, client, calls } = setup();
+  for (const brightness of [undefined, null, '50', false, -1, 101, NaN, Infinity]) {
+    client.getState = async () => ({ power: true, brightness });
+    await assert.rejects(controller.execute('brightness', { deviceId: device.id, brightnessDelta: 5 }),
+      { code: brightness === undefined || brightness === null ? 'BRIGHTNESS_UNAVAILABLE' : 'PROTOCOL_ERROR' });
+  }
+  assert.equal(calls.length, 0);
+  client.getState = async () => ({ power: false, brightness: 40 });
+  await controller.execute('brightness', { deviceId: device.id, brightnessDelta: 5 });
+  assert.deepEqual(calls, [['brightness', device.id, 45]]);
+});
+test('brightness shares opt-in cold startup and USB readiness without resending mutations', async () => {
+  let time = 0;
+  let deviceReads = 0;
+  let stateReads = 0;
+  const { controller, calls, launchCount } = setup({
+    listDevices: async () => {
+      if (++deviceReads === 1) throw Object.assign(new Error('private'), { code: 'APP_CONNECTION' });
+      return [device];
+    },
+    getState: async () => {
+      if (++stateReads === 1) throw Object.assign(new Error('private'), { code: 'DEVICE_ERROR' });
+      return { power: true, brightness: 50 };
+    },
+  });
+  controller.now = () => time;
+  controller.sleep = async ms => { time += ms; };
+  await controller.execute('brightness', { deviceId: device.id, brightnessDelta: -5, autoLaunch: true });
+  assert.equal(launchCount(), 1);
+  assert.equal(stateReads, 2);
+  assert.deepEqual(calls, [['brightness', device.id, 45]]);
+});
+test('brightness with disabled auto launch cannot start a disconnected app', async () => {
+  const { controller, calls, launchCount } = setup({ listDevices: async () => {
+    throw Object.assign(new Error('private'), { code: 'APP_CONNECTION' });
+  } });
+  for (const autoLaunch of [undefined, false, 'true']) {
+    await assert.rejects(controller.execute('brightness', { deviceId: device.id, brightnessDelta: 5, autoLaunch }),
+      { code: 'APP_CONNECTION' });
+  }
+  assert.equal(calls.length + launchCount(), 0);
+});
+test('late USB readiness never changes brightness', async () => {
+  let time = 0;
+  const { controller, calls } = setup({ getState: async () => {
+    time = 10_000; return { power: true, brightness: 50 };
+  } });
+  controller.now = () => time;
+  await assert.rejects(controller.execute('brightness', { deviceId: device.id, brightnessDelta: 5 }),
+    { code: 'APP_TIMEOUT' });
+  assert.equal(calls.length, 0);
+});
+test('brightness keeps the same-device lock through its read and write', async () => {
+  let release;
+  const { controller, calls } = setup({ getState: async () => await new Promise(resolve => { release = resolve; }) });
+  const running = controller.execute('brightness', { deviceId: device.id, brightnessDelta: 5 });
+  await new Promise(resolve => setImmediate(resolve));
+  for (const [kind, settings] of [['brightness', { brightnessDelta: 5 }], ['power', { powerMode: 'toggle' }],
+    ['scene', { sceneName: 'Example' }]]) {
+    await assert.rejects(controller.execute(kind, { deviceId: device.id, ...settings }), { code: 'BUSY' });
+  }
+  release({ power: true, brightness: 50 });
+  await running;
+  assert.deepEqual(calls, [['brightness', device.id, 55]]);
+});
+test('a failed brightness mutation is not retried and releases its lock', async () => {
+  let writes = 0;
+  const { controller } = setup({ getState: async () => ({ power: false, brightness: 50 }),
+    setBrightness: async () => { writes++; throw Object.assign(new Error('private'), { code: 'APP_TIMEOUT' }); } });
+  for (let i = 0; i < 2; i++) {
+    await assert.rejects(controller.execute('brightness', { deviceId: device.id, brightnessDelta: 5 }),
+      { code: 'APP_TIMEOUT' });
+    assert.equal(writes, i + 1);
+  }
+});
+test('inspectState validates the device and reads feedback without app launch or mutations', async () => {
+  const state = { power: false, brightness: 50, scene: 'Example' };
+  let reads = 0;
+  const { controller, calls, launchCount } = setup({ getState: async id => {
+    assert.equal(id, device.id); reads++; return state;
+  } });
+  assert.deepEqual(await controller.inspectState(device.id), state);
+  await assert.rejects(controller.inspectState(''), { code: 'INVALID_ARGUMENT' });
+  await assert.rejects(controller.inspectState('MISSING'), { code: 'DEVICE_MISSING' });
+  assert.equal(reads, 1);
+  assert.equal(calls.length + launchCount(), 0);
+  const unsupported = setup({ listDevices: async () => [{ ...device, model: 'OTHER' }],
+    getState: async () => { throw new Error('must not read an unsupported device'); } });
+  await assert.rejects(unsupported.controller.inspectState(device.id), { code: 'DEVICE_UNSUPPORTED' });
+});
+test('inspectState on an unavailable app never auto launches', async () => {
+  const { controller, calls, launchCount } = setup({ listDevices: async () => {
+    throw Object.assign(new Error('private'), { code: 'APP_CONNECTION' });
+  } });
+  await assert.rejects(controller.inspectState(device.id), { code: 'APP_CONNECTION' });
+  assert.equal(calls.length + launchCount(), 0);
 });
 test('unconfigured, unavailable, and unsupported targets never mutate', async () => {
   const { controller, calls } = setup();
@@ -309,4 +428,101 @@ test('inspector never launches the app and sanitizes arbitrary errors', async ()
   assert.equal(JSON.stringify(response).includes('SECRET'), false);
   assert.equal(launchCount(), 0);
   assert.equal(safeError({ code: 'toString' }).code, 'INTERNAL_ERROR');
+});
+
+test('scene chooser validates the target and reads stored names without mutating', async () => {
+  const names = ['Ocean', 'Warm White'];
+  const reads = [];
+  const { controller, calls, launchCount } = setup({ listScenes: async id => { reads.push(id); return names; } });
+  const result = await controller.listSceneChoices({ deviceId: device.id });
+  assert.deepEqual(result, names);
+  assert.notEqual(result, names);
+  await assert.rejects(controller.listSceneChoices(), { code: 'INVALID_ARGUMENT' });
+  await assert.rejects(controller.listSceneChoices(null), { code: 'INVALID_ARGUMENT' });
+  await assert.rejects(controller.listSceneChoices({ deviceId: 'MISSING' }), { code: 'DEVICE_MISSING' });
+  assert.deepEqual(reads, [device.id]);
+  assert.equal(calls.length + launchCount(), 0);
+  const unsupported = setup({ listDevices: async () => [{ ...device, model: 'OTHER' }] });
+  await assert.rejects(unsupported.controller.listSceneChoices({ deviceId: device.id }), { code: 'DEVICE_UNSUPPORTED' });
+});
+
+test('scene chooser launches only with explicit boolean opt-in after connection failure', async () => {
+  let reads = 0;
+  const { controller, calls, launchCount } = setup({ listDevices: async () => {
+    if (++reads <= 4) throw Object.assign(new Error('private'), { code: 'APP_CONNECTION' });
+    return [device];
+  } });
+  for (const autoLaunch of [undefined, false, 'true']) {
+    await assert.rejects(controller.listSceneChoices({ deviceId: device.id, autoLaunch }), { code: 'APP_CONNECTION' });
+  }
+  assert.equal(launchCount(), 0);
+  assert.deepEqual(await controller.listSceneChoices({ deviceId: device.id, autoLaunch: true }), ['Example Scene']);
+  assert.equal(launchCount(), 1);
+  assert.equal(calls.length, 0);
+});
+
+test('scene chooser rejects invalid backend names and never sends a command', async () => {
+  const { controller, client, calls } = setup();
+  for (const scenes of [null, {}, [''], [' '], [true], ['x'.repeat(2049)]]) {
+    client.listScenes = async () => scenes;
+    await assert.rejects(controller.listSceneChoices({ deviceId: device.id }), { code: 'PROTOCOL_ERROR' });
+  }
+  client.listScenes = async () => [];
+  assert.deepEqual(await controller.listSceneChoices({ deviceId: device.id }), []);
+  assert.equal(calls.length, 0);
+});
+
+test('inactive controls do not start discovery or mutate, and invalid guards fail validation', async () => {
+  let reads = 0;
+  const { controller, calls } = setup({ listDevices: async () => { reads++; return [device]; } });
+  for (const kind of ['scene', 'power', 'brightness']) {
+    const settings = { deviceId: device.id, sceneName: 'Ocean', powerMode: 'on', brightnessDelta: 5, autoLaunch: true };
+    await assert.rejects(controller.execute(kind, settings, { isCurrent: () => false }), { code: 'BUSY' });
+    await assert.rejects(controller.execute(kind, settings, { isCurrent: true }), { code: 'INVALID_ARGUMENT' });
+  }
+  assert.equal(reads + calls.length, 0);
+});
+
+test('controls disposed during discovery do not send mutations and release their lock', async () => {
+  for (const kind of ['scene', 'power', 'brightness']) {
+    let release;
+    let active = true;
+    const { controller, client, calls } = setup({ listDevices: () => new Promise(resolve => { release = resolve; }) });
+    const settings = { deviceId: device.id, sceneName: 'Ocean', powerMode: 'on', brightnessDelta: 5 };
+    const running = controller.execute(kind, settings, { isCurrent: () => active });
+    active = false;
+    release([device]);
+    await assert.rejects(running, { code: 'BUSY' });
+    assert.equal(calls.length, 0);
+    client.listDevices = async () => [device];
+    await controller.execute('scene', settings);
+    assert.deepEqual(calls, [['scene', device.id, 'Ocean']]);
+  }
+});
+
+test('controls disposed during state readiness do not send power or brightness mutations', async () => {
+  for (const kind of ['power', 'brightness']) {
+    let release;
+    let active = true;
+    const { controller, calls } = setup({ getState: () => new Promise(resolve => { release = resolve; }) });
+    const running = controller.execute(kind,
+      { deviceId: device.id, powerMode: 'toggle', brightnessDelta: 5 }, { isCurrent: () => active });
+    await new Promise(resolve => setImmediate(resolve));
+    active = false;
+    release({ power: true, brightness: 50 });
+    await assert.rejects(running, { code: 'BUSY' });
+    assert.equal(calls.length, 0);
+  }
+});
+
+test('active guards reach the client for final transport checks without changing unguarded arguments', async () => {
+  const { controller, calls } = setup({ getState: async () => ({ power: false, brightness: 50 }) });
+  const isCurrent = () => true;
+  for (const [kind, settings] of [['scene', { sceneName: 'Ocean' }], ['power', { powerMode: 'on' }],
+    ['brightness', { brightnessDelta: 5 }]]) {
+    await controller.execute(kind, { deviceId: device.id, ...settings }, { isCurrent });
+    assert.equal(calls.at(-1).at(-1).isCurrent, isCurrent);
+    await controller.execute(kind, { deviceId: device.id, ...settings });
+    assert.equal(calls.at(-1).length, 3);
+  }
 });

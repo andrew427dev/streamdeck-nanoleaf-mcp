@@ -277,7 +277,7 @@ test("a transport error disables controls even before the socket close event", (
 
 test("Korean settings translate all safe backend error codes and allow retry", () => {
   const codes = ["APP_CONNECTION", "APP_TIMEOUT", "APP_ERROR", "PROTOCOL_ERROR", "DEVICE_ERROR",
-    "SCENE_NOT_READY", "INVALID_ARGUMENT", "DEVICE_MISSING", "DEVICE_UNSUPPORTED", "BUSY", "LAUNCH_FAILED", "INTERNAL_ERROR"];
+    "SCENE_NOT_READY", "BRIGHTNESS_UNAVAILABLE", "INVALID_ARGUMENT", "DEVICE_MISSING", "DEVICE_UNSUPPORTED", "BUSY", "LAUNCH_FAILED", "INTERNAL_ERROR"];
   for (const errorCode of codes) {
     const ui = inspector({ language: "ko" });
     ui.respond("devices", { errorCode, error: "English backend error" });
@@ -330,5 +330,198 @@ test("button results are localized, separate from list refresh, and clear errors
     assert.equal(ui.elements.get("command-status").dataset.kind, "success");
     assert.doesNotMatch(ui.elements.get("command-status").textContent, /PRIVATE|backend|응답하지|did not respond/);
     assert.equal(ui.commands("setSettings").length, 0, "transient results must not be persisted in profiles");
+  }
+});
+
+test("brightness actions show step and dial-only display settings without reading scenes", () => {
+  for (const [suffix, defaultStep] of [["brightness-up", 5], ["brightness-down", 5], ["brightness-dial", 2]]) {
+    const ui = inspector({ action: ACTION.replace(/scene$/, suffix), settings: { deviceId: DEVICE_A.id, autoLaunch: true } });
+    ui.respond("devices", { devices: [DEVICE_A] });
+    assert.equal(ui.elements.get("scene-field").hidden, true);
+    assert.equal(ui.elements.get("power-field").hidden, true);
+    assert.equal(ui.elements.get("brightness-field").hidden, false);
+    assert.equal(ui.elements.get("brightness-help").hidden, false);
+    assert.equal(ui.elements.get("brightness-step").value, String(defaultStep));
+    assert.equal(ui.elements.get("display-field").hidden, suffix !== "brightness-dial");
+    assert.equal(ui.elements.get("display-help").hidden, suffix !== "brightness-dial");
+    assert.equal(ui.elements.get("auto-launch").checked, true);
+    assert.equal(ui.commands("setSettings").length, 0, "opening settings must not save defaults");
+    assert.equal(ui.requests("scenes").length, 0);
+    ui.change("brightness-step", "10");
+    assert.deepEqual(ui.commands("setSettings").at(-1).payload,
+      { deviceId: DEVICE_A.id, sceneName: "", powerMode: "toggle", autoLaunch: true, brightnessStep: 10,
+        ...(suffix === "brightness-dial" ? { displayMode: "bar" } : {}) });
+    ui.change("auto-launch", false);
+    assert.equal(ui.commands("setSettings").at(-1).payload.brightnessStep, 10);
+    ui.socket.close();
+    assert.equal(ui.elements.get("brightness-step").disabled, true);
+    assert.equal(ui.elements.get("display-mode").disabled, true);
+  }
+});
+
+test("brightness settings accept only bounded integer steps without saving invalid input", () => {
+  const ui = inspector({ action: ACTION.replace(/scene$/, "brightness-up"), settings: { brightnessStep: 7 } });
+  ui.respond("devices", { devices: [DEVICE_A] });
+  assert.equal(ui.elements.get("brightness-step").value, "7");
+  for (const value of ["", "0", "101", "1.5", "-2", "NaN", "Infinity"]) {
+    ui.change("brightness-step", value);
+    assert.equal(ui.commands("setSettings").length, 0, value);
+    assert.equal(ui.elements.get("brightness-step").value, "7", value);
+    assert.match(ui.elements.get("status").textContent, /whole number from 1 to 100/);
+  }
+  for (const value of ["1", "100"]) {
+    ui.change("brightness-step", value);
+    assert.equal(ui.commands("setSettings").at(-1).payload.brightnessStep, Number(value));
+  }
+  for (const value of [null, "9", 0, 101, 2.5, false]) {
+    ui.settings({ brightnessStep: value });
+    assert.equal(ui.elements.get("brightness-step").value, "5");
+  }
+});
+
+test("power and scene settings retain their original shape and hide brightness controls", () => {
+  for (const suffix of ["power", "scene"]) {
+    const ui = inspector({ action: ACTION.replace(/scene$/, suffix), settings: { deviceId: DEVICE_A.id, autoLaunch: true } });
+    assert.equal(ui.elements.get("brightness-field").hidden, true);
+    assert.equal(ui.elements.get("brightness-help").hidden, true);
+    assert.equal(ui.elements.get("display-field").hidden, true);
+    assert.equal(ui.elements.get("display-help").hidden, true);
+    ui.change("auto-launch", false);
+    assert.deepEqual(ui.commands("setSettings").at(-1).payload,
+      { deviceId: DEVICE_A.id, sceneName: "", powerMode: "toggle", autoLaunch: false });
+  }
+});
+
+test("dial display choices save locally without changing brightness or requesting control", () => {
+  const ui = inspector({ action: ACTION.replace(/scene$/, "brightness-dial"),
+    settings: { deviceId: DEVICE_A.id, brightnessStep: 3, autoLaunch: true } });
+  ui.respond("devices", { devices: [DEVICE_A] });
+  assert.equal(ui.elements.get("display-mode").value, "bar");
+  assert.equal(ui.commands("setSettings").length, 0, "opening an old dial must not write default settings");
+  const requestsBefore = ui.commands("sendToPlugin").length;
+  for (const displayMode of ["ring", "number", "bar"]) {
+    ui.change("display-mode", displayMode);
+    assert.deepEqual(ui.commands("setSettings").at(-1).payload,
+      { deviceId: DEVICE_A.id, sceneName: "", powerMode: "toggle", autoLaunch: true, brightnessStep: 3, displayMode });
+  }
+  assert.equal(ui.commands("sendToPlugin").length, requestsBefore, "display changes must not send light commands or refresh lists");
+  assert.equal(ui.commands("setSettings").length, 3);
+  ui.change("display-mode", "bar");
+  ui.change("display-mode", "invalid");
+  assert.equal(ui.elements.get("display-mode").value, "bar");
+  assert.equal(ui.commands("setSettings").length, 3, "unchanged or invalid values must not be written");
+});
+
+test("a touch-strip display change updates the open inspector without a recursive save", () => {
+  const baseSettings = { deviceId: DEVICE_A.id, brightnessStep: 2, autoLaunch: true, displayMode: "bar" };
+  const ui = inspector({ action: ACTION.replace(/scene$/, "brightness-dial"), settings: baseSettings });
+  ui.respond("devices", { devices: [DEVICE_A] });
+  const requestsBefore = ui.commands("sendToPlugin").length;
+  ui.settings({ ...baseSettings, displayMode: "ring" }, "OTHER-CONTEXT");
+  assert.equal(ui.elements.get("display-mode").value, "bar");
+  ui.settings({ ...baseSettings, displayMode: "ring" });
+  assert.equal(ui.elements.get("display-mode").value, "ring");
+  ui.settings({ ...baseSettings, displayMode: "number" });
+  assert.equal(ui.elements.get("display-mode").value, "number");
+  assert.equal(ui.commands("setSettings").length, 0);
+  assert.equal(ui.commands("sendToPlugin").length, requestsBefore);
+  ui.change("brightness-step", "4");
+  assert.equal(ui.commands("setSettings").at(-1).payload.displayMode, "number");
+});
+
+test("display settings default safely and remain exclusive to brightness dials", () => {
+  for (const displayMode of [undefined, null, 0, {}, "invalid", "__proto__"]) {
+    const ui = inspector({ action: ACTION.replace(/scene$/, "brightness-dial"), settings: { displayMode } });
+    assert.equal(ui.elements.get("display-mode").value, "bar");
+    assert.equal(ui.commands("setSettings").length, 0);
+  }
+  for (const suffix of ["power", "scene", "brightness-up", "brightness-down", "scene-dial"]) {
+    const ui = inspector({ action: ACTION.replace(/scene$/, suffix), settings: { displayMode: "ring" } });
+    assert.equal(ui.elements.get("display-field").hidden, true);
+    assert.equal(ui.elements.get("display-help").hidden, true);
+    ui.change("display-mode", "number");
+    assert.equal(ui.commands("setSettings").length, 0);
+    ui.change("auto-launch", true);
+    assert.equal(Object.hasOwn(ui.commands("setSettings").at(-1).payload, "displayMode"), false);
+  }
+});
+
+test("display choices distinguish rotation, power press, and display touch in both languages", () => {
+  for (const language of ["en", "ko"]) {
+    const ui = inspector({ action: ACTION.replace(/scene$/, "brightness-dial"), language });
+    const translated = key => ui.translated.find(node => node.dataset.i18n === key).textContent;
+    assert.equal(translated("displayBar"), language === "ko" ? "막대" : "Bar");
+    assert.equal(translated("displayRing"), language === "ko" ? "원형" : "Ring");
+    assert.equal(translated("displayNumber"), language === "ko" ? "숫자" : "Number");
+    assert.match(translated("displayHelp"), language === "ko" ? /돌리기: 밝기 조절 · 다이얼 누르기: 전원 전환/ : /Turn: adjust brightness · Press the dial: toggle power/);
+    assert.match(translated("displayHelp"), language === "ko" ? /터치 화면 누르기: 표시 방식 전환/ : /Tap the touch strip: switch display/);
+    assert.match(translated("displayHelp"), language === "ko" ? /조명을 바꾸거나 앱을 실행하지 않습니다/ : /never change the light or open the app/);
+    assert.match(translated("launchHelp"), language === "ko" ? /터치 화면 누르기와 목록 새로고침은 앱을 열지 않습니다/ : /Touching the display or refreshing never opens it/);
+  }
+});
+
+test("dial wording and brightness unavailable results are localized without exposing backend details", () => {
+  for (const language of ["en", "ko"]) {
+    const ui = inspector({ action: ACTION.replace(/scene$/, "brightness-dial"), language });
+    const translated = key => ui.translated.find(node => node.dataset.i18n === key).textContent;
+    assert.match(translated("autoLaunch"), language === "ko" ? /다이얼을 돌리거나 누르면/ : /dial is turned or pressed/);
+    assert.match(translated("brightnessHelp"), language === "ko" ? /기본값은 2%p/ : /Default: 2/);
+    assert.doesNotMatch(translated("launchHelp"), language === "ko" ? /키를 누를/ : /key press/);
+    ui.socket.receive({ event: "sendToPropertyInspector", context: "TEST-ACTION-CONTEXT", payload: {
+      event: "commandStatus", actionContext: "TEST-ACTION-CONTEXT", state: "success", sequence: 1,
+    } });
+    assert.match(ui.elements.get("command-status").textContent, language === "ko" ? /다이얼/ : /dial/);
+    ui.socket.receive({ event: "sendToPropertyInspector", context: "TEST-ACTION-CONTEXT", payload: {
+      event: "commandStatus", actionContext: "TEST-ACTION-CONTEXT", state: "error", sequence: 2,
+      errorCode: "BRIGHTNESS_UNAVAILABLE", error: "PRIVATE raw response",
+    } });
+    assert.match(ui.elements.get("command-status").textContent, language === "ko" ? /밝기를 읽을 수 없습니다/ : /brightness is unavailable/);
+    assert.doesNotMatch(ui.elements.get("command-status").textContent, /PRIVATE|raw response/);
+  }
+});
+
+test("scene browser shows only device, launch, and instructions without reading or persisting scene selection", () => {
+  const ui = inspector({ action: ACTION.replace(/scene$/, "scene-dial"),
+    settings: { deviceId: DEVICE_A.id, autoLaunch: true, sceneName: "Old scene", brightnessStep: 9, displayMode: "ring", selectedIndex: 4 } });
+  for (const id of ["scene-field", "power-field", "brightness-field", "brightness-help", "display-field", "display-help"]) {
+    assert.equal(ui.elements.get(id).hidden, true, id);
+  }
+  assert.equal(ui.elements.get("scene-browser-help").hidden, false);
+  assert.equal(ui.elements.get("auto-launch").checked, true);
+  assert.equal(ui.commands("setSettings").length, 0);
+  ui.respond("devices", { devices: [DEVICE_A, DEVICE_B] });
+  assert.equal(ui.requests("scenes").length, 0, "opening the browser inspector only reads devices");
+  for (const [id, value] of [["scene", "Unwanted scene"], ["power-mode", "off"], ["brightness-step", "4"], ["display-mode", "number"]]) {
+    ui.change(id, value);
+  }
+  assert.equal(ui.commands("setSettings").length, 0, "hidden fields must not save unsupported browser settings");
+  ui.change("auto-launch", false);
+  assert.deepEqual(ui.commands("setSettings").at(-1).payload, { deviceId: DEVICE_A.id, autoLaunch: false });
+  ui.change("device", DEVICE_B.id);
+  assert.deepEqual(ui.commands("setSettings").at(-1).payload, { deviceId: DEVICE_B.id, autoLaunch: false });
+  assert.equal(ui.requests("scenes").length, 0, "changing the device must not fetch scenes from the inspector");
+  ui.click("refresh");
+  ui.respond("devices", { devices: [DEVICE_A, DEVICE_B] });
+  assert.deepEqual(ui.commands("sendToPlugin").map(message => message.payload.event), ["commandStatus", "devices", "devices"]);
+  ui.settings({ deviceId: DEVICE_A.id, autoLaunch: true, sceneName: "Ignored selection" });
+  assert.equal(ui.requests("scenes").length, 0, "receiving settings must not fetch scene choices");
+  assert.equal(ui.commands("setSettings").length, 2);
+});
+
+test("scene browser instructions distinguish opening, selection, and play in both languages", () => {
+  for (const language of ["en", "ko"]) {
+    const ui = inspector({ action: ACTION.replace(/scene$/, "scene-dial"), language });
+    const translated = key => ui.translated.find(node => node.dataset.i18n === key).textContent;
+    assert.match(translated("sceneBrowserHelp"), language === "ko" ? /다이얼을 누르거나 해당 터치 화면을 누르면 저장된 씬 목록이 열립니다/ : /Press the dial or tap its touch-strip section to open the saved scene list/);
+    assert.match(translated("sceneBrowserHelp"), language === "ko" ? /돌려 씬을 선택하고 다시 누르거나 터치하면 재생/ : /Turn to select a scene, then press or tap again to play/);
+    assert.match(translated("sceneBrowserHelp"), language === "ko" ? /프로필에 저장되지 않습니다/ : /not saved in your profile/);
+    assert.match(translated("autoLaunch"), language === "ko" ? /다이얼을 누르거나 터치하면/ : /dial is pressed or its display is tapped/);
+    assert.match(translated("launchHelp"), language === "ko" ? /돌리기는 선택만 바꾸며/ : /Turning only changes the selection/);
+    assert.match(translated("launchHelp"), language === "ko" ? /설정 화면을 열거나 목록을 새로고침해도 앱은 열리지 않습니다/ : /opening these settings or refreshing never opens the app/);
+    assert.match(translated("commandHeading"), language === "ko" ? /다이얼/ : /dial/);
+  }
+  for (const suffix of ["power", "scene", "brightness-up", "brightness-down", "brightness-dial"]) {
+    const ui = inspector({ action: ACTION.replace(/scene$/, suffix) });
+    assert.equal(ui.elements.get("scene-browser-help").hidden, true);
   }
 });

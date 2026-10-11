@@ -11,6 +11,7 @@ export const ERROR_MESSAGES = Object.freeze({
   PROTOCOL_ERROR: 'The Nanoleaf Desktop response is not supported by this plugin version.',
   DEVICE_ERROR: 'The light did not respond. Check its USB connection in Nanoleaf Desktop.',
   SCENE_NOT_READY: 'The selected scene is not ready. Refresh the scene list and try again.',
+  BRIGHTNESS_UNAVAILABLE: 'Brightness is unavailable for this light. Check its state in Nanoleaf Desktop.',
   INVALID_ARGUMENT: 'Select a device and the required action settings.',
   DEVICE_MISSING: 'The selected device is unavailable. Refresh the device list.',
   DEVICE_UNSUPPORTED: 'This beta supports the NL82K2 PC Screen Mirror Lightstrip only.',
@@ -130,21 +131,57 @@ export class LightController {
     return response;
   }
 
-  async execute(kind, settings = {}) {
-    const { deviceId, sceneName, powerMode, autoLaunch } = settings ?? {};
-    if (!text(deviceId) || !['scene', 'power'].includes(kind)
+  /** Immediate read for key/dial feedback; never starts the app or waits for startup. */
+  async inspectState(deviceId) {
+    await this.#checkDevice(deviceId);
+    return await this.client.getState(deviceId);
+  }
+
+  /** Explicit scene-chooser input may opt into startup; opening its control never calls this. */
+  async listSceneChoices(settings = {}) {
+    const { deviceId, autoLaunch } = settings ?? {};
+    await this.#checkDevice(deviceId, autoLaunch === true);
+    const scenes = await this.client.listScenes(deviceId);
+    if (!Array.isArray(scenes) || !scenes.every(text)) throw fail('PROTOCOL_ERROR');
+    return [...scenes];
+  }
+
+  async execute(kind, settings = {}, { isCurrent } = {}) {
+    const { deviceId, sceneName, powerMode, brightnessDelta, autoLaunch } = settings ?? {};
+    if (!text(deviceId) || !['scene', 'power', 'brightness'].includes(kind)
+      || isCurrent !== undefined && typeof isCurrent !== 'function'
       || kind === 'scene' && !text(sceneName)
-      || kind === 'power' && !['on', 'off', 'toggle'].includes(powerMode)) throw fail('INVALID_ARGUMENT');
+      || kind === 'power' && !['on', 'off', 'toggle'].includes(powerMode)
+      || kind === 'brightness' && (!Number.isInteger(brightnessDelta)
+        || brightnessDelta === 0 || brightnessDelta < -100 || brightnessDelta > 100)) {
+      throw fail('INVALID_ARGUMENT');
+    }
+    const checkCurrent = () => { if (isCurrent && !isCurrent()) throw fail('BUSY'); };
+    checkCurrent();
     if (this.#busy.has(deviceId)) throw fail('BUSY');
     this.#busy.add(deviceId);
     try {
       await this.#checkDevice(deviceId, autoLaunch === true);
+      checkCurrent();
       if (kind === 'scene') {
-        await this.client.playScene(deviceId, sceneName);
+        if (isCurrent) await this.client.playScene(deviceId, sceneName, { isCurrent });
+        else await this.client.playScene(deviceId, sceneName);
       } else {
         const state = await this.#readyState(deviceId);
-        const power = powerMode === 'toggle' ? !state.power : powerMode === 'on';
-        await this.client.setPower(deviceId, power);
+        checkCurrent();
+        if (kind === 'brightness') {
+          if (state.brightness === undefined || state.brightness === null) throw fail('BRIGHTNESS_UNAVAILABLE');
+          if (!Number.isFinite(state.brightness) || state.brightness < 0 || state.brightness > 100) {
+            throw fail('PROTOCOL_ERROR');
+          }
+          const brightness = Math.min(100, Math.max(0, Math.round(state.brightness + brightnessDelta)));
+          if (isCurrent) await this.client.setBrightness(deviceId, brightness, { isCurrent });
+          else await this.client.setBrightness(deviceId, brightness);
+        } else {
+          const power = powerMode === 'toggle' ? !state.power : powerMode === 'on';
+          if (isCurrent) await this.client.setPower(deviceId, power, { isCurrent });
+          else await this.client.setPower(deviceId, power);
+        }
       }
     } finally {
       this.#busy.delete(deviceId);
