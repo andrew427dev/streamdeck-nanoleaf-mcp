@@ -264,14 +264,17 @@ test('built plugin handles light commands, touch displays, and scene browsing ov
       env: { ...process.env, NODE_OPTIONS: '' },
     });
     childClosed = once(child, 'close');
-    const pendingSceneTraces = new Set();
+    const pendingTraces = new Set();
+    let powerTraceCount = 0;
     child.on('message', message => {
       // IPC traces and WebSocket feedback have no cross-channel delivery order.
-      // Deliberately delay scene-list traces so assertions cannot assume one.
-      if (message.request?.params?.name === 'list_scenes') {
+      // Delay scene-list traces and the fourth power trace (recovery after a
+      // synthetic failure) to reproduce feedback arriving before its IPC trace.
+      if (message.request?.params?.name === 'list_scenes'
+        || (message.request?.params?.name === 'set_light_state' && ++powerTraceCount === 4)) {
         const delivery = new Promise(resolve => setTimeout(() => { ipc.push(message); resolve(); }, 50));
-        pendingSceneTraces.add(delivery);
-        void delivery.finally(() => pendingSceneTraces.delete(delivery));
+        pendingTraces.add(delivery);
+        void delivery.finally(() => pendingTraces.delete(delivery));
       } else ipc.push(message);
     });
     const [socket] = await connected;
@@ -282,7 +285,7 @@ test('built plugin handles light commands, touch displays, and scene browsing ov
       child.send({ type: command });
       await ipc.wait(message => message.type === 'control-ready' && message.command === command,
         'independent IPC trace barrier');
-      await Promise.all([...pendingSceneTraces]);
+      await Promise.all([...pendingTraces]);
     };
     assert.deepEqual(await webSocketMessages.wait(message => message.event === 'registerPlugin', 'plugin registration'), {
       event: 'registerPlugin', uuid: 'TEST-PLUGIN-INSTANCE',
@@ -418,6 +421,7 @@ test('built plugin handles light commands, touch displays, and scene browsing ov
       assert.doesNotMatch(JSON.stringify(message.payload), /PRIVATE|TEST-DEVICE|Example Strip|Ocean/);
     }
 
+    await syncIPC();
     assert.equal(child.exitCode, null, 'the bundled plugin must remain running');
     assert.equal(ipc.messages.some(message => message.type === 'unexpected-fetch'), false);
     assert.equal(ipc.messages.filter(message => message.request?.method === 'initialize').length, 1);
