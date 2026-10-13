@@ -129,7 +129,7 @@ function registrationInfo() {
     },
     devicePixelRatio: 2,
     devices: [{ id: STREAM_DECK, name: 'Synthetic Stream Deck', size: { columns: 5, rows: 3 }, type: 0 }],
-    plugin: { uuid: PLUGIN, version: '0.3.0.1' },
+    plugin: { uuid: PLUGIN, version: '0.4.0.1' },
   };
 }
 
@@ -146,6 +146,33 @@ function touchEvent(kind, context, settings, hold = false) {
   event.payload.tapPos = [40, 30];
   event.payload.hold = hold;
   return event;
+}
+
+function titleEvent(kind, context, title, titleParameters = {}, settings = {}) {
+  const event = actionEvent('titleParametersDidChange', kind, context, settings);
+  event.payload.title = title;
+  event.payload.titleParameters = {
+    fontFamily: 'Arial', fontSize: 12, fontStyle: '', fontUnderline: false,
+    showTitle: true, titleAlignment: 'bottom', titleColor: '#ffffff', ...titleParameters,
+  };
+  return event;
+}
+
+function keyCanvas(message, context) {
+  if (message.event !== 'setImage' || message.context !== context
+    || typeof message.payload?.image !== 'string') return '';
+  const prefix = 'data:image/svg+xml;base64,';
+  if (!message.payload.image.startsWith(prefix)) return '';
+  return Buffer.from(message.payload.image.slice(prefix.length), 'base64').toString('utf8');
+}
+
+function hasPowerImage(message, context, status) {
+  const svg = keyCanvas(message, context);
+  return svg.includes('data-action-kind="power"') && svg.includes(`data-power-status="${status}"`);
+}
+
+function hasTitleLayout(message, context, layout) {
+  return (keyCanvas(message, context) || dialCanvas(message, context)).includes(`data-title-layout="${layout}"`);
 }
 
 function dialCanvas(message, context) {
@@ -224,15 +251,26 @@ test('built plugin handles light commands, touch displays, and scene browsing ov
       env: { ...process.env, NODE_OPTIONS: '' },
     });
     childClosed = once(child, 'close');
+    const pendingSceneTraces = new Set();
     child.on('message', message => {
       // IPC traces and WebSocket feedback have no cross-channel delivery order.
       // Deliberately delay scene-list traces so assertions cannot assume one.
       if (message.request?.params?.name === 'list_scenes') {
-        setTimeout(() => ipc.push(message), 50);
+        const delivery = new Promise(resolve => setTimeout(() => { ipc.push(message); resolve(); }, 50));
+        pendingSceneTraces.add(delivery);
+        void delivery.finally(() => pendingSceneTraces.delete(delivery));
       } else ipc.push(message);
     });
     const [socket] = await connected;
     const send = message => socket.send(JSON.stringify(message));
+    let barrierSequence = 0;
+    const syncIPC = async () => {
+      const command = `smoke-barrier-${++barrierSequence}`;
+      child.send({ type: command });
+      await ipc.wait(message => message.type === 'control-ready' && message.command === command,
+        'independent IPC trace barrier');
+      await Promise.all([...pendingSceneTraces]);
+    };
     assert.deepEqual(await webSocketMessages.wait(message => message.event === 'registerPlugin', 'plugin registration'), {
       event: 'registerPlugin', uuid: 'TEST-PLUGIN-INSTANCE',
     });
@@ -340,8 +378,8 @@ test('built plugin handles light commands, touch displays, and scene browsing ov
     const busyResult = await webSocketMessages.wait(message => message.event === 'sendToPropertyInspector'
       && message.context === powerContext && message.payload?.errorCode === 'BUSY', 'busy error explanation', from);
     child.send({ type: 'release-power' });
-    await webSocketMessages.wait(message => message.event === 'setImage' && message.context === powerContext
-      && message.payload?.image === 'imgs/power-on-key.png', 'older held command measured completion', from);
+    await webSocketMessages.wait(message => hasPowerImage(message, powerContext, 'on'),
+      'older held command measured completion', from);
     from = webSocketMessages.messages.length;
     send({ event: 'sendToPlugin', action: `${PLUGIN}.power`, context: powerContext, payload: { event: 'commandStatus' } });
     const lastPress = await webSocketMessages.wait(message => message.event === 'sendToPropertyInspector'
@@ -380,8 +418,7 @@ test('built plugin handles light commands, touch displays, and scene browsing ov
     from = webSocketMessages.messages.length;
     child.send({ type: 'external-state', power: true, brightness: 50 });
     await ipc.wait(message => message.type === 'control-ready' && message.command === 'external-state', 'external state setup');
-    await webSocketMessages.wait(message => message.event === 'setImage' && message.context === powerContext
-      && message.payload?.image === 'imgs/power-on-key.png', 'live power icon', from);
+    await webSocketMessages.wait(message => hasPowerImage(message, powerContext, 'on'), 'live power icon', from);
 
     const dialContext = 'TEST-DIAL';
     const brightnessSettings = { deviceId: DEVICE, autoLaunch: false };
@@ -490,8 +527,12 @@ test('built plugin handles light commands, touch displays, and scene browsing ov
     concurrentRotation.payload.ticks = 1;
     send(concurrentRotation);
     send(actionEvent('didReceiveSettings', 'brightness-dial', dialContext, { ...persistedDisplay.payload, displayMode: 'bar' }));
-    await webSocketMessages.wait(message => hasDialDisplay(message, dialContext, 'bar', '53%'),
-      'queued brightness completes using the newly selected display', from);
+    send(titleEvent('brightness-dial', dialContext, 'Brightness', { showTitle: false }, persistedDisplay.payload));
+    const queuedHiddenDial = await webSocketMessages.wait(message => hasDialDisplay(message, dialContext, 'bar', '53%')
+      && hasTitleLayout(message, dialContext, 'expanded'),
+    'queued brightness completes with the new mode and hidden title despite stale title-event settings', from);
+    assert.deepEqual(queuedHiddenDial.payload.title, { enabled: false },
+      'state refresh keeps the native dial-title overlay disabled without replacing its text');
     await webSocketMessages.wait(message => message.event === 'sendToPropertyInspector' && message.context === dialContext
       && message.payload?.event === 'commandStatus' && message.payload.state === 'success',
     'display-only setting changes preserve the pending command result', from);
@@ -595,15 +636,128 @@ test('built plugin handles light commands, touch displays, and scene browsing ov
     assert.equal(ipc.messages.slice(beforeFirstSceneTouch).some(message =>
       ['set_light_state', 'play_scene'].includes(message.request?.params?.name)), false,
     'the first touchscreen tap does not accidentally apply another dial\'s selection');
+
+    // Title metadata is context-local presentation state, never light configuration.
+    // Synchronize the IPC trace independently before comparing discovery/mutation counts.
+    await syncIPC();
+    const titleRelevantRequests = () => ipc.messages.filter(message =>
+      ['list_scenes', 'set_light_state', 'play_scene'].includes(message.request?.params?.name));
+    const beforeTitleRequests = titleRelevantRequests().length;
+    const beforeTitleSettings = webSocketMessages.messages.filter(message => message.event === 'setSettings').length;
+    const changeTitle = async (kind, context, title, parameters, layout, settings = {}) => {
+      const start = webSocketMessages.messages.length;
+      send(titleEvent(kind, context, title, parameters, settings));
+      return webSocketMessages.wait(message => hasTitleLayout(message, context, layout),
+        `${kind} ${layout} title layout`, start);
+    };
+    for (const [kind, context] of [
+      ['scene', sceneContext], ['brightness-up', increaseContext], ['brightness-down', decreaseContext],
+    ]) {
+      const image = await webSocketMessages.wait(message =>
+        keyCanvas(message, context).includes(`data-action-kind="${kind}"`), `${kind} generated key image`);
+      assert.ok(hasTitleLayout(image, context, 'titled'), 'unknown native-title state reserves its title space');
+      const expanded = await changeTitle(kind, context, '', { showTitle: true }, 'expanded');
+      assert.match(keyCanvas(expanded, context), new RegExp(`data-action-kind="${kind}"`));
+    }
+
+    const hiddenPower = await changeTitle('power', powerContext, 'Power', { showTitle: false }, 'expanded');
+    assert.ok(hasPowerImage(hiddenPower, powerContext, 'on'), 'hiding a title preserves measured power');
+    const topPower = await changeTitle('power', powerContext, 'Power',
+      { showTitle: true, titleAlignment: 'top', fontSize: 14 }, 'titled');
+    const middlePower = await changeTitle('power', powerContext, 'Power',
+      { showTitle: true, titleAlignment: 'middle', fontSize: 14 }, 'titled');
+    assert.notEqual(keyCanvas(topPower, powerContext), keyCanvas(middlePower, powerContext),
+      'key content is repositioned for top versus middle native-title alignment');
+    const emptyPower = await changeTitle('power', powerContext, '', { showTitle: true }, 'expanded');
+    assert.ok(hasPowerImage(emptyPower, powerContext, 'on'), 'an empty visible title also expands the key');
+
+    // The SDK ignores title events before appearance and after disappearance.
+    // Once visible, remembered metadata survives a normal page/profile round trip.
+    const earlyTitleContext = 'TEST-EARLY-TITLE-SCENE';
+    from = webSocketMessages.messages.length;
+    send(titleEvent('scene', earlyTitleContext, 'Not visible yet', { showTitle: false }, sceneSettings));
+    send(actionEvent('willAppear', 'scene', earlyTitleContext, sceneSettings));
+    await webSocketMessages.wait(message => hasTitleLayout(message, earlyTitleContext, 'titled'),
+      'pre-appearance title event is ignored by the SDK', from);
+    await changeTitle('scene', earlyTitleContext, 'Remember hidden title', { showTitle: false }, 'expanded', sceneSettings);
+    from = webSocketMessages.messages.length;
+    await changeTitle('scene', sceneContext, 'Scene', { showTitle: true }, 'titled', sceneSettings);
+    assert.equal(webSocketMessages.messages.slice(from).some(message => message.context === earlyTitleContext), false,
+      'changing one key title must not redraw or change another same-action context');
+    send(actionEvent('willDisappear', 'scene', earlyTitleContext, sceneSettings));
+    from = webSocketMessages.messages.length;
+    send(titleEvent('scene', earlyTitleContext, 'Late title', { showTitle: true }, sceneSettings));
+    await changeTitle('scene', sceneContext, '', { showTitle: true }, 'expanded', sceneSettings);
+    assert.equal(webSocketMessages.messages.slice(from).some(message => message.context === earlyTitleContext), false,
+      'late title events cannot repaint a disappeared context');
+    from = webSocketMessages.messages.length;
+    send(actionEvent('willAppear', 'scene', earlyTitleContext, sceneSettings));
+    await webSocketMessages.wait(message => hasTitleLayout(message, earlyTitleContext, 'expanded'),
+      'reappearing context restores its last visible title metadata, not the ignored late event', from);
+    send(actionEvent('willDisappear', 'scene', earlyTitleContext, sceneSettings));
+
+    // Title-only events carry no authority to replace newer brightness settings.
+    const titledBrightness = await changeTitle('brightness-dial', dialContext, 'Brightness',
+      { showTitle: true, titleAlignment: 'top', fontSize: 14 }, 'titled', persistedDisplay.payload);
+    assert.ok(hasDialDisplay(titledBrightness, dialContext, 'bar', '53%'),
+      'restoring a dial title retains its current display mode and brightness');
+    assert.deepEqual(titledBrightness.payload.title, { enabled: true },
+      'a restored brightness title enables the native overlay without overwriting the custom text');
+    const emptyBrightness = await changeTitle('brightness-dial', dialContext, '',
+      { showTitle: true }, 'expanded', persistedDisplay.payload);
+    assert.ok(hasDialDisplay(emptyBrightness, dialContext, 'bar', '53%'));
+    assert.deepEqual(emptyBrightness.payload.title, { enabled: false },
+      'an empty brightness title explicitly disables the action-name fallback overlay');
+    const hiddenBrightness = await changeTitle('brightness-dial', dialContext, 'Brightness',
+      { showTitle: false }, 'expanded', persistedDisplay.payload);
+    assert.ok(hasDialDisplay(hiddenBrightness, dialContext, 'bar', '53%'));
+    assert.deepEqual(hiddenBrightness.payload.title, { enabled: false },
+      'a hidden brightness title explicitly disables the native overlay');
+
+    const lastAppliedBrowser = await changeTitle('scene-dial', sceneDialContext, '',
+      { showTitle: true }, 'expanded', sceneDialSettings);
+    assert.ok(hasSceneDisplay(lastAppliedBrowser, sceneDialContext, 'browsing', 0));
+    assert.match(dialCanvas(lastAppliedBrowser, sceneDialContext), /LAST APPLIED/,
+      'removing a scene title retains the browser\'s last successful application marker');
+    assert.deepEqual(lastAppliedBrowser.payload.title, { enabled: false },
+      'an empty scene title explicitly disables the action-name fallback overlay');
+    from = webSocketMessages.messages.length;
+    send(sceneRotation);
+    await webSocketMessages.wait(message => hasSceneDisplay(message, sceneDialContext, 'browsing', 1),
+      'scene choice before changing its title', from);
+    const hiddenSceneBrowser = await changeTitle('scene-dial', sceneDialContext, 'Scenes',
+      { showTitle: false }, 'expanded', sceneDialSettings);
+    assert.ok(hasSceneDisplay(hiddenSceneBrowser, sceneDialContext, 'browsing', 1));
+    assert.match(dialCanvas(hiddenSceneBrowser, sceneDialContext), /Ocean/);
+    assert.deepEqual(hiddenSceneBrowser.payload.title, { enabled: false },
+      'a hidden scene title explicitly disables the native overlay');
+    const restoredSceneBrowser = await changeTitle('scene-dial', sceneDialContext, 'Scenes',
+      { showTitle: true }, 'titled', sceneDialSettings);
+    assert.ok(hasSceneDisplay(restoredSceneBrowser, sceneDialContext, 'browsing', 1),
+      'restoring a title does not reset a scene browser to idle or its first selection');
+    assert.deepEqual(restoredSceneBrowser.payload.title, { enabled: true },
+      'a restored scene title enables the native overlay without overwriting the custom text');
+    await syncIPC();
+    assert.equal(titleRelevantRequests().length, beforeTitleRequests,
+      'title-only rendering neither discovers scenes again nor commands power, brightness, or scene');
+    assert.equal(webSocketMessages.messages.filter(message => message.event === 'setSettings').length,
+      beforeTitleSettings, 'native title changes never rewrite plugin or personal profile settings');
     send(actionEvent('willDisappear', 'scene-dial', sceneDialContext, sceneDialSettings));
     send(actionEvent('willDisappear', 'scene-dial', touchSceneContext, sceneDialSettings));
 
     from = webSocketMessages.messages.length;
     child.send({ type: 'offline' });
-    await webSocketMessages.wait(message => message.event === 'setImage' && message.context === powerContext
-      && message.payload?.image === 'imgs/power-unknown-key.png', 'unknown power when disconnected', from);
-    await webSocketMessages.wait(message => hasDialDisplay(message, dialContext, 'bar', '—'),
-      'unknown brightness when disconnected retains selected display', from);
+    await webSocketMessages.wait(message => hasPowerImage(message, powerContext, 'unknown')
+      && hasTitleLayout(message, powerContext, 'expanded'),
+    'background polling retains the hidden-title power layout when disconnected', from);
+    await webSocketMessages.wait(message => hasPowerImage(message, otherPowerContext, 'unknown')
+      && hasTitleLayout(message, otherPowerContext, 'titled'),
+    'other power context retains its own default title layout after polling', from);
+    const offlineHiddenDial = await webSocketMessages.wait(message => hasDialDisplay(message, dialContext, 'bar', '—')
+      && hasTitleLayout(message, dialContext, 'expanded'),
+    'unknown brightness when disconnected retains selected display and title layout', from);
+    assert.deepEqual(offlineHiddenDial.payload.title, { enabled: false },
+      'background polling cannot re-enable the hidden native title overlay');
     assert.equal(ipc.messages.filter(message => message.request?.params?.name === 'set_light_state').length, 9,
       'background polling must not mutate the light');
     const settingsWrites = webSocketMessages.messages.filter(message => message.event === 'setSettings');

@@ -4,12 +4,24 @@ Control power, brightness, and saved scenes in Nanoleaf Desktop from Stream Deck
 
 [한국어 안내](docs/README.ko.md) · [Releases](https://github.com/andrew427dev/streamdeck-nanoleaf-mcp/releases) · [Privacy](PRIVACY.md)
 
-**v0.3.0-beta.1 adds live power feedback, brightness controls, and two Stream Deck + dial actions.** Touch-to-change visualization, press-to-toggle power, and scene browsing/playback were confirmed on a physical Stream Deck + with Nanoleaf Desktop 3.0.1 and Stream Deck 7.6.0 on macOS. This remains a beta; other hardware and app versions need separate testing.
+**v0.4.0-beta.1 adds a clean design, title-responsive layouts, and clearer dial icons.** The previous release's power, brightness, touch visualization, and scene-browsing controls are retained. This remains an unofficial macOS beta; see the verification scope below.
 
 ## Features
 
+### Clean design and title-responsive layouts
+
+The plugin uses a clean black/mint design and automatically adapts to Stream Deck's native title field. Enter a title to reserve room for it; clear it or disable **Show Title** to enlarge the artwork. This applies to power, scene and brightness keys and both dial displays. ON/OFF, brightness and scene selection remain visible independently of the optional title. Custom icons supplied by the user still take precedence.
+
+Title changes redraw only the display: they do not change the light, reset the scene browser, cancel queued brightness input, or rewrite action settings. The native title font/colour preferences are retained. Large title reservations prioritize the selected scene over neighbouring rows. A new process initially reserves safe title space until Stream Deck supplies the title parameters.
+
+Brightness Dial and Scene Browser use centred sun and list/play symbols with matched proportions. The public category icon is an original light-column symbol, not the Nanoleaf logo. The scene display identifies the **last applied** selection without claiming it is the current live scene.
+
+Title entry/removal, blank-title restoration after restarting Stream Deck, and dial icon placement were checked in the installed macOS app. Show Title handling is also covered by automated SDK tests. Physical button/rotation/touch playback and cold app launch have not been re-tested for this design release; the control implementation is unchanged. The public category icon was checked by pixel tests and package validation without replacing the local test installation.
+
+### Controls
+
 - **Power:** turn a selected device on, off, or toggle its power.
-- **Live power icon:** green ON, gray OFF, or a question mark when state is unavailable. Visible controls share read-only polling, approximately every two seconds after each response; polling never opens the app. Custom Stream Deck icons override plugin images.
+- **Live power icon:** mint ON, gray OFF, or a dash when state is unavailable. Visible controls share read-only polling, approximately every two seconds after each response; polling never opens the app. Custom Stream Deck icons override plugin images.
 - **Brightness Up / Down:** separate physical key actions, initially 5 percentage points per press.
 - **Brightness Dial:** turn to adjust brightness (initially 2 percentage points per tick), press to toggle power, and tap its touch-strip area to cycle **bar → ring → large number**. The display preference is saved per dial and selectable in settings. Live feedback updates while idle. A display tap never changes the light or launches Desktop; rotation and power presses respect the action's app-launch option.
 - **Scene Browser:** add a second dial. The first press or tap opens saved scenes; rotate to select, then press or tap to play. Three rows show nearby names and the selected scene. Browsing changes no lighting state. Loading/applying ignores duplicate gestures, and failed commands are never automatically replayed. The scene list/selection remains in memory, not profile settings. Leaving and reopening the profile resets the browser for a fresh list. Long touches have no action.
@@ -40,7 +52,7 @@ Earlier betas verified device/scene discovery, light state, physical power and s
 5. Select a device. For Power, choose **On**, **Off**, or **Toggle**; for Scene, choose a saved scene.
 6. Give the button a title in Stream Deck, such as **ON**, **OFF**, or your scene name. Press it to apply the selected action. You can make separate On and Off buttons and as many scene buttons as you need.
 
-The plugin uses your existing saved scenes; it does not include scene definitions. Installing it does not migrate or replace existing helper scripts, Shortcuts, or buttons. You can leave those in place while testing new buttons.
+The plugin uses your existing saved scenes; it does not include scene definitions. Installing it does not migrate or replace existing helper scripts, Shortcuts, or buttons. You can leave those in place while testing new buttons. This release retains the plugin/action identifiers and settings format: existing button assignments, selected devices/scenes, brightness steps, automatic-launch choices, and title preferences do not require reconfiguration. Export important profiles as a backup before updating; do not uninstall the plugin or delete its actions first.
 
 ### Brightness keys and Stream Deck + dials
 
@@ -77,4 +89,4 @@ Tests build the plugin and use synthetic devices and mocked responses. The bundl
 
 Device IDs and scene names are stored in local Stream Deck button settings. Exported profiles can contain those values; review them before sharing. See [PRIVACY.md](PRIVACY.md) and [SECURITY.md](SECURITY.md).
 
-Original code is available under the [MIT License](LICENSE). Dependencies retain their own licenses. Nanoleaf and Stream Deck names identify the products this plugin works with; this project is not affiliated with or endorsed by their vendors. No proprietary Nanoleaf scene definitions or application assets are distributed.
+Original code and all bundled control/category icons are available under the [MIT License](LICENSE). Dependencies retain their own licenses. Nanoleaf and Stream Deck names identify the products this plugin works with; this project is not affiliated with or endorsed by their vendors. No Nanoleaf logo artwork, proprietary scene definitions, or application assets are distributed.

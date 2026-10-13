@@ -58,7 +58,7 @@ test('initializes once, selects the fixed endpoint, and preserves only public de
     'initialize', 'notifications/initialized', 'tools/call', 'tools/call',
   ]);
   assert.equal(calls[0].request.params.protocolVersion, '2025-03-26');
-  assert.equal(calls[0].request.params.clientInfo.version, '0.3.0-beta.1');
+  assert.equal(calls[0].request.params.clientInfo.version, '0.4.0-beta.1');
   assert.deepEqual(calls[2].request.params, { name: 'list_devices', arguments: {} });
   assert.equal(calls[1].request.id, undefined);
   const ids = calls.filter(call => call.request.id).map(call => call.request.id);

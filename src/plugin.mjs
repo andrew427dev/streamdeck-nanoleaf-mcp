@@ -7,6 +7,8 @@ import { LiveState, BrightnessQueue } from './live-state.mjs';
 import { dialDisplayFeedback, nextDisplayMode } from './dial-display.mjs';
 import { SceneBrowser } from './scene-browser.mjs';
 import { sceneDisplayFeedback } from './scene-display.mjs';
+import { titlePresentation } from './title-presentation.mjs';
+import { keyDisplayImage } from './key-display.mjs';
 
 // Keep SDK wire-level settings/device payloads out of normal log output.
 streamDeck.logger.setLevel('error');
@@ -35,6 +37,8 @@ class LightAction extends SingletonAction {
   #results = new Map();
   #sequence = 0;
   #visible = new Map();
+  // Bounded, display-only metadata. No title text, device identifiers or profile writes.
+  #titles = new Map();
   constructor(kind) { super(); this.kind = kind; }
 
   #status(context, state, errorCode, expectedSequence) {
@@ -58,6 +62,16 @@ class LightAction extends SingletonAction {
   }
 
   onWillAppear(ev) { this.#watch(ev); }
+  onTitleParametersDidChange(ev) {
+    const presentation = titlePresentation(ev.payload, ev.action.isDial() ? 'Encoder' : 'Keypad');
+    this.#titles.delete(ev.action.id);
+    this.#titles.set(ev.action.id, presentation);
+    if (this.#titles.size > 256) this.#titles.delete(this.#titles.keys().next().value);
+    const view = this.#visible.get(ev.action.id);
+    if (!view) return;
+    view.presentation = presentation;
+    void this.#render(ev.action, view).catch(() => {});
+  }
   onDidReceiveSettings(ev) {
     const view = this.#visible.get(ev.action.id);
     const settings = ev.payload.settings;
@@ -82,10 +96,11 @@ class LightAction extends SingletonAction {
 
   #watch(ev) {
     this.#visible.get(ev.action.id)?.browser?.dispose();
-    const token = { settings: ev.payload.settings, state: undefined };
+    const token = { settings: ev.payload.settings, state: undefined,
+      presentation: this.#titles.get(ev.action.id) ?? titlePresentation(undefined, ev.action.isDial() ? 'Encoder' : 'Keypad') };
     this.#visible.set(ev.action.id, token);
     if (this.kind === 'scene-dial' && ev.action.isDial()) {
-      token.ready = ev.action.setFeedbackLayout('layouts/scenes.json');
+      token.ready = this.#prepareDial(ev.action, 'layouts/scenes.json');
       void token.ready.catch(() => {});
       token.browser = new SceneBrowser({
         settings: token.settings,
@@ -102,17 +117,18 @@ class LightAction extends SingletonAction {
     }
     if (this.kind === 'brightness-dial' && ev.action.isDial()) {
       // Explicitly replace layouts cached by older versions in existing profiles.
-      token.ready = ev.action.setFeedbackLayout('layouts/brightness.json');
+      token.ready = this.#prepareDial(ev.action, 'layouts/brightness.json');
       void token.ready.catch(() => {});
     }
+    if (ev.action.isKey()) void this.#render(ev.action, token).catch(() => {});
     if (this.kind !== 'power' && this.kind !== 'brightness-dial') return;
     const settings = ev.payload.settings;
     const configured = this.kind !== 'power' || ['on', 'off', 'toggle'].includes(settings?.powerMode);
     live.watch(ev.action.id, configured ? settings?.deviceId : undefined, async state => {
       if (this.#visible.get(ev.action.id) !== token) return;
+      token.state = state;
       if (this.kind === 'power' && ev.action.isKey()) {
-        const suffix = typeof state?.power !== 'boolean' ? 'unknown' : state.power ? 'on' : 'off';
-        await ev.action.setImage(`imgs/power-${suffix}-key.png`);
+        await this.#render(ev.action, token);
       } else if (this.kind === 'brightness-dial' && ev.action.isDial()) {
         token.state = state;
         await this.#renderDial(ev.action, token);
@@ -120,12 +136,29 @@ class LightAction extends SingletonAction {
     });
   }
 
+  async #prepareDial(action, layout) {
+    await action.setFeedbackLayout(layout);
+    // Remove the plugin-generated default from older versions. Native custom
+    // titles take precedence in Stream Deck and are never overwritten by this.
+    await action.setTitle('');
+  }
+
+  async #render(action, view) {
+    if (this.#visible.get(action.id) !== view) return;
+    if (action.isDial()) return this.#renderDial(action, view);
+    if (action.isKey()) await action.setImage(keyDisplayImage(this.kind, view.state, view.presentation));
+  }
+
   async #renderDial(action, view) {
     await view.ready;
     if (this.#visible.get(action.id) !== view) return;
-    await action.setFeedback(this.kind === 'scene-dial'
-      ? sceneDisplayFeedback(view.scene)
-      : dialDisplayFeedback(view.settings?.displayMode, view.state));
+    const feedback = this.kind === 'scene-dial'
+      ? sceneDisplayFeedback(view.scene, view.presentation)
+      : dialDisplayFeedback(view.settings?.displayMode, view.state, view.presentation);
+    // An empty native title can fall back to the action name after an app redraw.
+    // Disable just that overlay when there is no visible user title; never alter
+    // its text, font, colour or the user's Show Title preference.
+    await action.setFeedback({ ...feedback, title: { enabled: view.presentation.visible !== false } });
   }
 
   async #dispatch(ev, task) {

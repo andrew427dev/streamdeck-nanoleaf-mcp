@@ -10,3 +10,6 @@ dist/
 coverage/
 .env*
 *.log
+# Vendor artwork used in a private local preview is not part of public releases.
+assets/nanoleaf-core-logo.svg
+assets/BRAND-NOTICE.txt

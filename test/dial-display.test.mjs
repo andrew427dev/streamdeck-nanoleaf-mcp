@@ -64,24 +64,62 @@ test('known OFF without available brightness remains OFF without a fabricated sa
 
 test('bar and ring represent 0, midpoint, and 100 without overflowing their tracks', () => {
   assert.doesNotMatch(renderDialDisplay('bar', { power: true, brightness: 0 }), /width="0.00"/);
-  assert.match(renderDialDisplay('bar', { power: true, brightness: 50 }), /width="86.00"/);
-  assert.match(renderDialDisplay('bar', { power: true, brightness: 100 }), /width="172.00"/);
+  assert.match(renderDialDisplay('bar', { power: true, brightness: 50 }), /width="88.00"/);
+  assert.match(renderDialDisplay('bar', { power: true, brightness: 100 }), /width="176.00"/);
   assert.doesNotMatch(renderDialDisplay('ring', { power: true, brightness: 0 }), /stroke-dasharray/);
-  assert.match(renderDialDisplay('ring', { power: true, brightness: 50 }), /stroke-dasharray="78.540 157.080"/);
-  assert.match(renderDialDisplay('ring', { power: true, brightness: 100 }), /stroke-dasharray="157.080 157.080"/);
+  assert.match(renderDialDisplay('ring', { power: true, brightness: 50 }), /stroke-dasharray="69.115 138.230"/);
+  assert.match(renderDialDisplay('ring', { power: true, brightness: 100 }), /stroke-dasharray="138.230 138.230"/);
 });
 
-test('feedback uses a self-contained supported SVG data URI and native title field', () => {
+test('feedback uses a self-contained SVG without overriding the native title', () => {
   const state = Object.freeze({ power: true, brightness: 82 });
   for (const mode of modes) {
     const result = dialDisplayFeedback(mode, state);
-    assert.deepEqual(Object.keys(result), ['title', 'canvas']);
-    assert.equal(result.title, 'Brightness');
+    assert.deepEqual(Object.keys(result), ['canvas']);
     assert.match(result.canvas, /^data:image\/svg\+xml;base64,/);
     const svg = Buffer.from(result.canvas.split(',')[1], 'base64').toString('utf8');
     assert.equal(svg, renderDialDisplay(mode, state));
     assert.equal(result.canvas, dialDisplayFeedback(mode, state).canvas);
     assert.doesNotMatch(svg, /<script|<image|href=|<foreignObject|<animate/);
+  }
+});
+
+test('a hidden native title expands every mode and restores the titled layout without mutating input', () => {
+  const state = Object.freeze({ power: true, brightness: 68 });
+  const presentation = Object.freeze({ visible: false, reserve: 46 });
+  const valueSize = svg => Number(svg.match(/font-size="([\d.]+)"[^>]+data-role="value"/)[1]);
+  for (const mode of modes) {
+    const titled = renderDialDisplay(mode, state);
+    const expanded = renderDialDisplay(mode, state, presentation);
+    assert.match(titled, /data-title-layout="titled" data-title-reserve="30"/);
+    assert.match(expanded, /data-title-layout="expanded" data-title-reserve="0"/);
+    assert.ok(valueSize(expanded) > valueSize(titled));
+    assert.equal(renderDialDisplay(mode, state, { visible: true }), titled);
+    assert.equal(Buffer.from(dialDisplayFeedback(mode, state, presentation).canvas.split(',')[1], 'base64').toString(), expanded);
+    assert.doesNotMatch(expanded, />Brightness<|preserveAspectRatio="none"|scale\(/);
+  }
+  const ringRadius = svg => Number(svg.match(/r="([\d.]+)"[^>]+data-role="ring"/)[1]);
+  assert.ok(ringRadius(renderDialDisplay('ring', state, presentation)) > ringRadius(renderDialDisplay('ring', state)));
+});
+
+test('native title reservations are bounded and never accept strings or invalid numbers', () => {
+  for (const [reserve, expected] of [[24, 24], [46, 46], [1000, 46], [-10, 24], ['40', 30], [NaN, 30], [Infinity, 30]]) {
+    const svg = renderDialDisplay('bar', { power: true, brightness: 100 }, { reserve });
+    assert.match(svg, new RegExp(`data-title-reserve="${expected}"`));
+    assert.doesNotMatch(svg, /NaN|Infinity/);
+  }
+  assert.match(renderDialDisplay('bar', {}, null), /data-title-reserve="30"/);
+});
+
+test('visible native titles have a completely empty reserved area at every supported height', async () => {
+  const { default: sharp } = await import('sharp');
+  for (const mode of modes) {
+    for (const reserve of [24, 30, 36, 46]) {
+      const svg = renderDialDisplay(mode, { power: true, brightness: 100 }, { reserve });
+      const pixels = await sharp(Buffer.from(svg)).removeAlpha().extract({ left: 0, top: 0, width: 200, height: reserve }).raw().toBuffer();
+      for (let i = 0; i < pixels.length; i += 3) assert.deepEqual([...pixels.subarray(i, i + 3)], [8, 12, 14]);
+      for (const [, size] of svg.matchAll(/font-size="([\d.]+)"/g)) assert.ok(Number(size) >= 11);
+    }
   }
 });
 
@@ -96,10 +134,12 @@ test('all view/status variants rasterize to the exact touch-strip dimensions', a
   const { default: sharp } = await import('sharp');
   for (const mode of modes) {
     for (const state of [undefined, { power: false }, { power: false, brightness: 40 }, ...[0, 0.5, 50, 99.5, 100].map(brightness => ({ power: true, brightness }))]) {
-      const image = await sharp(Buffer.from(renderDialDisplay(mode, state))).png().toBuffer({ resolveWithObject: true });
-      assert.equal(image.info.width, 200);
-      assert.equal(image.info.height, 100);
-      assert.ok(image.data.length > 100);
+      for (const presentation of [{}, { visible: false }, { reserve: 46 }]) {
+        const image = await sharp(Buffer.from(renderDialDisplay(mode, state, presentation))).png().toBuffer({ resolveWithObject: true });
+        assert.equal(image.info.width, 200);
+        assert.equal(image.info.height, 100);
+        assert.ok(image.data.length > 100);
+      }
     }
   }
 });

@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.4.0-beta.1 — 2026-10-13
+
+- Clean black/mint key and touch-strip artwork, larger readable values and explicit ON/OFF/unknown state.
+- Replace busy encoder-selector icons with centred sun and scene-list/play symbols, using matching optical sizes at normal/Retina resolutions. Use an original light-column category icon in the public release; do not distribute the vendor logo used in an earlier private preview.
+- React to native title content, Show Title, font size and keypad alignment. Empty/hidden titles expand the composition; visible titles retain safe space without stretching graphics.
+- Preserve user title text, font and colour. Disable the native dial title overlay when empty/hidden so fallback action names cannot overlap enlarged artwork.
+- Keep title handling separate from light commands, queued brightness and scene browser state. Cache only bounded geometry in memory, never user title strings or profile settings.
+- Clarify scene feedback as LAST APPLIED rather than claiming the selected item is the currently playing scene.
+- Automated rendering and bundled SDK coverage added for title updates, context isolation, reappearance, polling, queued input and no side effects.
+- Retain plugin/action identifiers and the settings format; existing assignments and preferences do not need migration.
+- App UI title entry/removal, restart recovery and dial icon placement were verified in a temporary macOS test profile. Physical gestures and cold launch have not been re-tested for this design release; the control implementation is unchanged. The public category icon is covered by pixel tests and package validation, without replacing the private installed preview. Original profiles, the installed plugin and the existing helper are not changed by the publishing process.
+
 ## 0.3.0-beta.1 — 2026-10-11
 
 - First public release of the improvements developed in the internal 0.2.0 betas: live power icons, brightness decrease/increase keys, queued dial brightness adjustment, three brightness visualizations, and removal of green success-check overlays.
