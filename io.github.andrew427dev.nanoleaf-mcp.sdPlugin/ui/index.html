@@ -10,7 +10,7 @@
   </head>
   <body>
     <main>
-      <p class="intro" data-i18n="intro">Open Nanoleaf Desktop and connect your light before refreshing.</p>
+      <p class="intro" data-i18n="intro">For the USB-only PC Screen Mirror Lightstrip (NL82K2), controlled through Nanoleaf Desktop. This beta does not support Wi-Fi/LAN models. Open the app and connect your light by USB before refreshing.</p>
 
       <section class="command-result" aria-labelledby="command-heading">
         <p id="command-heading" data-i18n="commandHeading">Last key press</p>
@@ -53,6 +53,16 @@
         </select>
       </div>
       <p id="display-help" class="hint" data-i18n="displayHelp" hidden>Turn: adjust brightness · Press the dial: toggle power · Tap the touch strip: switch display. Bar → Ring → Number. Display changes never change the light or open the app.</p>
+
+      <div id="brightness-text-size-field" class="field" hidden>
+        <label for="brightness-text-size" data-i18n="brightnessTextSize">Brightness text size</label>
+        <select id="brightness-text-size" aria-describedby="brightness-text-size-help" disabled>
+          <option value="small" data-i18n="brightnessTextSmall">Small</option>
+          <option value="medium" data-i18n="brightnessTextMedium">Medium</option>
+          <option value="large" data-i18n="brightnessTextLarge">Large (original size)</option>
+        </select>
+      </div>
+      <p id="brightness-text-size-help" class="hint" data-i18n="brightnessTextSizeHelp" hidden>Size of the brightness percentage on the touch strip in all three display styles. Large keeps the original size. This changes only the display, not the light.</p>
       <p id="scene-browser-help" class="hint" data-i18n="sceneBrowserHelp" hidden>Press the dial or tap its touch-strip section to open the saved scene list. Turn to select a scene, then press or tap again to play it. Up to three scene names appear at a time. Selection is temporary and is not saved in your profile.</p>
 
       <div class="button-row">

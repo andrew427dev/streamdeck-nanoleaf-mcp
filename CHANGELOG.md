@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.4.0-beta.2 — 2026-10-13
+
+- Clarify the USB-only PC Screen Mirror Lightstrip (NL82K2) support scope in plugin descriptions, English/Korean documentation and settings. Control goes through Nanoleaf Desktop's local MCP server to USB, not through a device Wi-Fi/LAN API; other USB products are not supported.
+- Add a per-brightness-dial percentage text size: small (60%), medium (80%), or large (100%, the existing size). Apply it to bar, ring and number views while preserving the existing default and title-responsive layout.
+- Keep light commands, queued rotations, mode switching, status indicators, graphics and automatic-launch preferences independent of percentage text sizing.
+- Retain plugin/action identifiers and all existing settings; missing size preferences keep the original large appearance without migration.
+- Validation: 170 automated tests, official plugin validation and packaging. All three sizes were checked in the installed macOS settings/display preview, and the tester confirmed correct size changes on their Stream Deck + on 2026-10-13. Physical power/scene gestures and cold app launch were not re-tested for this display-only update.
+- Publish with the original light-column category icon. The publishing process does not replace the local test installation, its logo, profiles, or existing helper.
+
 ## 0.4.0-beta.1 — 2026-10-13
 
 - Clean black/mint key and touch-strip artwork, larger readable values and explicit ON/OFF/unknown state.

@@ -154,7 +154,7 @@ class LightAction extends SingletonAction {
     if (this.#visible.get(action.id) !== view) return;
     const feedback = this.kind === 'scene-dial'
       ? sceneDisplayFeedback(view.scene, view.presentation)
-      : dialDisplayFeedback(view.settings?.displayMode, view.state, view.presentation);
+      : dialDisplayFeedback(view.settings?.displayMode, view.state, view.presentation, view.settings?.brightnessTextSize);
     // An empty native title can fall back to the action name after an app redraw.
     // Disable just that overlay when there is no visible user title; never alter
     // its text, font, colour or the user's Show Title preference.

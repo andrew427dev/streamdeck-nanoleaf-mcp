@@ -7,11 +7,13 @@
   const REQUEST_TIMEOUT_MS = 15_000;
   const translations = {
     en: {
-      intro: "Open Nanoleaf Desktop and connect your light before refreshing.",
+      intro: "For the USB-only PC Screen Mirror Lightstrip (NL82K2), controlled through Nanoleaf Desktop. This beta does not support Wi-Fi/LAN models. Open the app and connect your light by USB before refreshing.",
       device: "Device", scene: "Scene", powerMode: "Power mode",
       brightnessStep: "Step (%p)",
       displayMode: "Display", displayBar: "Bar", displayRing: "Ring", displayNumber: "Number",
       displayHelp: "Turn: adjust brightness · Press the dial: toggle power · Tap the touch strip: switch display. Bar → Ring → Number. Display changes never change the light or open the app.",
+      brightnessTextSize: "Brightness text size", brightnessTextSmall: "Small", brightnessTextMedium: "Medium", brightnessTextLarge: "Large (original size)",
+      brightnessTextSizeHelp: "Size of the brightness percentage on the touch strip in all three display styles. Large keeps the original size. This changes only the display, not the light.",
       sceneBrowserHelp: "Press the dial or tap its touch-strip section to open the saved scene list. Turn to select a scene, then press or tap again to play it. Up to three scene names appear at a time. Selection is temporary and is not saved in your profile.",
       brightnessHelp: "Change per key press, in percentage points (1–100). Default: 5.",
       brightnessStepInvalid: "Enter a whole number from 1 to 100 for the brightness step.",
@@ -25,7 +27,7 @@
       savedDevice: "Saved device", saved: "saved", unavailable: "unavailable",
       missingDevice: "The saved device is not in the current list. Its setting is kept; reconnect it or select another device.",
       missingScene: "The saved scene is not in the current list. Its setting is kept; add it in Nanoleaf Desktop or select another scene.",
-      noDevices: "No supported devices found. This beta supports only the PC Screen Mirror Lightstrip (NL82K2). Connect it in Nanoleaf Desktop, then refresh.",
+      noDevices: "No supported devices found. This beta supports only the USB PC Screen Mirror Lightstrip (NL82K2). Connect it by USB in Nanoleaf Desktop, then refresh.",
       noScenes: "No scenes found. Add a scene for this device in Nanoleaf Desktop, then refresh.",
       ready: "Lists updated. Settings are saved when you make a selection.",
       timeout: "The request timed out. Check that Nanoleaf Desktop is ready, then refresh.",
@@ -53,11 +55,13 @@
       },
     },
     ko: {
-      intro: "Nanoleaf Desktop을 열고 조명을 연결한 뒤 목록을 새로고침해 주세요.",
+      intro: "Wi-Fi 없이 USB로 연결하는 PC Screen Mirror Lightstrip(NL82K2)을 Nanoleaf Desktop을 통해 제어합니다. 이번 베타는 Wi-Fi/LAN 모델을 지원하지 않습니다. 앱을 열고 조명을 USB로 연결한 뒤 새로고침해 주세요.",
       device: "장치", scene: "씬", powerMode: "전원 동작",
       brightnessStep: "조절 폭 (%p)",
       displayMode: "표시 방식", displayBar: "막대", displayRing: "원형", displayNumber: "숫자",
       displayHelp: "돌리기: 밝기 조절 · 다이얼 누르기: 전원 전환 · 터치 화면 누르기: 표시 방식 전환. 막대 → 원형 → 숫자 순서입니다. 표시 전환은 조명을 바꾸거나 앱을 실행하지 않습니다.",
+      brightnessTextSize: "밝기 숫자 크기", brightnessTextSmall: "작게", brightnessTextMedium: "중간", brightnessTextLarge: "크게 (기존 크기)",
+      brightnessTextSizeHelp: "터치 화면의 밝기 % 숫자 크기이며, 세 가지 표시 방식에 모두 적용됩니다. ‘크게’는 기존 크기입니다. 화면 표시만 바뀌며 실제 밝기는 바뀌지 않습니다.",
       sceneBrowserHelp: "다이얼을 누르거나 해당 터치 화면을 누르면 저장된 씬 목록이 열립니다. 다이얼을 돌려 씬을 선택하고 다시 누르거나 터치하면 재생합니다. 화면에는 씬 이름이 최대 세 개씩 표시됩니다. 선택 위치는 임시이며 프로필에 저장되지 않습니다.",
       brightnessHelp: "키를 한 번 누를 때 바뀌는 밝기입니다. 1–100%p 사이의 정수이며, 기본값은 5%p입니다.",
       brightnessStepInvalid: "밝기 조절 폭은 1부터 100까지의 정수로 입력해 주세요.",
@@ -71,7 +75,7 @@
       savedDevice: "저장된 장치", saved: "저장됨", unavailable: "현재 없음",
       missingDevice: "저장된 장치가 현재 목록에 없습니다. 설정은 유지됩니다. 장치를 다시 연결하거나 다른 장치를 선택해 주세요.",
       missingScene: "저장된 씬이 현재 목록에 없습니다. 설정은 유지됩니다. Nanoleaf Desktop에서 씬을 추가하거나 다른 씬을 선택해 주세요.",
-      noDevices: "지원되는 장치를 찾지 못했습니다. 이번 베타는 PC Screen Mirror Lightstrip(NL82K2)만 지원합니다. Nanoleaf Desktop에서 장치를 연결한 뒤 새로고침해 주세요.",
+      noDevices: "지원되는 장치를 찾지 못했습니다. 이번 베타는 USB PC Screen Mirror Lightstrip(NL82K2)만 지원합니다. Nanoleaf Desktop에서 장치를 USB로 연결한 뒤 새로고침해 주세요.",
       noScenes: "씬을 찾지 못했습니다. Nanoleaf Desktop에서 이 장치에 씬을 추가한 뒤 새로고침해 주세요.",
       ready: "목록을 불러왔습니다. 항목을 선택하면 설정이 저장됩니다.",
       timeout: "응답 시간이 초과되었습니다. Nanoleaf Desktop이 준비되었는지 확인한 뒤 새로고침해 주세요.",
@@ -139,6 +143,7 @@
     sceneField: element("scene-field"), powerField: element("power-field"),
     brightnessField: element("brightness-field"), brightnessStep: element("brightness-step"), brightnessHelp: element("brightness-help"),
     displayField: element("display-field"), displayMode: element("display-mode"), displayHelp: element("display-help"),
+    brightnessTextSizeField: element("brightness-text-size-field"), brightnessTextSize: element("brightness-text-size"), brightnessTextSizeHelp: element("brightness-text-size-help"),
     sceneBrowserHelp: element("scene-browser-help"),
     deviceHint: element("device-hint"), sceneHint: element("scene-hint"),
     refresh: element("refresh"), autoLaunch: element("auto-launch"), status: element("status"),
@@ -177,7 +182,10 @@
     }
     if (isBrightness) normalized.brightnessStep = Number.isInteger(data.brightnessStep)
       && data.brightnessStep >= 1 && data.brightnessStep <= 100 ? data.brightnessStep : isDial ? 2 : 5;
-    if (isBrightnessDial) normalized.displayMode = ["bar", "ring", "number"].includes(data.displayMode) ? data.displayMode : "bar";
+    if (isBrightnessDial) {
+      normalized.displayMode = ["bar", "ring", "number"].includes(data.displayMode) ? data.displayMode : "bar";
+      normalized.brightnessTextSize = ["small", "medium", "large"].includes(data.brightnessTextSize) ? data.brightnessTextSize : "large";
+    }
     return normalized;
   }
 
@@ -207,6 +215,7 @@
     ui.mode.disabled = !ready;
     ui.brightnessStep.disabled = !ready;
     ui.displayMode.disabled = !ready;
+    ui.brightnessTextSize.disabled = !ready;
     ui.autoLaunch.disabled = !ready;
     ui.refresh.disabled = !ready || pending.size > 0;
   }
@@ -249,6 +258,9 @@
     ui.brightnessStep.value = String(settings.brightnessStep ?? "");
     ui.displayField.hidden = !isBrightnessDial;
     ui.displayHelp.hidden = !isBrightnessDial;
+    ui.brightnessTextSizeField.hidden = !isBrightnessDial;
+    ui.brightnessTextSizeHelp.hidden = !isBrightnessDial;
+    ui.brightnessTextSize.value = settings.brightnessTextSize ?? "large";
     ui.sceneBrowserHelp.hidden = !isSceneDial;
     ui.displayMode.value = settings.displayMode ?? "bar";
     controls();
@@ -389,6 +401,16 @@
     }
     if (ui.displayMode.value === settings.displayMode) return;
     settings.displayMode = ui.displayMode.value;
+    save();
+  });
+  ui.brightnessTextSize.addEventListener("change", () => {
+    if (!isBrightnessDial) return;
+    if (!["small", "medium", "large"].includes(ui.brightnessTextSize.value)) {
+      ui.brightnessTextSize.value = settings.brightnessTextSize;
+      return;
+    }
+    if (ui.brightnessTextSize.value === settings.brightnessTextSize) return;
+    settings.brightnessTextSize = ui.brightnessTextSize.value;
     save();
   });
   ui.autoLaunch.addEventListener("change", () => { settings.autoLaunch = ui.autoLaunch.checked; save(); });

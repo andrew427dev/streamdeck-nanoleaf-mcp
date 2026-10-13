@@ -1,12 +1,20 @@
 # Nanoleaf MCP for Stream Deck
 
-Control power, brightness, and saved scenes in Nanoleaf Desktop from Stream Deck. This is an unofficial, open-source plugin for macOS.
+Control the **USB-connected Nanoleaf PC Screen Mirror Lightstrip (NL82K2)** from Stream Deck: power, brightness, and scenes saved in Nanoleaf Desktop. This is an unofficial, open-source plugin for macOS, specifically for this non-Wi-Fi model—not a Wi-Fi/LAN Nanoleaf plugin or a controller for every USB model.
+
+Control path: **Stream Deck → Nanoleaf Desktop (local MCP) → USB → lightstrip**. The light does not need Wi-Fi pairing or a device IP address, but Nanoleaf Desktop must be running (or automatic launch enabled). Nanoleaf documents this product's [USB/HID communication separately from its Wi-Fi APIs](https://support.nanoleaf.me/hc/en-us/articles/46020382680468-API-Nanoleaf-OpenAPI-Documentation-Forum-Guidelines).
 
 [한국어 안내](docs/README.ko.md) · [Releases](https://github.com/andrew427dev/streamdeck-nanoleaf-mcp/releases) · [Privacy](PRIVACY.md)
 
-**v0.4.0-beta.1 adds a clean design, title-responsive layouts, and clearer dial icons.** The previous release's power, brightness, touch visualization, and scene-browsing controls are retained. This remains an unofficial macOS beta; see the verification scope below.
+**v0.4.0-beta.2 adds three brightness percentage-text sizes and clearer USB-only model guidance.** The previous release's clean design, title-responsive layouts, and power/scene/dial controls are retained. This remains an unofficial macOS beta; see the verification scope below.
 
 ## Features
+
+### Brightness percentage-text size
+
+Brightness Dial settings now offer **Brightness text size: Small / Medium / Large (original size)**. They use 60% / 80% / 100% of the existing percentage-text size in bar, ring, and number views. Large is the default, including for existing dials without this setting. The choice is saved per dial and retained when switching views. It changes only the main percentage text, not the light's brightness, graphics, OFF/unknown indicators, or title preferences; changing it does not launch Desktop or send a light command.
+
+The three sizes were checked in the installed macOS settings/display preview, and the tester confirmed correct size changes on their Stream Deck + on 2026-10-13. Automated coverage checks all three views, defaults, persistence, title handling and isolation from lighting commands. Physical power/scene gestures and cold app launch were not re-tested for this display-only update.
 
 ### Clean design and title-responsive layouts
 
@@ -40,6 +48,7 @@ Requests go to Nanoleaf Desktop at `http://127.0.0.1:15765/mcp`. No API key or p
 - macOS 13 or later.
 - Stream Deck 7.1 or later.
 - Nanoleaf Desktop 3.x, with the device connected and set up in the app.
+- USB-connected PC Screen Mirror Lightstrip (NL82K2). Wi-Fi/LAN Nanoleaf models and other USB products are not supported by this beta.
 
 Earlier betas verified device/scene discovery, light state, physical power and scene buttons, brightness keys/rotation, and the settings UI. v0.3.0-beta.1 additionally verified physical brightness-display touch, dial power presses, scene-list opening/rotation, and both touch and press playback. Testing used Nanoleaf Desktop 3.0.1, Stream Deck 7.6.0, and Stream Deck + on macOS. Cold-start automatic launch was not re-tested on v0.3.0-beta.1. This beta only exposes the PC Screen Mirror Lightstrip (NL82K2). Other devices and future app versions need separate testing. Windows is not supported in this release.
 
@@ -60,6 +69,8 @@ The plugin uses your existing saved scenes; it does not include scene definition
 2. On Stream Deck +, add **Brightness Dial** to a dial. Turn for brightness, press for power, and tap the display directly above that dial to cycle bar, ring, and number views.
 3. Add **Scene Browser** to another dial and select the device. Press or tap to open the list, turn to select, then press or tap to play. Touch confirms the highlighted scene; it does not select a separate row by its screen position.
 4. Enable automatic launch for each control if you want it to open Nanoleaf Desktop when needed. Otherwise, Desktop must already be running. Opening the settings or changing the brightness visualization never launches Desktop.
+
+Select the Brightness Dial and choose **Brightness text size** to adjust its main percentage text. Leave **Large (original size)** selected to keep the previous appearance. Existing dials without this preference retain the original size; no migration is required.
 
 ## Troubleshooting
 

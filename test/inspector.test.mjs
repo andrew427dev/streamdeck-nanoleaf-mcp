@@ -302,7 +302,12 @@ test("the empty device list states the beta's NL82K2-only scope in both language
     const ui = inspector({ language });
     ui.respond("devices", { devices: [] });
     assert.match(ui.elements.get("status").textContent, /NL82K2/);
+    assert.match(ui.elements.get("status").textContent, /USB/);
     assert.match(ui.elements.get("status").textContent, language === "ko" ? /만 지원합니다/ : /supports only/);
+    const intro = ui.translated.find(node => node.dataset.i18n === "intro").textContent;
+    assert.match(intro, /USB.*PC Screen Mirror Lightstrip|PC Screen Mirror Lightstrip.*USB/);
+    assert.match(intro, /NL82K2/);
+    assert.match(intro, language === "ko" ? /Wi-Fi\/LAN 모델을 지원하지 않습니다/ : /does not support Wi-Fi\/LAN models/);
   }
 });
 
@@ -344,18 +349,21 @@ test("brightness actions show step and dial-only display settings without readin
     assert.equal(ui.elements.get("brightness-step").value, String(defaultStep));
     assert.equal(ui.elements.get("display-field").hidden, suffix !== "brightness-dial");
     assert.equal(ui.elements.get("display-help").hidden, suffix !== "brightness-dial");
+    assert.equal(ui.elements.get("brightness-text-size-field").hidden, suffix !== "brightness-dial");
+    assert.equal(ui.elements.get("brightness-text-size-help").hidden, suffix !== "brightness-dial");
     assert.equal(ui.elements.get("auto-launch").checked, true);
     assert.equal(ui.commands("setSettings").length, 0, "opening settings must not save defaults");
     assert.equal(ui.requests("scenes").length, 0);
     ui.change("brightness-step", "10");
     assert.deepEqual(ui.commands("setSettings").at(-1).payload,
       { deviceId: DEVICE_A.id, sceneName: "", powerMode: "toggle", autoLaunch: true, brightnessStep: 10,
-        ...(suffix === "brightness-dial" ? { displayMode: "bar" } : {}) });
+        ...(suffix === "brightness-dial" ? { displayMode: "bar", brightnessTextSize: "large" } : {}) });
     ui.change("auto-launch", false);
     assert.equal(ui.commands("setSettings").at(-1).payload.brightnessStep, 10);
     ui.socket.close();
     assert.equal(ui.elements.get("brightness-step").disabled, true);
     assert.equal(ui.elements.get("display-mode").disabled, true);
+    assert.equal(ui.elements.get("brightness-text-size").disabled, true);
   }
 });
 
@@ -386,6 +394,8 @@ test("power and scene settings retain their original shape and hide brightness c
     assert.equal(ui.elements.get("brightness-help").hidden, true);
     assert.equal(ui.elements.get("display-field").hidden, true);
     assert.equal(ui.elements.get("display-help").hidden, true);
+    assert.equal(ui.elements.get("brightness-text-size-field").hidden, true);
+    assert.equal(ui.elements.get("brightness-text-size-help").hidden, true);
     ui.change("auto-launch", false);
     assert.deepEqual(ui.commands("setSettings").at(-1).payload,
       { deviceId: DEVICE_A.id, sceneName: "", powerMode: "toggle", autoLaunch: false });
@@ -402,7 +412,7 @@ test("dial display choices save locally without changing brightness or requestin
   for (const displayMode of ["ring", "number", "bar"]) {
     ui.change("display-mode", displayMode);
     assert.deepEqual(ui.commands("setSettings").at(-1).payload,
-      { deviceId: DEVICE_A.id, sceneName: "", powerMode: "toggle", autoLaunch: true, brightnessStep: 3, displayMode });
+      { deviceId: DEVICE_A.id, sceneName: "", powerMode: "toggle", autoLaunch: true, brightnessStep: 3, displayMode, brightnessTextSize: "large" });
   }
   assert.equal(ui.commands("sendToPlugin").length, requestsBefore, "display changes must not send light commands or refresh lists");
   assert.equal(ui.commands("setSettings").length, 3);
@@ -413,7 +423,7 @@ test("dial display choices save locally without changing brightness or requestin
 });
 
 test("a touch-strip display change updates the open inspector without a recursive save", () => {
-  const baseSettings = { deviceId: DEVICE_A.id, brightnessStep: 2, autoLaunch: true, displayMode: "bar" };
+  const baseSettings = { deviceId: DEVICE_A.id, brightnessStep: 2, autoLaunch: true, displayMode: "bar", brightnessTextSize: "medium" };
   const ui = inspector({ action: ACTION.replace(/scene$/, "brightness-dial"), settings: baseSettings });
   ui.respond("devices", { devices: [DEVICE_A] });
   const requestsBefore = ui.commands("sendToPlugin").length;
@@ -423,10 +433,73 @@ test("a touch-strip display change updates the open inspector without a recursiv
   assert.equal(ui.elements.get("display-mode").value, "ring");
   ui.settings({ ...baseSettings, displayMode: "number" });
   assert.equal(ui.elements.get("display-mode").value, "number");
+  assert.equal(ui.elements.get("brightness-text-size").value, "medium");
   assert.equal(ui.commands("setSettings").length, 0);
   assert.equal(ui.commands("sendToPlugin").length, requestsBefore);
   ui.change("brightness-step", "4");
   assert.equal(ui.commands("setSettings").at(-1).payload.displayMode, "number");
+  assert.equal(ui.commands("setSettings").at(-1).payload.brightnessTextSize, "medium");
+});
+
+test("brightness text size offers three display-only choices while preserving dial settings", () => {
+  const settings = { deviceId: DEVICE_A.id, sceneName: "Saved scene", powerMode: "toggle", autoLaunch: true,
+    brightnessStep: 4, displayMode: "ring", brightnessTextSize: "large" };
+  const ui = inspector({ action: ACTION.replace(/scene$/, "brightness-dial"), settings });
+  assert.equal(ui.elements.get("brightness-text-size").value, "large");
+  assert.equal(ui.elements.get("brightness-text-size").disabled, false);
+  const requestsBefore = ui.commands("sendToPlugin").length;
+  for (const brightnessTextSize of ["small", "medium", "large"]) {
+    ui.change("brightness-text-size", brightnessTextSize);
+    assert.deepEqual(ui.commands("setSettings").at(-1).payload, { ...settings, brightnessTextSize });
+  }
+  assert.equal(ui.commands("sendToPlugin").length, requestsBefore, "text size must not control lights, launch the app, or refresh lists");
+  assert.equal(ui.commands("setSettings").length, 3);
+  for (const value of ["large", "", "invalid", "__proto__", "60", "SMALL"]) {
+    ui.change("brightness-text-size", value);
+    assert.equal(ui.elements.get("brightness-text-size").value, "large");
+    assert.equal(ui.commands("setSettings").length, 3, "unchanged or invalid size must not be saved");
+  }
+  ui.settings({ ...settings, brightnessTextSize: "small" });
+  assert.equal(ui.elements.get("brightness-text-size").value, "small");
+  assert.equal(ui.commands("setSettings").length, 3, "received size settings must not save recursively");
+  assert.equal(ui.commands("sendToPlugin").length, requestsBefore);
+  ui.change("display-mode", "number");
+  assert.deepEqual(ui.commands("setSettings").at(-1).payload, { ...settings, displayMode: "number", brightnessTextSize: "small" });
+});
+
+test("missing or invalid brightness text sizes retain the original size without changing saved settings", () => {
+  for (const brightnessTextSize of [undefined, null, 0, {}, [], false, "invalid", "__proto__"]) {
+    const ui = inspector({ action: ACTION.replace(/scene$/, "brightness-dial"), settings: { brightnessTextSize } });
+    assert.equal(ui.elements.get("brightness-text-size").value, "large");
+    assert.equal(ui.commands("setSettings").length, 0);
+    ui.settings({ brightnessTextSize: "medium" });
+    assert.equal(ui.elements.get("brightness-text-size").value, "medium");
+    ui.settings({ brightnessTextSize });
+    assert.equal(ui.elements.get("brightness-text-size").value, "large");
+    assert.equal(ui.commands("setSettings").length, 0);
+  }
+  for (const suffix of ["power", "scene", "brightness-up", "brightness-down", "scene-dial"]) {
+    const ui = inspector({ action: ACTION.replace(/scene$/, suffix), settings: { brightnessTextSize: "small" } });
+    assert.equal(ui.elements.get("brightness-text-size-field").hidden, true);
+    assert.equal(ui.elements.get("brightness-text-size-help").hidden, true);
+    ui.change("brightness-text-size", "medium");
+    assert.equal(ui.commands("setSettings").length, 0);
+    ui.change("auto-launch", true);
+    assert.equal(Object.hasOwn(ui.commands("setSettings").at(-1).payload, "brightnessTextSize"), false);
+  }
+});
+
+test("brightness text size labels and original-size default are clear in both languages", () => {
+  for (const language of ["en", "ko"]) {
+    const ui = inspector({ action: ACTION.replace(/scene$/, "brightness-dial"), language });
+    const translated = key => ui.translated.find(node => node.dataset.i18n === key).textContent;
+    assert.equal(translated("brightnessTextSize"), language === "ko" ? "밝기 숫자 크기" : "Brightness text size");
+    assert.equal(translated("brightnessTextSmall"), language === "ko" ? "작게" : "Small");
+    assert.equal(translated("brightnessTextMedium"), language === "ko" ? "중간" : "Medium");
+    assert.equal(translated("brightnessTextLarge"), language === "ko" ? "크게 (기존 크기)" : "Large (original size)");
+    assert.match(translated("brightnessTextSizeHelp"), language === "ko" ? /실제 밝기는 바뀌지 않습니다/ : /not the light/);
+    assert.equal(ui.elements.get("brightness-text-size").value, "large");
+  }
 });
 
 test("display settings default safely and remain exclusive to brightness dials", () => {

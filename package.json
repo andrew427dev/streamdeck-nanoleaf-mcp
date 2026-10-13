@@ -1,9 +1,9 @@
 {
   "name": "streamdeck-nanoleaf-mcp",
-  "version": "0.4.0-beta.1",
+  "version": "0.4.0-beta.2",
   "private": true,
   "type": "module",
-  "description": "Community macOS Stream Deck plugin for Nanoleaf Desktop local MCP control",
+  "description": "Unofficial macOS Stream Deck control for the USB-only Nanoleaf PC Screen Mirror Lightstrip (NL82K2), through Nanoleaf Desktop local MCP",
   "license": "MIT",
   "author": "andrew427dev",
   "repository": "github:andrew427dev/streamdeck-nanoleaf-mcp",

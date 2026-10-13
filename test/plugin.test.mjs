@@ -17,11 +17,19 @@ const STREAM_DECK = 'TEST-STREAM-DECK';
 // Installed before the real bundle loads: no request can reach Nanoleaf Desktop.
 // The only native socket in this test is the synthetic Stream Deck WebSocket.
 const MCP_PRELOAD = `
+import childProcess from 'node:child_process';
+import { syncBuiltinESMExports } from 'node:module';
 let power = true;
 let scene = 'Example Scene';
 let brightness = 50;
 let offline = false;
 const send = message => process.send?.(message);
+childProcess.execFile = (...args) => {
+  send({ type: 'unexpected-launch' });
+  const callback = args.at(-1);
+  queueMicrotask(() => callback(new Error('Native process launch blocked by smoke test')));
+};
+syncBuiltinESMExports();
 let holdNextPower = false;
 let releasePower;
 let failNextPower = false;
@@ -186,6 +194,11 @@ function dialCanvas(message, context) {
 function hasDialDisplay(message, context, mode, brightness) {
   const svg = dialCanvas(message, context);
   return svg.includes(`data-display-mode="${mode}"`) && svg.includes(`>${brightness}<`);
+}
+
+function brightnessFontSize(message, context) {
+  const value = dialCanvas(message, context).match(/<text\b[^>]*\bdata-role="value"[^>]*>/)?.[0];
+  return Number(value?.match(/\bfont-size="([\d.]+)"/)?.[1]);
 }
 
 function hasSceneDisplay(message, context, status, selectedIndex) {
@@ -426,7 +439,10 @@ test('built plugin handles light commands, touch displays, and scene browsing ov
     send(actionEvent('willAppear', 'brightness-dial', dialContext, dialSettings));
     await webSocketMessages.wait(message => message.event === 'setFeedbackLayout' && message.context === dialContext
       && message.payload?.layout === 'layouts/brightness.json', 'custom dial layout replaces saved built-in layout');
-    await webSocketMessages.wait(message => hasDialDisplay(message, dialContext, 'bar', '50%'), 'initial dial brightness');
+    const initialBrightness = await webSocketMessages.wait(message => hasDialDisplay(message, dialContext, 'bar', '50%'),
+      'initial dial brightness');
+    const defaultBrightnessFontSize = brightnessFontSize(initialBrightness, dialContext);
+    assert.ok(defaultBrightnessFontSize > 0, 'the initial brightness has a visible percentage value');
 
     const increaseContext = 'TEST-INCREASE';
     send(actionEvent('willAppear', 'brightness-up', increaseContext, brightnessSettings));
@@ -453,6 +469,31 @@ test('built plugin handles light commands, touch displays, and scene browsing ov
     assert.deepEqual(brightnessWrites.map(message => message.request.params.arguments.states[0]),
       [55, 45, 51].map(value => ({ device: DEVICE, brightness: value })));
 
+    // Size preferences repaint immediately without treating them as light commands.
+    await syncIPC();
+    const beforeSizeRequests = ipc.messages.filter(message =>
+      ['list_devices', 'list_scenes', 'set_light_state', 'play_scene'].includes(message.request?.params?.name)).length;
+    const beforeSizeSettings = webSocketMessages.messages.filter(message => message.event === 'setSettings').length;
+    const measuredSizes = {};
+    for (const brightnessTextSize of ['large', 'small', 'medium']) {
+      from = webSocketMessages.messages.length;
+      send(actionEvent('didReceiveSettings', 'brightness-dial', dialContext, { ...dialSettings, brightnessTextSize }));
+      const resized = await webSocketMessages.wait(message => hasDialDisplay(message, dialContext, 'bar', '51%'),
+        `${brightnessTextSize} percentage preference redraws without waiting for polling`, from);
+      measuredSizes[brightnessTextSize] = brightnessFontSize(resized, dialContext);
+    }
+    assert.equal(measuredSizes.large, defaultBrightnessFontSize, 'large keeps the existing default size');
+    assert.ok(measuredSizes.small > 0 && measuredSizes.small < measuredSizes.medium
+      && measuredSizes.medium < measuredSizes.large, 'all three preferences produce distinct, ordered percentage sizes');
+    await syncIPC();
+    assert.equal(ipc.messages.filter(message =>
+      ['list_devices', 'list_scenes', 'set_light_state', 'play_scene'].includes(message.request?.params?.name)).length,
+    beforeSizeRequests, 'percentage-only changes neither discover devices/scenes nor mutate light state');
+    assert.equal(webSocketMessages.messages.filter(message => message.event === 'setSettings').length,
+      beforeSizeSettings, 'receiving a percentage preference does not write it back into the profile');
+    assert.equal(ipc.messages.some(message => message.type === 'unexpected-launch'), false,
+      'percentage-only changes never launch Nanoleaf Desktop');
+
     // Touching changes only presentation, even if rapid touches carry stale settings.
     const mutationsBeforeDisplay = ipc.messages.filter(message => ['set_light_state', 'play_scene'].includes(message.request?.params?.name)).length;
     from = webSocketMessages.messages.length;
@@ -462,9 +503,12 @@ test('built plugin handles light commands, touch displays, and scene browsing ov
     const cycledSettings = webSocketMessages.messages.slice(from)
       .filter(message => message.event === 'setSettings' && message.context === dialContext);
     assert.deepEqual(cycledSettings.map(message => message.payload), ['ring', 'number', 'bar']
-      .map(displayMode => ({ ...dialSettings, displayMode })), 'each touch preserves unrelated settings and advances once');
-    await webSocketMessages.wait(message => hasDialDisplay(message, dialContext, 'bar', '51%'),
+      .map(displayMode => ({ ...dialSettings, brightnessTextSize: 'medium', displayMode })),
+    'each touch preserves the chosen percentage size and unrelated settings despite stale touch payloads');
+    const mediumAfterCycle = await webSocketMessages.wait(message => hasDialDisplay(message, dialContext, 'bar', '51%'),
       'touching preserves measured brightness', from);
+    assert.equal(brightnessFontSize(mediumAfterCycle, dialContext), measuredSizes.medium,
+      'touch cycling returns to the same chosen percentage size');
 
     // A preference explicitly changed in the inspector becomes the next touch's base.
     send(actionEvent('didReceiveSettings', 'brightness-dial', dialContext, cycledSettings[0].payload));
@@ -481,11 +525,13 @@ test('built plugin handles light commands, touch displays, and scene browsing ov
 
     // Unknown configuration has a safe default without silently rewriting the profile.
     const invalidDialContext = 'TEST-INVALID-DIAL';
-    const invalidDisplaySettings = { ...dialSettings, displayMode: 'unrecognized-display' };
+    const invalidDisplaySettings = { ...dialSettings, displayMode: 'unrecognized-display', brightnessTextSize: 'unrecognized-size' };
     from = webSocketMessages.messages.length;
     send(actionEvent('willAppear', 'brightness-dial', invalidDialContext, invalidDisplaySettings));
-    await webSocketMessages.wait(message => hasDialDisplay(message, invalidDialContext, 'bar', '51%'),
+    const invalidDisplay = await webSocketMessages.wait(message => hasDialDisplay(message, invalidDialContext, 'bar', '51%'),
       'invalid saved display mode falls back to bar', from);
+    assert.equal(brightnessFontSize(invalidDisplay, invalidDialContext), defaultBrightnessFontSize,
+      'an invalid saved percentage size uses the existing large size without rewriting it');
     assert.equal(webSocketMessages.messages.slice(from).some(message => message.event === 'setSettings'), false,
       'normal appearance and state rendering never save settings');
     send(touchEvent('brightness-dial', invalidDialContext, invalidDisplaySettings));
@@ -526,13 +572,16 @@ test('built plugin handles light commands, touch displays, and scene browsing ov
     const concurrentRotation = actionEvent('dialRotate', 'brightness-dial', dialContext, persistedDisplay.payload);
     concurrentRotation.payload.ticks = 1;
     send(concurrentRotation);
-    send(actionEvent('didReceiveSettings', 'brightness-dial', dialContext, { ...persistedDisplay.payload, displayMode: 'bar' }));
+    send(actionEvent('didReceiveSettings', 'brightness-dial', dialContext,
+      { ...persistedDisplay.payload, displayMode: 'bar', brightnessTextSize: 'small' }));
     send(titleEvent('brightness-dial', dialContext, 'Brightness', { showTitle: false }, persistedDisplay.payload));
     const queuedHiddenDial = await webSocketMessages.wait(message => hasDialDisplay(message, dialContext, 'bar', '53%')
       && hasTitleLayout(message, dialContext, 'expanded'),
     'queued brightness completes with the new mode and hidden title despite stale title-event settings', from);
     assert.deepEqual(queuedHiddenDial.payload.title, { enabled: false },
       'state refresh keeps the native dial-title overlay disabled without replacing its text');
+    assert.ok(brightnessFontSize(queuedHiddenDial, dialContext) < defaultBrightnessFontSize,
+      'a concurrent percentage-size change survives the queued rotation and stale title event');
     await webSocketMessages.wait(message => message.event === 'sendToPropertyInspector' && message.context === dialContext
       && message.payload?.event === 'commandStatus' && message.payload.state === 'success',
     'display-only setting changes preserve the pending command result', from);
@@ -701,6 +750,8 @@ test('built plugin handles light commands, touch displays, and scene browsing ov
       { showTitle: true, titleAlignment: 'top', fontSize: 14 }, 'titled', persistedDisplay.payload);
     assert.ok(hasDialDisplay(titledBrightness, dialContext, 'bar', '53%'),
       'restoring a dial title retains its current display mode and brightness');
+    assert.ok(brightnessFontSize(titledBrightness, dialContext) < measuredSizes.medium,
+      'restoring a native title retains the newer small percentage preference despite stale event settings');
     assert.deepEqual(titledBrightness.payload.title, { enabled: true },
       'a restored brightness title enables the native overlay without overwriting the custom text');
     const emptyBrightness = await changeTitle('brightness-dial', dialContext, '',
@@ -768,4 +819,6 @@ test('built plugin handles light commands, touch displays, and scene browsing ov
     'measured light state must not be saved into personal profile settings');
     assert.equal(webSocketMessages.messages.some(message => message.event === 'showOk'), false,
       'successful power, scene, brightness key, and dial commands never show the green check overlay');
+    assert.equal(ipc.messages.some(message => message.type === 'unexpected-launch'), false,
+      'the complete smoke test neither launches Nanoleaf Desktop nor any native process');
   });

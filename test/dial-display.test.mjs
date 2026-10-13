@@ -1,8 +1,69 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { normalizeDisplayMode, nextDisplayMode, renderDialDisplay, dialDisplayFeedback } from '../src/dial-display.mjs';
+import { createHash } from 'node:crypto';
+import { normalizeDisplayMode, normalizeBrightnessTextSize, nextDisplayMode, renderDialDisplay, dialDisplayFeedback } from '../src/dial-display.mjs';
 
 const modes = ['bar', 'ring', 'number'];
+const textSizes = ['small', 'medium', 'large'];
+const valueText = svg => svg.match(/<text\b[^>]*data-role="value"[^>]*>[^<]*<\/text>/)[0];
+const valueFontSize = svg => Number(valueText(svg).match(/font-size="([\d.]+)"/)[1]);
+
+test('percentage text sizes validate strictly and preserve the current large default', () => {
+  for (const size of textSizes) assert.equal(normalizeBrightnessTextSize(size), size);
+  const invalid = [undefined, null, '', 'Large', 'SMALL', 0, 1, {}, [], ['small'], '__proto__', '<script/>'];
+  for (const size of invalid) {
+    assert.equal(normalizeBrightnessTextSize(size), 'large');
+    for (const mode of modes) {
+      assert.equal(renderDialDisplay(mode, { power: true, brightness: 52 }, {}, size), renderDialDisplay(mode, { power: true, brightness: 52 }));
+    }
+  }
+});
+
+test('large and missing text size reproduce the pre-size-setting SVG byte for byte', () => {
+  // Captured before adding the setting: title-aware artwork remains unchanged.
+  const snapshots = {
+    bar: ['f2bcc0682646f8e56c86edacc41ee9848c9c8f7752bb7c13778a0db3f0ade7d2', 'f3f8c7e3cbbffcc3ce70896b84356a3a0f28a3bfc5c54f1e1532f11a78554b37', '907560f4dc81016a9930ff05b1ac94a946999c0b7d731ffd0e69ff065a5a8f0d'],
+    ring: ['1e83de97ea7e2ae0a5098056d05ef3f0655488701836abdef0f0ea1e38308303', '6a889beb661b370f93b8f47931cb4739132f39b6ec94ae0e6355ad0fb5c69e2e', '17339fdb564ab2c2308db0ae5fbc01623bf0d5cc5867de0fd78aa0b440c3d440'],
+    number: ['433dff89c6489506eeb2492b6ddffe98a5a826330e8e1d89c9a746874b263699', '9719bf8784f5be0202cef8cafc15ae61f1da26b7ddb46ed9669f700b990716aa', 'f804bff408a88470c7dd42590f700df2670379bfa53d5c4dbb0bd8fb3320eebd'],
+  };
+  for (const mode of modes) {
+    for (const [index, presentation] of [{}, { visible: false }, { reserve: 46 }].entries()) {
+      const svg = renderDialDisplay(mode, { power: true, brightness: 52.4 }, presentation);
+      assert.equal(createHash('sha256').update(svg).digest('hex'), snapshots[mode][index]);
+      assert.equal(renderDialDisplay(mode, { power: true, brightness: 52.4 }, presentation, 'large'), svg);
+    }
+  }
+});
+
+test('small and medium scale only the measured percentage across all modes and title layouts', () => {
+  for (const mode of modes) {
+    for (const presentation of [{}, { visible: false }, { reserve: 24 }, { reserve: 46 }]) {
+      for (const brightness of [0, 52.4, 100]) {
+        const state = Object.freeze({ power: true, brightness });
+        const large = renderDialDisplay(mode, state, presentation, 'large');
+        for (const [size, scale] of [['small', .6], ['medium', .8]]) {
+          const svg = renderDialDisplay(mode, state, presentation, size);
+          assert.equal(valueFontSize(svg), Number((valueFontSize(large) * scale).toFixed(2)));
+          assert.equal(svg.replace(valueText(svg), ''), large.replace(valueText(large), ''), 'tracks, labels, footer and clipping must not change');
+          assert.equal(valueText(svg).replace(/font-size="[\d.]+"/, ''), valueText(large).replace(/font-size="[\d.]+"/, ''), 'value position, colour and content must stay unchanged');
+          const feedback = dialDisplayFeedback(mode, state, presentation, size);
+          assert.equal(Buffer.from(feedback.canvas.split(',')[1], 'base64').toString('utf8'), svg);
+        }
+      }
+    }
+  }
+});
+
+test('percentage text size never shrinks OFF, saved brightness, unknown status or helper labels', () => {
+  for (const mode of modes) {
+    for (const state of [undefined, {}, { power: false }, { power: false, brightness: 52 }, { power: true }]) {
+      for (const presentation of [{}, { visible: false }, { reserve: 46 }]) {
+        const large = renderDialDisplay(mode, state, presentation, 'large');
+        for (const size of textSizes) assert.equal(renderDialDisplay(mode, state, presentation, size), large);
+      }
+    }
+  }
+});
 
 test('known modes survive and invalid/missing modes use the bar default', () => {
   for (const mode of modes) assert.equal(normalizeDisplayMode(mode), mode);
@@ -115,10 +176,12 @@ test('visible native titles have a completely empty reserved area at every suppo
   const { default: sharp } = await import('sharp');
   for (const mode of modes) {
     for (const reserve of [24, 30, 36, 46]) {
-      const svg = renderDialDisplay(mode, { power: true, brightness: 100 }, { reserve });
-      const pixels = await sharp(Buffer.from(svg)).removeAlpha().extract({ left: 0, top: 0, width: 200, height: reserve }).raw().toBuffer();
-      for (let i = 0; i < pixels.length; i += 3) assert.deepEqual([...pixels.subarray(i, i + 3)], [8, 12, 14]);
-      for (const [, size] of svg.matchAll(/font-size="([\d.]+)"/g)) assert.ok(Number(size) >= 11);
+      for (const textSize of textSizes) {
+        const svg = renderDialDisplay(mode, { power: true, brightness: 100 }, { reserve }, textSize);
+        const pixels = await sharp(Buffer.from(svg)).removeAlpha().extract({ left: 0, top: 0, width: 200, height: reserve }).raw().toBuffer();
+        for (let i = 0; i < pixels.length; i += 3) assert.deepEqual([...pixels.subarray(i, i + 3)], [8, 12, 14]);
+        for (const [, size] of svg.matchAll(/font-size="([\d.]+)"/g)) assert.ok(Number(size) >= 11);
+      }
     }
   }
 });
@@ -135,10 +198,12 @@ test('all view/status variants rasterize to the exact touch-strip dimensions', a
   for (const mode of modes) {
     for (const state of [undefined, { power: false }, { power: false, brightness: 40 }, ...[0, 0.5, 50, 99.5, 100].map(brightness => ({ power: true, brightness }))]) {
       for (const presentation of [{}, { visible: false }, { reserve: 46 }]) {
-        const image = await sharp(Buffer.from(renderDialDisplay(mode, state, presentation))).png().toBuffer({ resolveWithObject: true });
-        assert.equal(image.info.width, 200);
-        assert.equal(image.info.height, 100);
-        assert.ok(image.data.length > 100);
+        for (const size of textSizes) {
+          const image = await sharp(Buffer.from(renderDialDisplay(mode, state, presentation, size))).png().toBuffer({ resolveWithObject: true });
+          assert.equal(image.info.width, 200);
+          assert.equal(image.info.height, 100);
+          assert.ok(image.data.length > 100);
+        }
       }
     }
   }
