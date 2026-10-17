@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import metadata from '../package.json' with { type: 'json' };
 
 const ENDPOINT = 'http://127.0.0.1:15765/mcp';
 const PROTOCOL_VERSION = '2025-03-26';
@@ -276,7 +277,8 @@ export class NanoleafClient {
         const result = await this.#post('initialize', {
           protocolVersion: PROTOCOL_VERSION,
           capabilities: {},
-          clientInfo: { name: 'streamdeck-nanoleaf-mcp', version: '0.4.0-beta.1' },
+          // Embedded by the bundler; never read the protected manifest at runtime.
+          clientInfo: { name: 'streamdeck-nanoleaf-mcp', version: metadata.version },
         }, { initialize: true, timeoutMs: remaining() });
         if (!SUPPORTED_PROTOCOLS.has(result.protocolVersion) || !isRecord(result.capabilities?.tools)) {
           throw fail('PROTOCOL_ERROR');

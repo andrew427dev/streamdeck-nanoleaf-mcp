@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.4.0-beta.4 — 2026-10-18
+
+- Publish the version-consistency and privacy/documentation improvements developed in the local beta.3 preview.
+- Record the tester's 2026-10-18 confirmation that all six physical regression groups passed on the installed beta.3: power/state feedback, scene keys and dial touch/press playback, brightness controls/visualizations/text sizes, cold-start automatic launch, restart/sleep-wake/USB recovery, and long-idle recovery/settings retention.
+- Clarify that automatic launch is off by default and configured separately for each control. The reported launch failure was resolved by enabling those options, without a launch-code change.
+- Correct version ordering with the project convention `x.y.z-beta.n` → `x.y.z.n` (1–65534), stable `x.y.z` → `x.y.z.65535`, so a stable release is newer than its beta installers. Keep package, lockfile, manifest and embedded client identification consistent, with an explicit previous-version check in the release workflow.
+- Clarify build and installer outputs to prevent stale generated files from being mistaken for the current release.
+- Package into versioned directories without overwriting existing releases, stage only the 46 reviewed runtime files, verify the archive and embedded version, and generate a paired SHA-256 checksum. Validation: 184 automated tests, official plugin validation, packaging and archive inspection passed.
+- Add a Marketplace preparation plan based on Elgato's official requirements. No Marketplace upload, submission or publication is performed.
+- Retain existing plugin/action identifiers, runtime control behavior and settings. This release process does not replace the installed plugin, profiles or helpers. The beta.3 physical results do not constitute a new physical installation test of beta.4; Desktop-update compatibility and Marketplace-processed/DRM testing remain pending.
+
+## 0.4.0-beta.3 — Local test build, not separately released
+
+- Embed the root package version in MCP client identification instead of maintaining a separate hard-coded value. No runtime access to the protected manifest is needed.
+- Reject builds when package, lockfile and Stream Deck manifest versions disagree; cover both direct initialization and the standalone bundle in regression tests.
+- Separate declared minimum requirements, observed test environments, historical physical checks and pending checks in English and Korean. Do not imply support for all Desktop 3.x versions or untested Mac/Stream Deck hardware.
+- Document brightness text size, all persisted control/display preferences, memory-only state, local version identification and profile-sharing implications. Include privacy and security guidance in the installable package.
+- Keep plugin/action identifiers and all profile settings unchanged. No new lighting commands, gestures, startup behavior or visual changes are introduced.
+- This build was retained as a local preview and was not separately published to GitHub or Marketplace. Its subsequent physical verification is recorded under beta.4 and in `docs/VALIDATION.md`.
+
 ## 0.4.0-beta.2 — 2026-10-13
 
 - Clarify the USB-only PC Screen Mirror Lightstrip (NL82K2) support scope in plugin descriptions, English/Korean documentation and settings. Control goes through Nanoleaf Desktop's local MCP server to USB, not through a device Wi-Fi/LAN API; other USB products are not supported.

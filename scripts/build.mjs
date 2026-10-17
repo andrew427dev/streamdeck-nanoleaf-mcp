@@ -5,9 +5,13 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { renderKeyDisplay } from '../src/key-display.mjs';
 import { renderDialIcon, renderCategoryIcon } from './dial-icons.mjs';
+import { validateVersions } from './version.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const plugin = path.join(root, 'io.github.andrew427dev.nanoleaf-mcp.sdPlugin');
+const readJSON = async filename => JSON.parse(await readFile(filename, 'utf8'));
+validateVersions(await readJSON(path.join(root, 'package.json')),
+  await readJSON(path.join(root, 'package-lock.json')), await readJSON(path.join(plugin, 'manifest.json')));
 await mkdir(path.join(plugin, 'bin'), { recursive: true });
 await mkdir(path.join(plugin, 'imgs'), { recursive: true });
 await build({
@@ -59,4 +63,6 @@ for (const dependency of ['@elgato/streamdeck', '@elgato/utils', '@elgato/schema
 }
 await writeFile(path.join(plugin, 'THIRD-PARTY-NOTICES.txt'), notices);
 await copyFile(path.join(root, 'LICENSE'), path.join(plugin, 'LICENSE'));
+await copyFile(path.join(root, 'PRIVACY.md'), path.join(plugin, 'PRIVACY.md'));
+await copyFile(path.join(root, 'SECURITY.md'), path.join(plugin, 'SECURITY.md'));
 console.log('Built plugin, original control/category icons, and dependency license notices.');

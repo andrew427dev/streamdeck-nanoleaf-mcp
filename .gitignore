@@ -5,6 +5,8 @@ dist/
 *.sdPlugin/imgs/*.png
 *.sdPlugin/logs/
 *.sdPlugin/LICENSE
+*.sdPlugin/PRIVACY.md
+*.sdPlugin/SECURITY.md
 *.sdPlugin/THIRD-PARTY-NOTICES.txt
 .DS_Store
 coverage/

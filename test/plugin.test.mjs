@@ -7,6 +7,8 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { WebSocketServer } from 'ws';
+import metadata from '../package.json' with { type: 'json' };
+import manifest from '../io.github.andrew427dev.nanoleaf-mcp.sdPlugin/manifest.json' with { type: 'json' };
 
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
 const PLUGIN = 'io.github.andrew427dev.nanoleaf-mcp';
@@ -137,7 +139,7 @@ function registrationInfo() {
     },
     devicePixelRatio: 2,
     devices: [{ id: STREAM_DECK, name: 'Synthetic Stream Deck', size: { columns: 5, rows: 3 }, type: 0 }],
-    plugin: { uuid: PLUGIN, version: '0.4.0.1' },
+    plugin: { uuid: PLUGIN, version: manifest.Version },
   };
 }
 
@@ -322,6 +324,9 @@ test('built plugin handles light commands, touch displays, and scene browsing ov
     const devices = await webSocketMessages.wait(message => message.event === 'sendToPropertyInspector'
       && message.payload?.requestId === 'devices-request', 'device inspector response');
     assert.deepEqual(devices.payload.devices, [{ id: DEVICE, name: 'Example Strip', model: 'NL82K2' }]);
+    const initialization = await ipc.wait(message => message.request?.method === 'initialize', 'bundled MCP version');
+    assert.equal(initialization.request.params.clientInfo.version, metadata.version,
+      'the standalone bundle must report the package version without the source package.json');
 
     send({ event: 'sendToPlugin', action: `${PLUGIN}.power`, context: powerContext,
       payload: { event: 'scenes', requestId: 'scenes-request', deviceId: DEVICE } });

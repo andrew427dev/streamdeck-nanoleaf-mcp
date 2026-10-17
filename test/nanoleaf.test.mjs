@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { NanoleafClient, NanoleafError } from '../src/nanoleaf.mjs';
+import metadata from '../package.json' with { type: 'json' };
 
 const DEVICE = 'TEST-DEVICE';
 const encoder = new TextEncoder();
@@ -58,7 +59,7 @@ test('initializes once, selects the fixed endpoint, and preserves only public de
     'initialize', 'notifications/initialized', 'tools/call', 'tools/call',
   ]);
   assert.equal(calls[0].request.params.protocolVersion, '2025-03-26');
-  assert.equal(calls[0].request.params.clientInfo.version, '0.4.0-beta.1');
+  assert.equal(calls[0].request.params.clientInfo.version, metadata.version);
   assert.deepEqual(calls[2].request.params, { name: 'list_devices', arguments: {} });
   assert.equal(calls[1].request.id, undefined);
   const ids = calls.filter(call => call.request.id).map(call => call.request.id);

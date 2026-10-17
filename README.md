@@ -4,9 +4,9 @@ Control the **USB-connected Nanoleaf PC Screen Mirror Lightstrip (NL82K2)** from
 
 Control path: **Stream Deck → Nanoleaf Desktop (local MCP) → USB → lightstrip**. The light does not need Wi-Fi pairing or a device IP address, but Nanoleaf Desktop must be running (or automatic launch enabled). Nanoleaf documents this product's [USB/HID communication separately from its Wi-Fi APIs](https://support.nanoleaf.me/hc/en-us/articles/46020382680468-API-Nanoleaf-OpenAPI-Documentation-Forum-Guidelines).
 
-[한국어 안내](docs/README.ko.md) · [Releases](https://github.com/andrew427dev/streamdeck-nanoleaf-mcp/releases) · [Privacy](PRIVACY.md)
+[한국어 안내](docs/README.ko.md) · [Releases](https://github.com/andrew427dev/streamdeck-nanoleaf-mcp/releases) · [Validation](docs/VALIDATION.md) · [Privacy](PRIVACY.md)
 
-**v0.4.0-beta.2 adds three brightness percentage-text sizes and clearer USB-only model guidance.** The previous release's clean design, title-responsive layouts, and power/scene/dial controls are retained. This remains an unofficial macOS beta; see the verification scope below.
+**v0.4.0-beta.4** includes version-consistency checks, privacy guidance, clearer build/package outputs and version ordering that keeps a stable release newer than its betas. The tester reported all six physical regression groups passing on the installed beta.3 preview on 2026-10-18, including cold-start automatic launch after enabling the option on each relevant control. This is not a physical installation test of beta.4. Existing controls, visuals and settings are retained; Marketplace submission is [planned only](docs/MARKETPLACE-PLAN.md).
 
 ## Features
 
@@ -14,7 +14,7 @@ Control path: **Stream Deck → Nanoleaf Desktop (local MCP) → USB → lightst
 
 Brightness Dial settings now offer **Brightness text size: Small / Medium / Large (original size)**. They use 60% / 80% / 100% of the existing percentage-text size in bar, ring, and number views. Large is the default, including for existing dials without this setting. The choice is saved per dial and retained when switching views. It changes only the main percentage text, not the light's brightness, graphics, OFF/unknown indicators, or title preferences; changing it does not launch Desktop or send a light command.
 
-The three sizes were checked in the installed macOS settings/display preview, and the tester confirmed correct size changes on their Stream Deck + on 2026-10-13. Automated coverage checks all three views, defaults, persistence, title handling and isolation from lighting commands. Physical power/scene gestures and cold app launch were not re-tested for this display-only update.
+The three sizes were checked in the installed macOS settings/display preview, and the tester confirmed correct size changes on their Stream Deck + on 2026-10-13. Automated coverage checks all three views, defaults, persistence, title handling and isolation from lighting commands. The later beta.3 physical regression results are recorded in [Validation](docs/VALIDATION.md).
 
 ### Clean design and title-responsive layouts
 
@@ -24,7 +24,7 @@ Title changes redraw only the display: they do not change the light, reset the s
 
 Brightness Dial and Scene Browser use centred sun and list/play symbols with matched proportions. The public category icon is an original light-column symbol, not the Nanoleaf logo. The scene display identifies the **last applied** selection without claiming it is the current live scene.
 
-Title entry/removal, blank-title restoration after restarting Stream Deck, and dial icon placement were checked in the installed macOS app. Show Title handling is also covered by automated SDK tests. Physical button/rotation/touch playback and cold app launch have not been re-tested for this design release; the control implementation is unchanged. The public category icon was checked by pixel tests and package validation without replacing the local test installation.
+Title entry/removal, blank-title restoration after restarting Stream Deck, and dial icon placement were checked in the installed macOS app. Show Title handling is also covered by automated SDK tests. Physical control and recovery checks were subsequently reported passing on beta.3; see [Validation](docs/VALIDATION.md) for the exact scope. The public category icon was checked by pixel tests and package validation without replacing the local test installation.
 
 ### Controls
 
@@ -43,16 +43,32 @@ For brightness adjustments, choose a step from 1 to 100 percentage points and op
 
 Requests go to Nanoleaf Desktop at `http://127.0.0.1:15765/mcp`. No API key or paid AI service is required. End users do not need a separate helper, Shortcut, or Node.js installation; Stream Deck supplies the plugin runtime. Nanoleaf Desktop may independently use the cloud or local network.
 
-## Requirements and compatibility
+## Requirements and verification scope
 
-- macOS 13 or later.
-- Stream Deck 7.1 or later.
-- Nanoleaf Desktop 3.x, with the device connected and set up in the app.
-- USB-connected PC Screen Mirror Lightstrip (NL82K2). Wi-Fi/LAN Nanoleaf models and other USB products are not supported by this beta.
+Declared minimum versions are installation requirements, **not a claim that every matching system was tested**.
 
-Earlier betas verified device/scene discovery, light state, physical power and scene buttons, brightness keys/rotation, and the settings UI. v0.3.0-beta.1 additionally verified physical brightness-display touch, dial power presses, scene-list opening/rotation, and both touch and press playback. Testing used Nanoleaf Desktop 3.0.1, Stream Deck 7.6.0, and Stream Deck + on macOS. Cold-start automatic launch was not re-tested on v0.3.0-beta.1. This beta only exposes the PC Screen Mirror Lightstrip (NL82K2). Other devices and future app versions need separate testing. Windows is not supported in this release.
+| Component | Requirement / supported scope | Evidence and limits |
+| --- | --- | --- |
+| macOS | Manifest minimum: 13 | Local test host inspected on 2026-10-13: macOS 27.0.1, Apple Silicon (arm64). macOS 13 and Intel Macs have not been separately verified. Earlier physical reports recorded macOS without its exact version. |
+| Stream Deck app | Manifest minimum: 7.1 | Tested environment: 7.6.0. Version 7.1 has not been separately verified. |
+| Nanoleaf Desktop | Local MCP server available and enabled; USB device set up | Tested version: 3.0.1. This is not a compatibility guarantee for every 3.x or future release. |
+| Lighting device | USB PC Screen Mirror Lightstrip (NL82K2) only | The hardware used for the physical checks. Wi-Fi/LAN models and other USB models are unsupported. |
+| Stream Deck hardware | Key actions; dial/touch actions require Stream Deck + | Physical checks used Stream Deck +. Other Stream Deck models have not been separately tested. |
+| Windows | Unsupported | No Windows implementation or physical verification. |
+
+### What has actually been checked
+
+- **Earlier betas:** physical power/scene buttons, brightness keys/rotation, discovery and settings. v0.3.0-beta.1 added physical touch-display changes, dial power presses, scene browsing and both touch/press playback checks.
+- **v0.4.0-beta.2:** the tester confirmed all three percentage-text sizes on Stream Deck + on 2026-10-13. Design/title checks and mocked automated tests are described above.
+- **v0.4.0-beta.3 installed preview:** on 2026-10-18 the tester reported passing power/state display; scene keys and dial touch/press playback; brightness keys/dial, visualizations and text sizes; cold-start automatic launch; reboot/sleep-wake/USB reconnection; and long-idle recovery/settings retention. Automatic launch initially failed because the tested controls had the option disabled. Enabling it restored operation without a code change. See the [six-group record](docs/VALIDATION.md).
+- **v0.4.0-beta.4:** release tooling and documentation changes do not replace the installed preview. Automated tests use synthetic devices; this package has not been installed for a new physical regression run.
+- **Still pending:** beta.4 physical installation checks, a Nanoleaf Desktop update compatibility check, additional hardware/OS coverage, and Marketplace-processed/DRM installation. No Marketplace submission has been made.
+
+Automated tests use synthetic devices and mock MCP responses. Passing them or package validation does not establish physical compatibility. Existing profile settings and plugin/action identifiers are retained; no migration is required.
 
 ## Install and set up
+
+The steps below install a **public release**. Publishing a new GitHub release does not itself update an existing local installation.
 
 1. Download `io.github.andrew427dev.nanoleaf-mcp.streamDeckPlugin` from a [release](https://github.com/andrew427dev/streamdeck-nanoleaf-mcp/releases).
 2. Double-click the installer and follow Stream Deck's installation prompt.
@@ -76,6 +92,7 @@ Select the Brightness Dial and choose **Brightness text size** to adjust its mai
 
 - **A button shows an error:** select it in Stream Deck and read its last command status in the settings. This status stays in memory only and resets when the plugin restarts; it is not a live power indicator.
 - **No connection:** open Nanoleaf Desktop, check its version, and try again. Automatic app launch is disabled unless you enable it for that button.
+- **Works with Desktop open but shows a triangle after quitting it:** check automatic launch on the exact button or dial you pressed. It is off by default, saved separately for each control, and not inherited from another profile. Enable it on every control that should start Desktop. A brightness-display tap only switches the display and intentionally does not start Desktop.
 - **First press after startup:** when automatic launch is enabled and needed, discovery may wait up to 15 seconds after the launch completes. Power commands also allow up to 10 seconds for temporary USB-not-ready responses. Read-only requests rejected by an expired session reconnect once; change requests are never replayed.
 - **No device or scene:** check the device connection and saved scenes in Nanoleaf Desktop, then refresh the button's dropdowns.
 - **An operating-system permission prompt appears:** review the permission requested by Nanoleaf Desktop and grant the relevant access if appropriate. Do not disable system-wide protections to make the plugin work.
@@ -95,6 +112,8 @@ npm run pack
 ```
 
 Tests build the plugin and use synthetic devices and mocked responses. The bundled-plugin smoke test starts a temporary loopback WebSocket server and replaces all Nanoleaf requests with synthetic responses; no real light commands are sent. See [CONTRIBUTING.md](CONTRIBUTING.md) for verification expectations. Passing automated tests or package validation does not establish physical hardware compatibility.
+
+See [Release workflow](docs/RELEASING.md) for generated-file locations, package checks and version ordering. The project's manifest mapping is `x.y.z-beta.n` → `x.y.z.n` for beta numbers 1–65534, and stable `x.y.z` → `x.y.z.65535`. This is a project convention, not an Elgato-mandated numbering scheme; it prevents a stable release from sorting below its betas.
 
 ## Privacy, security, and license
 
