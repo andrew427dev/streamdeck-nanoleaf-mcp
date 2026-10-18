@@ -1,10 +1,17 @@
 # Changelog
 
+## Documentation follow-up — 2026-10-18 (no new release)
+
+- Record the separately approved, post-publication beta.2 installation: manifest 0.5.0.2, all 50 installed package files matching the published installer, retained profile/action settings, local MCP checks and tester-confirmed physical power control.
+- Record the mirror incident: engine ON/Streaming without screen-colour output, followed by tester-reported recovery after fully quitting and reopening Desktop. Root cause remains unresolved; no plugin-code fix or complete beta.2 physical regression pass is claimed.
+- Correct English/Korean validation scope and add troubleshooting guidance and a reliability improvement plan. The plan is not implemented.
+- This documentation-only follow-up does not change version metadata, the existing release tag/assets/checksum, the installed plugin or user settings. Marketplace remains unsubmitted.
+
 ## 0.5.0-beta.2 — 2026-10-18
 
 - Publish the Screen Mirror Start/Stop/Toggle keys and clearer English/Korean app-launch guidance developed in the local beta.1 preview.
 - Record the tester's 2026-10-18 confirmation of all four physical checks on the installed beta.1: USB screen-colour output, stop with prior-state restoration, two successive toggles, and automatic app launch plus mirroring after completely quitting Desktop.
-- Keep those results attributed to beta.1; beta.2 is a separate source-built public package with updated version metadata and documentation, not a new physical installation test.
+- Keep those results attributed to beta.1; the beta.2 publication was a separate source-built public package with updated version metadata and documentation, not itself a new physical installation test. The subsequently approved beta.2 installation and incident are recorded in the documentation follow-up above.
 - Validation: 208 automated tests, version ordering against both public and installed previews, official Stream Deck CLI validation, and inspection of all 50 allowlisted installer files passed. Include the installer and its SHA-256 checksum.
 - Retain existing action identifiers and settings. Publishing does not replace the installed beta.1, change profiles, restart applications or alter Desktop permissions, targets or saved scenes.
 - Keep additional restoration combinations, permission failure paths, competing controls/streams, multi-target setups and mirror-specific sleep/display/USB recovery as separate pending coverage. Marketplace submission remains a separate step.
