@@ -9,6 +9,9 @@
     en: {
       intro: "For the USB-only PC Screen Mirror Lightstrip (NL82K2), controlled through Nanoleaf Desktop. This beta does not support Wi-Fi/LAN models. Open the app and connect your light by USB before refreshing.",
       device: "Device", scene: "Scene", powerMode: "Power mode",
+      mirrorMode: "Screen mirror action", mirrorToggle: "Toggle screen mirror", mirrorStart: "Start screen mirror", mirrorStop: "Stop screen mirror",
+      mirrorHelp: "Uses all mirror targets and the current mode, display and layout selected in Nanoleaf Desktop. Set screen-recording permission in Desktop first. Starting can stop other streaming. Stopping is not power off; Desktop attempts to restore the previous light state. Status describes the capture engine, not successful output from every light.",
+      mirrorRunning: "Screen mirror engine is running", mirrorStopped: "Screen mirror engine is stopped",
       brightnessStep: "Step (%p)",
       displayMode: "Display", displayBar: "Bar", displayRing: "Ring", displayNumber: "Number",
       displayHelp: "Turn: adjust brightness · Press the dial: toggle power · Tap the touch strip: switch display. Bar → Ring → Number. Display changes never change the light or open the app.",
@@ -19,8 +22,8 @@
       brightnessStepInvalid: "Enter a whole number from 1 to 100 for the brightness step.",
       brightnessArgumentError: "Check the selected device and brightness step, then try again.",
       toggle: "Toggle on / off", on: "On", off: "Off", refresh: "Refresh lists",
-      autoLaunch: "Open Nanoleaf Desktop when a key is pressed",
-      launchHelp: "Optional. Only key presses may open the app; refreshing does not. Leave this off if you already keep Nanoleaf Desktop running.",
+      autoLaunch: "Launch the app if closed, then control the light",
+      launchHelp: "When you press this key, launch Nanoleaf Desktop if it is closed, then perform the requested light action. Applies only to this key; off by default. If this option is off and the app is closed, light control is unavailable. Opening these settings or refreshing never opens the app.",
       privacy: "Settings stay in your Stream Deck profile. No AI account or API key is needed.",
       connecting: "Connecting to Stream Deck…", loading: "Reading available devices and scenes…",
       selectDevice: "Select a device…", selectScene: "Select a scene…",
@@ -39,6 +42,9 @@
       commandRunning: "Running this key’s command…",
       commandSuccess: "This key’s last command completed.",
       errors: {
+        APP_BUSY: "Another light or screen-mirror command is running. Wait before pressing again.",
+        MIRROR_UNSUPPORTED: "This Desktop version does not provide all screen-mirror commands.",
+        MIRROR_UNKNOWN: "Screen-mirror status is uncertain. Check Desktop permissions, display, devices and layout. Do not repeatedly press the key.",
         APP_CONNECTION: "Open Nanoleaf Desktop and enable its MCP server, then try again.",
         APP_TIMEOUT: "Nanoleaf Desktop did not respond in time. Check the app, then try again.",
         APP_ERROR: "Nanoleaf Desktop could not complete the request. Check the app, then try again.",
@@ -57,6 +63,9 @@
     ko: {
       intro: "Wi-Fi 없이 USB로 연결하는 PC Screen Mirror Lightstrip(NL82K2)을 Nanoleaf Desktop을 통해 제어합니다. 이번 베타는 Wi-Fi/LAN 모델을 지원하지 않습니다. 앱을 열고 조명을 USB로 연결한 뒤 새로고침해 주세요.",
       device: "장치", scene: "씬", powerMode: "전원 동작",
+      mirrorMode: "화면 미러링 동작", mirrorToggle: "미러링 시작 / 정지 전환", mirrorStart: "미러링 시작", mirrorStop: "미러링 정지",
+      mirrorHelp: "Nanoleaf Desktop에서 선택한 미러링 장치 전체와 현재 모드·화면·배치를 사용합니다. 화면 기록 권한은 Desktop에서 먼저 설정해 주세요. 시작하면 다른 스트리밍이 중지될 수 있습니다. 정지는 전원 끄기가 아니며 Desktop이 이전 조명 상태로 복원을 시도합니다. 실행 중 표시는 캡처 엔진 상태이며 모든 조명의 출력 성공을 뜻하지 않습니다.",
+      mirrorRunning: "화면 미러링 엔진 실행 중", mirrorStopped: "화면 미러링 엔진 정지 상태",
       brightnessStep: "조절 폭 (%p)",
       displayMode: "표시 방식", displayBar: "막대", displayRing: "원형", displayNumber: "숫자",
       displayHelp: "돌리기: 밝기 조절 · 다이얼 누르기: 전원 전환 · 터치 화면 누르기: 표시 방식 전환. 막대 → 원형 → 숫자 순서입니다. 표시 전환은 조명을 바꾸거나 앱을 실행하지 않습니다.",
@@ -67,8 +76,8 @@
       brightnessStepInvalid: "밝기 조절 폭은 1부터 100까지의 정수로 입력해 주세요.",
       brightnessArgumentError: "선택한 장치와 밝기 조절 폭을 확인한 뒤 다시 시도해 주세요.",
       toggle: "켜기 / 끄기 전환", on: "켜기", off: "끄기", refresh: "목록 새로고침",
-      autoLaunch: "키를 누르면 Nanoleaf Desktop 자동 실행",
-      launchHelp: "선택 사항입니다. 키를 누를 때만 앱을 열며, 목록 새로고침은 앱을 열지 않습니다. 앱을 항상 켜두신다면 선택하지 않으셔도 됩니다.",
+      autoLaunch: "앱이 꺼져 있으면 실행 후 제어",
+      launchHelp: "키를 누를 때 Nanoleaf Desktop이 꺼져 있으면 앱을 실행한 뒤 요청한 조명 동작을 수행합니다. 이 버튼에만 적용되며 기본값은 꺼짐입니다. 이 옵션을 끈 상태에서 앱도 종료되어 있으면 제어할 수 없습니다. 설정 화면을 열거나 목록을 새로고침해도 앱은 열리지 않습니다.",
       privacy: "설정은 Stream Deck 프로필에 저장됩니다. AI 계정이나 API 키는 필요하지 않습니다.",
       connecting: "Stream Deck에 연결 중입니다…", loading: "장치와 씬 목록을 읽는 중입니다…",
       selectDevice: "장치를 선택해 주세요…", selectScene: "씬을 선택해 주세요…",
@@ -87,6 +96,9 @@
       commandRunning: "이 키의 명령을 처리 중입니다…",
       commandSuccess: "이 키의 마지막 명령을 완료했습니다.",
       errors: {
+        APP_BUSY: "조명 또는 화면 미러링 명령을 처리 중입니다. 잠시 기다린 뒤 다시 눌러 주세요.",
+        MIRROR_UNSUPPORTED: "현재 Desktop 버전은 필요한 화면 미러링 명령을 모두 제공하지 않습니다.",
+        MIRROR_UNKNOWN: "화면 미러링 결과를 확인하지 못했습니다. 반복해서 누르지 말고 Desktop의 권한·화면·장치·배치를 확인해 주세요.",
         APP_CONNECTION: "Nanoleaf Desktop을 열고 MCP 서버를 활성화한 뒤 다시 시도해 주세요.",
         APP_TIMEOUT: "Nanoleaf Desktop의 응답 시간이 초과되었습니다. 앱 상태를 확인한 뒤 다시 시도해 주세요.",
         APP_ERROR: "Nanoleaf Desktop이 요청을 처리하지 못했습니다. 앱 상태를 확인한 뒤 다시 시도해 주세요.",
@@ -106,8 +118,8 @@
   const dialTranslations = {
     en: {
       brightnessHelp: "Change per dial tick, in percentage points (1–100). Default: 2. Turn clockwise to increase and counterclockwise to decrease.",
-      autoLaunch: "Open Nanoleaf Desktop when the dial is turned or pressed",
-      launchHelp: "Optional. Turning or pressing the dial may open the app. Touching the display or refreshing never opens it. Leave this off if you already keep Nanoleaf Desktop running.",
+      autoLaunch: "Launch the app if closed, then control the light",
+      launchHelp: "When you turn or press this dial, launch Nanoleaf Desktop if it is closed, then adjust brightness or toggle power. Applies only to this dial; off by default. If this option is off and the app is closed, light control is unavailable. Touching the display, opening these settings, or refreshing never opens the app.",
       commandHeading: "Last dial command",
       commandIdle: "No result for this dial in this plugin session.",
       commandRunning: "Running this dial’s command…",
@@ -117,8 +129,8 @@
     },
     ko: {
       brightnessHelp: "다이얼 한 눈금당 바뀌는 밝기입니다. 1–100%p 사이의 정수이며, 기본값은 2%p입니다. 시계 방향으로 돌리면 증가하고 반대 방향이면 감소합니다.",
-      autoLaunch: "다이얼을 돌리거나 누르면 Nanoleaf Desktop 자동 실행",
-      launchHelp: "선택 사항입니다. 다이얼을 돌리거나 누를 때 앱을 열 수 있습니다. 터치 화면 누르기와 목록 새로고침은 앱을 열지 않습니다. 앱을 항상 켜두신다면 선택하지 않으셔도 됩니다.",
+      autoLaunch: "앱이 꺼져 있으면 실행 후 제어",
+      launchHelp: "다이얼을 돌리거나 누를 때 Nanoleaf Desktop이 꺼져 있으면 앱을 실행한 뒤 밝기를 조절하거나 전원을 전환합니다. 이 다이얼에만 적용되며 기본값은 꺼짐입니다. 이 옵션을 끈 상태에서 앱도 종료되어 있으면 제어할 수 없습니다. 터치 화면 누르기, 설정 화면 열기, 목록 새로고침은 앱을 실행하지 않습니다.",
       commandHeading: "이 다이얼의 마지막 실행",
       commandIdle: "플러그인 실행 이후 이 다이얼의 기록이 없습니다.",
       commandRunning: "이 다이얼의 명령을 처리 중입니다…",
@@ -129,12 +141,28 @@
   };
   const sceneDialTranslations = {
     en: {
-      autoLaunch: "Open Nanoleaf Desktop when the dial is pressed or its display is tapped",
-      launchHelp: "Optional. Pressing the dial or tapping its touch-strip section may open the app to load scenes or play your selection. Turning only changes the selection; opening these settings or refreshing never opens the app.",
+      autoLaunch: "Launch the app if closed, then control the light",
+      launchHelp: "When you press this dial or tap its touch-strip section, launch Nanoleaf Desktop if it is closed, then load scenes or play your selection. Applies only to this dial; off by default. If this option is off and the app is closed, light control is unavailable. Turning only changes the selection; opening these settings or refreshing never opens the app.",
     },
     ko: {
-      autoLaunch: "다이얼을 누르거나 터치하면 Nanoleaf Desktop 자동 실행",
-      launchHelp: "선택 사항입니다. 다이얼을 누르거나 해당 터치 화면을 누를 때 씬 목록을 읽거나 선택한 씬을 재생하기 위해 앱을 열 수 있습니다. 돌리기는 선택만 바꾸며, 설정 화면을 열거나 목록을 새로고침해도 앱은 열리지 않습니다.",
+      autoLaunch: "앱이 꺼져 있으면 실행 후 제어",
+      launchHelp: "다이얼을 누르거나 해당 터치 화면을 누를 때 Nanoleaf Desktop이 꺼져 있으면 앱을 실행한 뒤 씬 목록을 읽거나 선택한 씬을 재생합니다. 이 다이얼에만 적용되며 기본값은 꺼짐입니다. 이 옵션을 끈 상태에서 앱도 종료되어 있으면 제어할 수 없습니다. 돌리기는 선택만 바꾸며, 설정 화면을 열거나 목록을 새로고침해도 앱은 열리지 않습니다.",
+    },
+  };
+  const mirrorTranslations = {
+    en: {
+      intro: "Screen mirroring uses Nanoleaf Desktop's configured targets. USB NL82K2 is the validation target; other models are not validated. No display capture is performed by this plugin.",
+      refresh: "Refresh mirror status", loading: "Reading screen-mirror status…",
+      ready: "Setting saved. Refresh to read screen-mirror status.",
+      launchHelp: "For Start or Toggle, launch Desktop if closed, then start mirroring. A toggle that opens the app means Start, even if Desktop starts mirroring automatically. Stop never opens the app. This key only; off by default. Settings and refresh never open the app.",
+      commandSuccess: "The requested capture-engine state was confirmed. If lights do not mirror, check Desktop permissions, targets and layout.",
+    },
+    ko: {
+      intro: "Nanoleaf Desktop에 설정된 대상 전체의 화면 미러링을 제어합니다. 검증 대상은 USB NL82K2이며 다른 모델은 미검증입니다. 플러그인이 화면을 직접 캡처하지는 않습니다.",
+      refresh: "미러링 상태 새로고침", loading: "화면 미러링 상태를 읽는 중입니다…",
+      ready: "설정을 저장했습니다. 새로고침으로 미러링 상태를 확인할 수 있습니다.",
+      launchHelp: "시작·전환 키를 누를 때 앱이 꺼져 있으면 실행한 뒤 미러링을 켭니다. 앱을 새로 연 첫 전환은 켜기로 처리하여 Desktop이 자동 시작한 미러링을 다시 끄지 않습니다. 정지 키는 앱을 열지 않습니다. 이 버튼에만 적용되며 기본값은 꺼짐입니다. 옵션 OFF와 앱 종료 상태에서는 제어할 수 없으며 설정·새로고침은 앱을 실행하지 않습니다.",
+      commandSuccess: "요청한 캡처 엔진 상태를 확인했습니다. 조명에 반영되지 않으면 Desktop의 권한·대상·배치를 확인해 주세요.",
     },
   };
   const element = (id) => document.getElementById(id);
@@ -148,6 +176,8 @@
     deviceHint: element("device-hint"), sceneHint: element("scene-hint"),
     refresh: element("refresh"), autoLaunch: element("auto-launch"), status: element("status"),
     commandStatus: element("command-status"),
+    deviceField: element("device-field"), mirrorField: element("mirror-field"),
+    mirrorMode: element("mirror-mode"), mirrorHelp: element("mirror-help"),
   };
   let words = translations.en;
   let socket;
@@ -163,6 +193,7 @@
   let isDial = false;
   let isBrightnessDial = false;
   let isSceneDial = false;
+  let isMirror = false;
   let settings = normalizeSettings({});
   let devices = [];
   let scenes = [];
@@ -172,6 +203,10 @@
 
   function normalizeSettings(value) {
     const data = value && typeof value === "object" ? value : {};
+    if (isMirror) return {
+      mirrorMode: ["start", "stop", "toggle"].includes(data.mirrorMode) ? data.mirrorMode : "toggle",
+      autoLaunch: data.autoLaunch === true,
+    };
     const normalized = {
       deviceId: typeof data.deviceId === "string" ? data.deviceId : "",
       autoLaunch: data.autoLaunch === true,
@@ -216,7 +251,8 @@
     ui.brightnessStep.disabled = !ready;
     ui.displayMode.disabled = !ready;
     ui.brightnessTextSize.disabled = !ready;
-    ui.autoLaunch.disabled = !ready;
+    ui.autoLaunch.disabled = !ready || isMirror && settings.mirrorMode === "stop";
+    ui.mirrorMode.disabled = !ready;
     ui.refresh.disabled = !ready || pending.size > 0;
   }
 
@@ -238,6 +274,10 @@
   }
 
   function render() {
+    ui.deviceField.hidden = isMirror;
+    ui.mirrorField.hidden = !isMirror;
+    ui.mirrorHelp.hidden = !isMirror;
+    ui.mirrorMode.value = settings.mirrorMode ?? "toggle";
     const unavailableDevice = fillSelect(ui.device, devices.map((device) => ({
       value: device.id,
       label: `${device.name || device.id}${device.model ? ` (${device.model})` : ""}`,
@@ -252,7 +292,7 @@
     ui.mode.value = settings.powerMode;
     ui.autoLaunch.checked = settings.autoLaunch;
     ui.sceneField.hidden = !isScene;
-    ui.powerField.hidden = isScene || isBrightness || isSceneDial;
+    ui.powerField.hidden = isScene || isBrightness || isSceneDial || isMirror;
     ui.brightnessField.hidden = !isBrightness;
     ui.brightnessHelp.hidden = !isBrightness;
     ui.brightnessStep.value = String(settings.brightnessStep ?? "");
@@ -311,6 +351,7 @@
   }
 
   function refresh() {
+    if (isMirror) { request("mirrorStatus"); return; }
     cancel("scenes");
     request("devices");
   }
@@ -329,6 +370,14 @@
     if (typeof payload.error === "string" && payload.error) {
       const knownCode = Object.prototype.hasOwnProperty.call(words.errors, payload.errorCode);
       status(knownCode ? words.errors[payload.errorCode] : words.invalid, true);
+      controls();
+      return;
+    }
+    if (isMirror && payload.event === "mirrorStatus") {
+      const mirror = payload.mirror;
+      if (typeof mirror?.isRunning === "boolean" && ["4D", "Tranquility", "Flow", "Chameleon"].includes(mirror.mode)) {
+        status(`${mirror.isRunning ? words.mirrorRunning : words.mirrorStopped} · ${mirror.mode}`);
+      } else status(words.invalid, true);
       controls();
       return;
     }
@@ -380,7 +429,13 @@
     else status(words.ready);
   });
   ui.scene.addEventListener("change", () => { if (isScene) { settings.sceneName = ui.scene.value; save(); render(); } });
-  ui.mode.addEventListener("change", () => { if (!isScene && !isBrightness && !isSceneDial) { settings.powerMode = ui.mode.value; save(); } });
+  ui.mode.addEventListener("change", () => { if (!isScene && !isBrightness && !isSceneDial && !isMirror) { settings.powerMode = ui.mode.value; save(); } });
+  ui.mirrorMode.addEventListener("change", () => {
+    if (!isMirror || !["start", "stop", "toggle"].includes(ui.mirrorMode.value)) return;
+    settings.mirrorMode = ui.mirrorMode.value;
+    save();
+    render();
+  });
   ui.brightnessStep.addEventListener("change", () => {
     if (!isBrightness) return;
     const next = Number(ui.brightnessStep.value);
@@ -426,8 +481,9 @@
       isBrightnessDial = typeof actionData?.action === "string" && actionData.action.endsWith(".brightness-dial");
       isSceneDial = typeof actionData?.action === "string" && actionData.action.endsWith(".scene-dial");
       isDial = isBrightnessDial || isSceneDial;
+      isMirror = typeof actionData?.action === "string" && actionData.action.endsWith(".screen-mirror");
       words = { ...translations[language], ...(isDial ? dialTranslations[language] : {}),
-        ...(isSceneDial ? sceneDialTranslations[language] : {}) };
+        ...(isSceneDial ? sceneDialTranslations[language] : {}), ...(isMirror ? mirrorTranslations[language] : {}) };
       document.documentElement.lang = language;
       for (const node of document.querySelectorAll("[data-i18n]")) node.textContent = words[node.dataset.i18n];
       if (!/^\d{1,5}$/.test(String(port)) || Number(port) < 1 || Number(port) > 65535 || typeof inspectorId !== "string" || !inspectorId || typeof actionData?.action !== "string") throw new Error("Invalid registration");

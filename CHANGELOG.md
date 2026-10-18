@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.5.0-beta.2 — 2026-10-18
+
+- Publish the Screen Mirror Start/Stop/Toggle keys and clearer English/Korean app-launch guidance developed in the local beta.1 preview.
+- Record the tester's 2026-10-18 confirmation of all four physical checks on the installed beta.1: USB screen-colour output, stop with prior-state restoration, two successive toggles, and automatic app launch plus mirroring after completely quitting Desktop.
+- Keep those results attributed to beta.1; beta.2 is a separate source-built public package with updated version metadata and documentation, not a new physical installation test.
+- Validation: 208 automated tests, version ordering against both public and installed previews, official Stream Deck CLI validation, and inspection of all 50 allowlisted installer files passed. Include the installer and its SHA-256 checksum.
+- Retain existing action identifiers and settings. Publishing does not replace the installed beta.1, change profiles, restart applications or alter Desktop permissions, targets or saved scenes.
+- Keep additional restoration combinations, permission failure paths, competing controls/streams, multi-target setups and mirror-specific sleep/display/USB recovery as separate pending coverage. Marketplace submission remains a separate step.
+
+## 0.5.0-beta.1 — Local test build, not separately released
+
+- Clarify the app-launch label and help in English and Korean: launch Nanoleaf Desktop if closed, then perform the requested action. Explain the per-control scope, default-off setting and unavailable control when both the option and app are off. Preserve `autoLaunch`, existing values and runtime behaviour.
+- Add regression coverage for all control types, both languages, default-off behaviour and preservation of saved launch preferences.
+- Add a Screen Mirror key with start, stop and toggle modes using Desktop's configured targets, layout, display and current mode.
+- Share app-wide mutation exclusion with existing light controls. Read before sending, no-op same-state requests, reconcile ambiguous outcomes with bounded reads and never replay mutations.
+- Add shared visible-key polling, title-responsive original artwork, bilingual guidance and privacy notes. Stop never opens Desktop; cold-start toggle ensures ON without undoing Desktop's mirror-on-launch option.
+- On 2026-10-18, the tester confirmed all four requested physical mirroring and cold-start checks. See the exact tested scope in `docs/VALIDATION.md`; this local version is not separately published.
+
 ## 0.4.0-beta.4 — 2026-10-18
 
 - Publish the version-consistency and privacy/documentation improvements developed in the local beta.3 preview.

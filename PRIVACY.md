@@ -20,6 +20,10 @@ Visible power keys and brightness dials periodically read the selected device's 
 
 Device IDs and custom scene names can be identifying or personal. Exported Stream Deck profiles, backups, and synchronized copies may include them. Review a profile before sharing it. Plugin installation does not distribute the maintainer's personal profiles, device state files, or scene definitions.
 
+## Screen mirroring
+
+The Screen Mirror action sends only start, stop and status requests to Desktop's local MCP server. It uses Desktop's configured targets, display, layout and current mode. The plugin does not capture or collect screen images, previews, window titles or screen content; screen-recording permission and capture belong to Nanoleaf Desktop. The per-key start/stop/toggle choice and app-launch preference are stored in Stream Deck. Capture-engine status is kept in memory and shared across visible mirror keys; status reads never open Desktop. A running engine does not certify output from every selected light.
+
 ## Reports and diagnostics
 
 Information you choose to submit through GitHub is handled by GitHub and may become public. Review logs, screenshots, and profile exports before attaching them. Remove device IDs, custom scene names, local usernames and paths, tokens, and unrelated account information. Prefer a minimal reproduction with a synthetic device identifier over a complete profile export.

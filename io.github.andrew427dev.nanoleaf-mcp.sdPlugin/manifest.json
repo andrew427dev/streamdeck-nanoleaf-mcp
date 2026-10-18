@@ -2,9 +2,9 @@
   "$schema": "https://schemas.elgato.com/streamdeck/plugins/manifest.json",
   "Name": "Nanoleaf MCP",
   "UUID": "io.github.andrew427dev.nanoleaf-mcp",
-  "Version": "0.4.0.4",
+  "Version": "0.5.0.2",
   "Author": "andrew427dev",
-  "Description": "Control the USB-only PC Screen Mirror Lightstrip (NL82K2) through Nanoleaf Desktop's local MCP server. Power, brightness and saved scenes. Unofficial macOS beta; not for Wi-Fi/LAN Nanoleaf models.",
+  "Description": "Control the USB-only PC Screen Mirror Lightstrip (NL82K2) through Nanoleaf Desktop's local MCP server. Power, brightness, saved scenes and screen mirroring. Unofficial macOS beta; not for Wi-Fi/LAN Nanoleaf models.",
   "URL": "https://github.com/andrew427dev/streamdeck-nanoleaf-mcp",
   "Category": "Nanoleaf MCP",
   "CategoryIcon": "imgs/category",
@@ -25,6 +25,14 @@
   },
   "PropertyInspectorPath": "ui/index.html",
   "Actions": [
+    {
+      "UUID": "io.github.andrew427dev.nanoleaf-mcp.screen-mirror",
+      "Name": "Screen Mirror",
+      "Tooltip": "Start, stop or toggle screen mirroring for all devices selected in Nanoleaf Desktop.",
+      "Icon": "imgs/screen-mirror-action",
+      "Controllers": ["Keypad"],
+      "States": [{ "Image": "imgs/screen-mirror-key", "TitleAlignment": "bottom", "FontSize": 12 }]
+    },
     {
       "UUID": "io.github.andrew427dev.nanoleaf-mcp.power",
       "Name": "Power",

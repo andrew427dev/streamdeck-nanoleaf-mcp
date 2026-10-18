@@ -18,6 +18,9 @@ export const ERROR_MESSAGES = Object.freeze({
   BUSY: 'A command is already running for this light. Wait, then press again.',
   LAUNCH_FAILED: 'Could not open Nanoleaf Desktop. Install and open it manually.',
   INTERNAL_ERROR: 'The command failed. Reopen the action settings and try again.',
+  APP_BUSY: 'Another light or screen-mirror command is running. Wait before pressing again.',
+  MIRROR_UNSUPPORTED: 'This Nanoleaf Desktop version does not provide all screen-mirror commands.',
+  MIRROR_UNKNOWN: 'Screen-mirror status is uncertain. Check Desktop permissions, display, devices and layout before trying again.',
 });
 
 function fail(code) { return Object.assign(new Error(ERROR_MESSAGES[code]), { code }); }
@@ -30,6 +33,7 @@ export function safeError(error) {
 export class LightController {
   #busy = new Set();
   #starting;
+  #appBusy = false;
   constructor({ client, launchApp, sleep = ms => new Promise(resolve => setTimeout(resolve, ms)),
     now = () => performance.now() }) {
     this.client = client;
@@ -50,7 +54,7 @@ export class LightController {
         }
         const devices = await startup.reading;
         if (this.now() >= startup.deadline) throw fail('APP_TIMEOUT');
-        if (devices.some(device => device.id === deviceId)) return devices;
+        if (deviceId === undefined || devices.some(device => device.id === deviceId)) return devices;
       } catch (error) {
         if (!['APP_CONNECTION', 'APP_TIMEOUT'].includes(error?.code)) throw error;
       }
@@ -60,10 +64,11 @@ export class LightController {
     throw fail('APP_TIMEOUT');
   }
 
-  async #devices(autoLaunch, deviceId) {
+  async #devices(autoLaunch, deviceId, onLaunch = () => {}) {
     // Only button presses with explicit consent join startup; inspector reads stay immediate.
     if (autoLaunch && this.#starting) {
       if (this.#starting.deadline === undefined || this.now() < this.#starting.deadline) {
+        onLaunch();
         return await this.#startupDevices(this.#starting, deviceId);
       }
       this.#starting = undefined;
@@ -73,6 +78,7 @@ export class LightController {
     } catch (error) {
       // Launching is explicit per-button consent, and is never triggered from the inspector.
       if (!autoLaunch || error?.code !== 'APP_CONNECTION') throw error;
+      onLaunch();
       if (!this.#starting) {
         const startup = {};
         startup.ready = (async () => {
@@ -86,6 +92,29 @@ export class LightController {
       }
       return await this.#startupDevices(this.#starting, deviceId);
     }
+  }
+
+  /** App readiness without requiring a selected device; shared startup with light commands. */
+  async prepareApp(autoLaunch = false) {
+    // A completed cold start may retain its device-discovery window. A later
+    // warm toggle must still invert the current state instead of ensuring ON.
+    try {
+      await this.client.listDevices();
+      return { launched: false };
+    } catch (error) {
+      if (autoLaunch !== true || error?.code !== 'APP_CONNECTION') throw error;
+    }
+    let launched = false;
+    await this.#devices(autoLaunch === true, undefined, () => { launched = true; });
+    return { launched };
+  }
+
+  /** Exclusive app-wide mutation; never queue a stale start/stop behind another command. */
+  async withAppMutation(task) {
+    if (this.#appBusy || this.#busy.size) throw fail('APP_BUSY');
+    this.#appBusy = true;
+    try { return await task(); }
+    finally { this.#appBusy = false; }
   }
 
   async #checkDevice(deviceId, autoLaunch = false) {
@@ -158,6 +187,7 @@ export class LightController {
     }
     const checkCurrent = () => { if (isCurrent && !isCurrent()) throw fail('BUSY'); };
     checkCurrent();
+    if (this.#appBusy) throw fail('APP_BUSY');
     if (this.#busy.has(deviceId)) throw fail('BUSY');
     this.#busy.add(deviceId);
     try {

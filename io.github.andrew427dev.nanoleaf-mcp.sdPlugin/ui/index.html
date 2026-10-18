@@ -17,11 +17,21 @@
         <p id="command-status" role="status" aria-live="polite" data-kind="info">No result for this key in this plugin session.</p>
       </section>
 
-      <div class="field">
+      <div id="device-field" class="field">
         <label for="device" data-i18n="device">Device</label>
         <select id="device" aria-describedby="device-hint" disabled></select>
       </div>
       <p id="device-hint" class="hint" hidden></p>
+
+      <div id="mirror-field" class="field" hidden>
+        <label for="mirror-mode" data-i18n="mirrorMode">Screen mirror action</label>
+        <select id="mirror-mode" aria-describedby="mirror-help" disabled>
+          <option value="toggle" data-i18n="mirrorToggle">Toggle screen mirror</option>
+          <option value="start" data-i18n="mirrorStart">Start screen mirror</option>
+          <option value="stop" data-i18n="mirrorStop">Stop screen mirror</option>
+        </select>
+      </div>
+      <p id="mirror-help" class="help" data-i18n="mirrorHelp" hidden>Uses all mirror targets and the current mode, display and layout selected in Nanoleaf Desktop. Set screen-recording permission in Desktop first. Starting can stop other streaming. Stopping is not power off; Desktop attempts to restore the previous light state. Status describes the capture engine, not successful output from every light.</p>
 
       <div id="scene-field" class="field" hidden>
         <label for="scene" data-i18n="scene">Scene</label>
@@ -72,9 +82,9 @@
 
       <label class="checkbox" for="auto-launch">
         <input id="auto-launch" type="checkbox" aria-describedby="launch-help" disabled>
-        <span data-i18n="autoLaunch">Open Nanoleaf Desktop when a key is pressed</span>
+        <span data-i18n="autoLaunch">Launch the app if closed, then control the light</span>
       </label>
-      <p id="launch-help" class="help" data-i18n="launchHelp">Optional. Only key presses may open the app; refreshing does not. Leave this off if you already keep Nanoleaf Desktop running.</p>
+      <p id="launch-help" class="help" data-i18n="launchHelp">When you press this key, launch Nanoleaf Desktop if it is closed, then perform the requested light action. Applies only to this key; off by default. If this option is off and the app is closed, light control is unavailable. Opening these settings or refreshing never opens the app.</p>
       <p class="footer" data-i18n="privacy">Settings stay in your Stream Deck profile. No AI account or API key is needed.</p>
     </main>
   </body>

@@ -10,6 +10,40 @@ const ACTION = "io.github.andrew427dev.nanoleaf-mcp.scene";
 const DEVICE_A = { id: "TEST-DEVICE-A", name: "Test light A", model: "TEST-MODEL" };
 const DEVICE_B = { id: "TEST-DEVICE-B", name: "Test light B", model: "TEST-MODEL" };
 
+test("mirror inspector has global scope and reads only status without settings writes", () => {
+  for (const language of ["ko", "en"]) {
+    const ui = inspector({ action: ACTION.replace(/scene$/, "screen-mirror"), language });
+    assert.deepEqual(ui.commands("sendToPlugin").map(m => m.payload.event), ["commandStatus", "mirrorStatus"]);
+    assert.equal(ui.elements.get("device-field").hidden, true);
+    assert.equal(ui.elements.get("power-field").hidden, true);
+    assert.equal(ui.elements.get("scene-field").hidden, true);
+    assert.equal(ui.elements.get("mirror-field").hidden, false);
+    assert.equal(ui.elements.get("mirror-mode").value, "toggle");
+    assert.equal(ui.elements.get("auto-launch").checked, false);
+    assert.equal(ui.commands("setSettings").length, 0);
+    ui.respond("mirrorStatus", { mirror: { isRunning: true, mode: "4D" } });
+    assert.match(ui.elements.get("status").textContent, /4D/);
+  }
+});
+
+test("mirror stop disables startup without rewriting the saved opt-in value", () => {
+  const ui = inspector({ action: ACTION.replace(/scene$/, "screen-mirror"), settings: { mirrorMode: "stop", autoLaunch: true } });
+  assert.equal(ui.elements.get("auto-launch").disabled, true);
+  assert.equal(ui.elements.get("auto-launch").checked, true);
+  assert.equal(ui.commands("setSettings").length, 0);
+  ui.change("mirror-mode", "start");
+  assert.deepEqual(ui.commands("setSettings").at(-1).payload, { mirrorMode: "start", autoLaunch: true });
+  assert.equal(ui.elements.get("auto-launch").disabled, false);
+  assert.equal(ui.requests("devices").length, 0);
+});
+
+test("mirror errors never expose backend details or imply a stopped state", () => {
+  const ui = inspector({ action: ACTION.replace(/scene$/, "screen-mirror"), language: "ko" });
+  ui.respond("mirrorStatus", { error: "PRIVATE", errorCode: "APP_CONNECTION" });
+  assert.doesNotMatch(ui.elements.get("status").textContent, /PRIVATE|정지 상태/);
+  assert.equal(ui.elements.get("status").dataset.kind, "error");
+});
+
 class Element {
   constructor() {
     this.value = "";
@@ -101,6 +135,51 @@ test("registers with the inspector UUID and requests lists without saving or con
   assert.equal(ui.requests("scenes").length, 0);
   assert.equal(ui.elements.get("device").value, "");
   assert.equal(ui.commands("setSettings").length, 0);
+});
+
+test("launch wording explains launch then control, per-action scope, and the off default in both languages", () => {
+  for (const language of ["en", "ko"]) {
+    for (const suffix of ["power", "scene", "brightness-up", "brightness-down", "brightness-dial", "scene-dial"]) {
+      const ui = inspector({ action: ACTION.replace(/scene$/, suffix), language });
+      const translated = key => ui.translated.find(node => node.dataset.i18n === key).textContent;
+      const dial = suffix.endsWith("-dial");
+      assert.equal(translated("autoLaunch"), language === "ko"
+        ? "앱이 꺼져 있으면 실행 후 제어" : "Launch the app if closed, then control the light");
+      assert.match(translated("launchHelp"), language === "ko"
+        ? /Nanoleaf Desktop이 꺼져 있으면 앱을 실행한 뒤/ : /launch Nanoleaf Desktop if it is closed, then/);
+      assert.match(translated("launchHelp"), language === "ko"
+        ? dial ? /이 다이얼에만 적용되며 기본값은 꺼짐입니다/ : /이 버튼에만 적용되며 기본값은 꺼짐입니다/
+        : dial ? /Applies only to this dial; off by default/ : /Applies only to this key; off by default/);
+      assert.match(translated("launchHelp"), language === "ko"
+        ? /이 옵션을 끈 상태에서 앱도 종료되어 있으면 제어할 수 없습니다/
+        : /If this option is off and the app is closed, light control is unavailable/);
+      assert.equal(ui.elements.get("auto-launch").checked, false);
+      assert.equal(ui.commands("setSettings").length, 0);
+      assert.deepEqual(ui.commands("sendToPlugin").map(message => message.payload.event), ["commandStatus", "devices"]);
+    }
+  }
+});
+
+test("launch wording changes preserve existing opt-in settings without rewriting them", () => {
+  for (const suffix of ["power", "scene", "brightness-up", "brightness-down", "brightness-dial", "scene-dial"]) {
+    for (const autoLaunch of [false, true]) {
+      const ui = inspector({ action: ACTION.replace(/scene$/, suffix), settings: { autoLaunch } });
+      assert.equal(ui.elements.get("auto-launch").checked, autoLaunch);
+      assert.equal(ui.commands("setSettings").length, 0);
+      ui.settings({ autoLaunch: !autoLaunch });
+      assert.equal(ui.elements.get("auto-launch").checked, !autoLaunch);
+      assert.equal(ui.commands("setSettings").length, 0);
+    }
+  }
+});
+
+test("static launch copy matches the English key labels before localization", () => {
+  const ui = inspector();
+  for (const key of ["autoLaunch", "launchHelp"]) {
+    const fallback = html.match(new RegExp(`data-i18n="${key}">([^<]+)<`))?.[1];
+    const translated = ui.translated.find(node => node.dataset.i18n === key).textContent;
+    assert.equal(fallback, translated);
+  }
 });
 
 test("loads saved selections without rewriting them or choosing a different item", () => {
@@ -529,7 +608,7 @@ test("display choices distinguish rotation, power press, and display touch in bo
     assert.match(translated("displayHelp"), language === "ko" ? /돌리기: 밝기 조절 · 다이얼 누르기: 전원 전환/ : /Turn: adjust brightness · Press the dial: toggle power/);
     assert.match(translated("displayHelp"), language === "ko" ? /터치 화면 누르기: 표시 방식 전환/ : /Tap the touch strip: switch display/);
     assert.match(translated("displayHelp"), language === "ko" ? /조명을 바꾸거나 앱을 실행하지 않습니다/ : /never change the light or open the app/);
-    assert.match(translated("launchHelp"), language === "ko" ? /터치 화면 누르기와 목록 새로고침은 앱을 열지 않습니다/ : /Touching the display or refreshing never opens it/);
+    assert.match(translated("launchHelp"), language === "ko" ? /터치 화면 누르기, 설정 화면 열기, 목록 새로고침은 앱을 실행하지 않습니다/ : /Touching the display, opening these settings, or refreshing never opens the app/);
   }
 });
 
@@ -537,7 +616,7 @@ test("dial wording and brightness unavailable results are localized without expo
   for (const language of ["en", "ko"]) {
     const ui = inspector({ action: ACTION.replace(/scene$/, "brightness-dial"), language });
     const translated = key => ui.translated.find(node => node.dataset.i18n === key).textContent;
-    assert.match(translated("autoLaunch"), language === "ko" ? /다이얼을 돌리거나 누르면/ : /dial is turned or pressed/);
+    assert.match(translated("launchHelp"), language === "ko" ? /다이얼을 돌리거나 누를 때/ : /turn or press this dial/);
     assert.match(translated("brightnessHelp"), language === "ko" ? /기본값은 2%p/ : /Default: 2/);
     assert.doesNotMatch(translated("launchHelp"), language === "ko" ? /키를 누를/ : /key press/);
     ui.socket.receive({ event: "sendToPropertyInspector", context: "TEST-ACTION-CONTEXT", payload: {
@@ -588,7 +667,7 @@ test("scene browser instructions distinguish opening, selection, and play in bot
     assert.match(translated("sceneBrowserHelp"), language === "ko" ? /다이얼을 누르거나 해당 터치 화면을 누르면 저장된 씬 목록이 열립니다/ : /Press the dial or tap its touch-strip section to open the saved scene list/);
     assert.match(translated("sceneBrowserHelp"), language === "ko" ? /돌려 씬을 선택하고 다시 누르거나 터치하면 재생/ : /Turn to select a scene, then press or tap again to play/);
     assert.match(translated("sceneBrowserHelp"), language === "ko" ? /프로필에 저장되지 않습니다/ : /not saved in your profile/);
-    assert.match(translated("autoLaunch"), language === "ko" ? /다이얼을 누르거나 터치하면/ : /dial is pressed or its display is tapped/);
+    assert.match(translated("launchHelp"), language === "ko" ? /다이얼을 누르거나 해당 터치 화면을 누를 때/ : /press this dial or tap its touch-strip section/);
     assert.match(translated("launchHelp"), language === "ko" ? /돌리기는 선택만 바꾸며/ : /Turning only changes the selection/);
     assert.match(translated("launchHelp"), language === "ko" ? /설정 화면을 열거나 목록을 새로고침해도 앱은 열리지 않습니다/ : /opening these settings or refreshing never opens the app/);
     assert.match(translated("commandHeading"), language === "ko" ? /다이얼/ : /dial/);

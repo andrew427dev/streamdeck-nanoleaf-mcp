@@ -11,6 +11,59 @@ const device = data => [{ device: DEVICE, ok: true, data }];
 const scenes = names => device({ effects: names.map(name => ({ name })) });
 const json = value => new Response(JSON.stringify(value), { headers: { 'content-type': 'application/json' } });
 
+test('screen mirror parses direct objects and sends exact device-free arguments', async () => {
+  const { client, calls } = server(request => json(rpc(request, { structuredContent:
+    request.params.name === 'get_screen_mirror_status' ? { isRunning: true, mode: 'Flow' } : { ok: true } })));
+  assert.deepEqual(await client.getScreenMirrorStatus(), { isRunning: true, mode: 'Flow' });
+  await client.startScreenMirror('Flow');
+  await client.stopScreenMirror();
+  assert.deepEqual(calls.filter(c => c.request.method === 'tools/call').map(c => c.request.params), [
+    { name: 'get_screen_mirror_status', arguments: {} },
+    { name: 'start_screen_mirror', arguments: { mode: 'Flow' } },
+    { name: 'stop_screen_mirror', arguments: {} },
+  ]);
+});
+
+test('screen mirror accepts JSON text but rejects malformed state or mutation acknowledgement', async () => {
+  const { client } = server(request => json(rpc(request, { content: [{ type: 'text', text: JSON.stringify({ isRunning: false, mode: '4D' }) }] })));
+  assert.equal((await client.getScreenMirrorStatus()).isRunning, false);
+  for (const payload of [{}, { isRunning: 1, mode: '4D' }, { isRunning: false, mode: 'unsupported' }, { results: [] }]) {
+    const s = server(request => json(rpc(request, { structuredContent: payload })));
+    await assert.rejects(s.client.getScreenMirrorStatus(), { code: 'PROTOCOL_ERROR' });
+    await assert.rejects(s.client.stopScreenMirror(), { code: 'PROTOCOL_ERROR' });
+  }
+});
+
+test('screen mirror requires all capabilities with bounded pagination', async () => {
+  const s = server(request => json(rpc(request, request.params?.cursor
+    ? { tools: [{ name: 'stop_screen_mirror' }] }
+    : { tools: [{ name: 'get_screen_mirror_status' }, { name: 'start_screen_mirror' }], nextCursor: 'NEXT' })));
+  await s.client.requireScreenMirrorSupport();
+  assert.deepEqual(s.calls.filter(c => c.request.method === 'tools/list').map(c => c.request.params), [{}, { cursor: 'NEXT' }]);
+  const missing = server(request => json(rpc(request, { tools: [] })));
+  await assert.rejects(missing.client.requireScreenMirrorSupport(), { code: 'MIRROR_UNSUPPORTED' });
+  const cycle = server(request => json(rpc(request, { tools: [], nextCursor: 'SAME' })));
+  await assert.rejects(cycle.client.requireScreenMirrorSupport(), { code: 'PROTOCOL_ERROR' });
+});
+
+test('mirror guards and invalid modes never send commands', async () => {
+  const s = server(() => { throw new Error('Must not send'); });
+  await assert.rejects(s.client.startScreenMirror('UNKNOWN'), { code: 'INVALID_ARGUMENT' });
+  await assert.rejects(s.client.startScreenMirror('4D', { isCurrent: () => false }), { code: 'BUSY' });
+  await assert.rejects(s.client.stopScreenMirror({ isCurrent: () => false }), { code: 'BUSY' });
+  assert.deepEqual(s.calls, []);
+});
+
+test('mirror mutations never replay an expired session; status reads recover once', async () => {
+  for (const method of ['startScreenMirror', 'stopScreenMirror', 'getScreenMirrorStatus']) {
+    let count = 0;
+    const s = server(request => ++count === 1 ? new Response(null, { status: 404 })
+      : json(rpc(request, { structuredContent: { isRunning: false, mode: '4D' } })), { session: 'TEST' });
+    if (method === 'getScreenMirrorStatus') { await s.client[method](); assert.equal(count, 2); }
+    else { await assert.rejects(s.client[method](...(method === 'startScreenMirror' ? ['4D'] : []))); assert.equal(count, 1); }
+  }
+});
+
 function server(handler, { session, version = '2025-03-26' } = {}) {
   const calls = [];
   const fetchImpl = async (url, options) => {

@@ -1,12 +1,14 @@
 # Nanoleaf MCP for Stream Deck
 
-Control the **USB-connected Nanoleaf PC Screen Mirror Lightstrip (NL82K2)** from Stream Deck: power, brightness, and scenes saved in Nanoleaf Desktop. This is an unofficial, open-source plugin for macOS, specifically for this non-Wi-Fi model—not a Wi-Fi/LAN Nanoleaf plugin or a controller for every USB model.
+Control the **USB-connected Nanoleaf PC Screen Mirror Lightstrip (NL82K2)** from Stream Deck: power, brightness, saved scenes and Desktop screen mirroring. This is an unofficial, open-source plugin for macOS, specifically for this non-Wi-Fi model—not a Wi-Fi/LAN Nanoleaf plugin or a controller for every USB model.
 
 Control path: **Stream Deck → Nanoleaf Desktop (local MCP) → USB → lightstrip**. The light does not need Wi-Fi pairing or a device IP address, but Nanoleaf Desktop must be running (or automatic launch enabled). Nanoleaf documents this product's [USB/HID communication separately from its Wi-Fi APIs](https://support.nanoleaf.me/hc/en-us/articles/46020382680468-API-Nanoleaf-OpenAPI-Documentation-Forum-Guidelines).
 
 [한국어 안내](docs/README.ko.md) · [Releases](https://github.com/andrew427dev/streamdeck-nanoleaf-mcp/releases) · [Validation](docs/VALIDATION.md) · [Privacy](PRIVACY.md)
 
-**v0.4.0-beta.4** includes version-consistency checks, privacy guidance, clearer build/package outputs and version ordering that keeps a stable release newer than its betas. The tester reported all six physical regression groups passing on the installed beta.3 preview on 2026-10-18, including cold-start automatic launch after enabling the option on each relevant control. This is not a physical installation test of beta.4. Existing controls, visuals and settings are retained; Marketplace submission is [planned only](docs/MARKETPLACE-PLAN.md).
+**v0.5.0-beta.2** publishes Screen Mirror keys and clearer app-launch guidance. On 2026-10-18, the tester confirmed all four requested physical checks on the installed **v0.5.0-beta.1** preview: real USB screen-colour output, stop with prior-state restoration, two successive toggles, and app launch plus mirroring after fully quitting Desktop. These results are not a physical installation test of beta.2. Existing settings and identifiers are retained; publishing does not replace the local installation. Marketplace submission is [planned only](docs/MARKETPLACE-PLAN.md).
+
+The app-launch setting is labelled **Launch the app if closed, then control the light**; defaults and existing per-control values are unchanged. The new **Screen Mirror** key offers **Start / Stop / Toggle**, using Desktop's current mode, display, layout and all selected targets. Stop never opens Desktop; a toggle that opens Desktop means Start. Configure screen-recording permission and targets in Desktop first. Stopping attempts to restore the previous light state, not power off. Capture-engine status does not certify every light's output. See the [implementation criteria](docs/SCREEN-MIRROR-PLAN.md) and [validation limits](docs/VALIDATION.md); support is not expanded to other lighting models.
 
 ## Features
 
@@ -28,6 +30,7 @@ Title entry/removal, blank-title restoration after restarting Stream Deck, and d
 
 ### Controls
 
+- **Screen Mirror:** start, stop or toggle Desktop's screen mirroring with shared live status. This controls all targets selected in Desktop, not a device selected in the plugin. It preserves Desktop's current mirroring mode and layout.
 - **Power:** turn a selected device on, off, or toggle its power.
 - **Live power icon:** mint ON, gray OFF, or a dash when state is unavailable. Visible controls share read-only polling, approximately every two seconds after each response; polling never opens the app. Custom Stream Deck icons override plugin images.
 - **Brightness Up / Down:** separate physical key actions, initially 5 percentage points per press.
@@ -62,7 +65,9 @@ Declared minimum versions are installation requirements, **not a claim that ever
 - **v0.4.0-beta.2:** the tester confirmed all three percentage-text sizes on Stream Deck + on 2026-10-13. Design/title checks and mocked automated tests are described above.
 - **v0.4.0-beta.3 installed preview:** on 2026-10-18 the tester reported passing power/state display; scene keys and dial touch/press playback; brightness keys/dial, visualizations and text sizes; cold-start automatic launch; reboot/sleep-wake/USB reconnection; and long-idle recovery/settings retention. Automatic launch initially failed because the tested controls had the option disabled. Enabling it restored operation without a code change. See the [six-group record](docs/VALIDATION.md).
 - **v0.4.0-beta.4:** release tooling and documentation changes do not replace the installed preview. Automated tests use synthetic devices; this package has not been installed for a new physical regression run.
-- **Still pending:** beta.4 physical installation checks, a Nanoleaf Desktop update compatibility check, additional hardware/OS coverage, and Marketplace-processed/DRM installation. No Marketplace submission has been made.
+- **v0.5.0-beta.1 installed preview:** on 2026-10-18 the tester confirmed mirror Start, Stop with prior-state restoration, Toggle twice, and Start after fully quitting Desktop with app launch enabled. See the [four-check record](docs/VALIDATION.md).
+- **v0.5.0-beta.2:** the public package is built separately with updated version metadata/documentation; publishing does not replace beta.1 on the test machine.
+- **Still pending:** exact beta.2 installation checks, additional mirror error/recovery scenarios, a Nanoleaf Desktop update compatibility check, additional hardware/OS coverage, and Marketplace-processed/DRM installation. No Marketplace submission has been made.
 
 Automated tests use synthetic devices and mock MCP responses. Passing them or package validation does not establish physical compatibility. Existing profile settings and plugin/action identifiers are retained; no migration is required.
 
@@ -78,6 +83,13 @@ The steps below install a **public release**. Publishing a new GitHub release do
 6. Give the button a title in Stream Deck, such as **ON**, **OFF**, or your scene name. Press it to apply the selected action. You can make separate On and Off buttons and as many scene buttons as you need.
 
 The plugin uses your existing saved scenes; it does not include scene definitions. Installing it does not migrate or replace existing helper scripts, Shortcuts, or buttons. You can leave those in place while testing new buttons. This release retains the plugin/action identifiers and settings format: existing button assignments, selected devices/scenes, brightness steps, automatic-launch choices, and title preferences do not require reconfiguration. Export important profiles as a backup before updating; do not uninstall the plugin or delete its actions first.
+
+### Screen Mirror keys
+
+1. In Nanoleaf Desktop, configure Screen Mirror's display, target lights, layout and screen-recording permission first.
+2. Drag **Screen Mirror** onto a key and select **Start**, **Stop**, or **Toggle**. Add separate keys if desired. No device dropdown is used: these commands affect all targets selected in Desktop.
+3. For Start or Toggle, enable **Launch the app if closed, then control the light** if needed. It is off by default and saved separately per key. Stop never launches Desktop; a Toggle that must launch Desktop means Start.
+4. Press the key and check the actual light output. Stop attempts to restore the previous state; it does not mean power off. Configure modes and targets in Desktop, not this plugin.
 
 ### Brightness keys and Stream Deck + dials
 

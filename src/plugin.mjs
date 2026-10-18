@@ -9,14 +9,17 @@ import { SceneBrowser } from './scene-browser.mjs';
 import { sceneDisplayFeedback } from './scene-display.mjs';
 import { titlePresentation } from './title-presentation.mjs';
 import { keyDisplayImage } from './key-display.mjs';
+import { ScreenMirror } from './screen-mirror.mjs';
 
 // Keep SDK wire-level settings/device payloads out of normal log output.
 streamDeck.logger.setLevel('error');
 const run = promisify(execFile);
+const client = new NanoleafClient();
 const controller = new LightController({
-  client: new NanoleafClient(),
+  client,
   launchApp: () => run('/usr/bin/open', ['-a', 'Nanoleaf Desktop', '--args', '--hidden'], { timeout: 5000 }),
 });
+const mirror = new ScreenMirror({ client, controller });
 const live = new LiveState({ read: deviceId => controller.inspectState(deviceId) });
 async function execute(kind, settings, options) {
   live.begin(settings?.deviceId);
@@ -87,6 +90,7 @@ class LightAction extends SingletonAction {
     this.#status(ev.action.id, 'idle');
   }
   onWillDisappear(ev) {
+    mirror.forget(ev.action.id);
     this.#visible.get(ev.action.id)?.browser?.dispose();
     this.#visible.delete(ev.action.id);
     if (this.#results.get(ev.action.id)?.state === 'running') this.#status(ev.action.id, 'idle');
@@ -95,10 +99,19 @@ class LightAction extends SingletonAction {
   }
 
   #watch(ev) {
+    if (this.kind === 'screen-mirror') mirror.forget(ev.action.id);
     this.#visible.get(ev.action.id)?.browser?.dispose();
     const token = { settings: ev.payload.settings, state: undefined,
       presentation: this.#titles.get(ev.action.id) ?? titlePresentation(undefined, ev.action.isDial() ? 'Encoder' : 'Keypad') };
     this.#visible.set(ev.action.id, token);
+    if (this.kind === 'screen-mirror') {
+      mirror.watch(ev.action.id, async state => {
+        if (this.#visible.get(ev.action.id) !== token) return;
+        token.state = state;
+        await this.#render(ev.action, token);
+      });
+      return;
+    }
     if (this.kind === 'scene-dial' && ev.action.isDial()) {
       token.ready = this.#prepareDial(ev.action, 'layouts/scenes.json');
       void token.ready.catch(() => {});
@@ -219,6 +232,12 @@ class LightAction extends SingletonAction {
   }
   async onKeyDown(ev) {
     if (this.kind === 'brightness-dial' || this.kind === 'scene-dial') return;
+    if (this.kind === 'screen-mirror') {
+      const view = this.#visible.get(ev.action.id);
+      if (!view) return;
+      return this.#dispatch(ev, () => mirror.request(view.settings?.mirrorMode ?? 'toggle', view.settings,
+        { isCurrent: () => this.#visible.get(ev.action.id) === view }));
+    }
     await this.#dispatch(ev, () => {
       if (this.kind === 'brightness-up' || this.kind === 'brightness-down') {
         const delta = step(ev.payload.settings, 5) * (this.kind === 'brightness-up' ? 1 : -1);
@@ -243,6 +262,15 @@ class LightAction extends SingletonAction {
       await this.#sendStatus(ev.action.id);
       return;
     }
+    if (this.kind === 'screen-mirror') {
+      if (ev.payload?.event !== 'mirrorStatus' || typeof ev.payload.requestId !== 'string'
+        || ev.payload.requestId.length > 2048) return;
+      const response = { event: 'mirrorStatus', requestId: ev.payload.requestId };
+      try { response.mirror = await client.getScreenMirrorStatus(); }
+      catch (error) { Object.assign(response, { error: safeError(error).message, errorCode: safeError(error).code }); }
+      if (streamDeck.ui.action?.id === ev.action.id) await streamDeck.ui.sendToPropertyInspector(response).catch(() => {});
+      return;
+    }
     const response = await controller.inspect(ev.payload);
     if (response && streamDeck.ui.action?.id === ev.action.id) {
       await streamDeck.ui.sendToPropertyInspector(response).catch(() => {});
@@ -258,7 +286,7 @@ const SceneAction = action({ UUID: 'io.github.andrew427dev.nanoleaf-mcp.scene' }
 });
 streamDeck.actions.registerAction(new PowerAction());
 streamDeck.actions.registerAction(new SceneAction());
-for (const kind of ['brightness-up', 'brightness-down', 'brightness-dial', 'scene-dial']) {
+for (const kind of ['brightness-up', 'brightness-down', 'brightness-dial', 'scene-dial', 'screen-mirror']) {
   const BrightnessAction = action({ UUID: `io.github.andrew427dev.nanoleaf-mcp.${kind}` })(class extends LightAction {
     constructor() { super(kind); }
   });

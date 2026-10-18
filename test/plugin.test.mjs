@@ -25,6 +25,7 @@ let power = true;
 let scene = 'Example Scene';
 let brightness = 50;
 let offline = false;
+let mirroring = false;
 const send = message => process.send?.(message);
 childProcess.execFile = (...args) => {
   send({ type: 'unexpected-launch' });
@@ -60,9 +61,21 @@ globalThis.fetch = async (url, options) => {
       serverInfo: { name: 'synthetic-nanoleaf', version: '1' } });
   }
   if (request.method === 'notifications/initialized') return new Response(null, { status: 202 });
+  if (request.method === 'tools/list') return reply({ tools: ['get_screen_mirror_status', 'start_screen_mirror', 'stop_screen_mirror'].map(name => ({ name })) });
   if (request.method !== 'tools/call') throw new Error('Unexpected synthetic MCP method');
   const args = request.params.arguments;
   switch (request.params.name) {
+    case 'get_screen_mirror_status':
+      if (offline) throw new Error('Synthetic offline');
+      return reply({ structuredContent: { isRunning: mirroring, mode: '4D' } });
+    case 'start_screen_mirror':
+      if (Object.keys(args).join(',') !== 'mode' || args.mode !== '4D') throw new Error('Invalid mirror command');
+      mirroring = true;
+      return reply({ structuredContent: { ok: true } });
+    case 'stop_screen_mirror':
+      if (Object.keys(args).length) throw new Error('Mirror stop must not contain a device');
+      mirroring = false;
+      return reply({ structuredContent: { ok: true } });
     case 'list_devices': return result([{ id: 'TEST-DEVICE', name: 'Example Strip', model: 'NL82K2' }]);
     case 'list_scenes': return result(device({ effects: [{ name: 'Example Scene' }, { name: 'Ocean' }] }));
     case 'get_light_state':
@@ -804,6 +817,33 @@ test('built plugin handles light commands, touch displays, and scene browsing ov
       beforeTitleSettings, 'native title changes never rewrite plugin or personal profile settings');
     send(actionEvent('willDisappear', 'scene-dial', sceneDialContext, sceneDialSettings));
     send(actionEvent('willDisappear', 'scene-dial', touchSceneContext, sceneDialSettings));
+
+    from = webSocketMessages.messages.length;
+    const mirrorContext = 'TEST-MIRROR-CONTEXT';
+    const mirrorImage = (message, status) => keyCanvas(message, mirrorContext).includes(`data-mirror-status="${status}"`);
+    send(actionEvent('willAppear', 'screen-mirror', mirrorContext, { mirrorMode: 'start', autoLaunch: true }));
+    await webSocketMessages.wait(message => mirrorImage(message, 'stopped'), 'read-only mirror feedback', from);
+    send({ event: 'propertyInspectorDidAppear', action: `${PLUGIN}.screen-mirror`, context: mirrorContext, device: STREAM_DECK });
+    send({ event: 'sendToPlugin', action: `${PLUGIN}.screen-mirror`, context: mirrorContext,
+      payload: { event: 'mirrorStatus', requestId: 'mirror-status-request' } });
+    const mirrorStatus = await webSocketMessages.wait(message => message.event === 'sendToPropertyInspector'
+      && message.payload?.requestId === 'mirror-status-request', 'mirror inspector status');
+    assert.deepEqual(mirrorStatus.payload.mirror, { isRunning: false, mode: '4D' });
+    for (const [mode, expected] of [['start', 'running'], ['start', 'running'], ['stop', 'stopped'], ['toggle', 'running'], ['toggle', 'stopped']]) {
+      const settings = { mirrorMode: mode, autoLaunch: true };
+      from = webSocketMessages.messages.length;
+      send(actionEvent('didReceiveSettings', 'screen-mirror', mirrorContext, settings));
+      send(actionEvent('keyDown', 'screen-mirror', mirrorContext, settings));
+      await webSocketMessages.wait(message => message.event === 'sendToPropertyInspector'
+        && message.context === mirrorContext && message.payload?.state === 'success', `mirror ${mode} result`, from);
+      await webSocketMessages.wait(message => mirrorImage(message, expected), `mirror ${mode} feedback`, from);
+    }
+    await syncIPC();
+    assert.deepEqual(ipc.messages.filter(m => ['start_screen_mirror', 'stop_screen_mirror'].includes(m.request?.params?.name))
+      .map(m => m.request.params.name), ['start_screen_mirror', 'stop_screen_mirror', 'start_screen_mirror', 'stop_screen_mirror']);
+    const mirrorExpanded = await changeTitle('screen-mirror', mirrorContext, '', { showTitle: true }, 'expanded');
+    assert.ok(mirrorImage(mirrorExpanded, 'stopped'));
+    send(actionEvent('willDisappear', 'screen-mirror', mirrorContext));
 
     from = webSocketMessages.messages.length;
     child.send({ type: 'offline' });

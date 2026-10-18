@@ -27,6 +27,7 @@ const scene = '<path d="M9 39c9-30 15 30 24 0s15 30 30 0" fill="none" stroke="CU
 const sun = '<circle cx="26" cy="28" r="9" fill="none" stroke="CURRENT" stroke-width="3.5"/><path d="M26 9v4m0 30v4M7 28h4m30 0h4M12.6 14.6l2.8 2.8m21.2 21.2 2.8 2.8m0-26.8-2.8 2.8M15.4 38.6l-2.8 2.8" fill="none" stroke="CURRENT" stroke-width="3" stroke-linecap="round"/>';
 const brightnessUp = `${sun}<path d="M51 28h14m-7-7v14" fill="none" stroke="CURRENT" stroke-width="3.5" stroke-linecap="round"/>`;
 const brightnessDown = `${sun}<path d="M51 28h14" fill="none" stroke="CURRENT" stroke-width="3.5" stroke-linecap="round"/>`;
+const mirror = '<rect x="6" y="10" width="60" height="42" rx="5" fill="none" stroke="CURRENT" stroke-width="5"/><path d="M25 64h22M36 52v12M15 38l12-15 12 18 9-12 9 9" fill="none" stroke="CURRENT" stroke-width="4" stroke-linejoin="round"/>';
 const icon = (symbol, colour, background = false) => Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 72 72">${background ? '<rect width="72" height="72" rx="14" fill="#080c0e"/>' : ''}<g>${symbol.replaceAll('CURRENT', colour)}</g></svg>`);
 const key = (kind, state) => Buffer.from(renderKeyDisplay(kind, state));
 const dial = (kind, sidebar = false) => Buffer.from(renderDialIcon(kind, { sidebar }));
@@ -34,6 +35,7 @@ const category = Buffer.from(renderCategoryIcon());
 for (const [name, size, data] of [
   ['plugin', 256, icon(scene, '#69e6c5', true)], ['category', 28, category],
   ['power-action', 20, icon(power, '#ffffff')], ['scene-action', 20, icon(scene, '#ffffff')],
+  ['screen-mirror-action', 20, icon(mirror, '#ffffff')], ['screen-mirror-key', 72, key('screen-mirror')],
   ['power-key', 72, key('power')], ['scene-key', 72, key('scene')],
   ['power-on-key', 72, key('power', { power: true })],
   ['power-off-key', 72, key('power', { power: false })],

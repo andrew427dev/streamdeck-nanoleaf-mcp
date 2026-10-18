@@ -37,7 +37,8 @@ function checkCurrent(isCurrent) {
 class ExpiredSessionError extends NanoleafError {
   constructor() { super('APP_ERROR'); }
 }
-const READ_ONLY_TOOLS = new Set(['list_devices', 'list_scenes', 'get_light_state']);
+const READ_ONLY_TOOLS = new Set(['list_devices', 'list_scenes', 'get_light_state', 'get_screen_mirror_status']);
+export const MIRROR_MODES = Object.freeze(['4D', 'Tranquility', 'Flow', 'Chameleon']);
 const isRecord = value => value !== null && typeof value === 'object' && !Array.isArray(value);
 
 function checkedText(value) {
@@ -133,7 +134,7 @@ async function readMessage(response, id, registerReader) {
   }
 }
 
-function resultsFrom(result) {
+function payloadFrom(result) {
   if (result.isError === true) throw fail('APP_ERROR');
   let payload = result.structuredContent;
   // MCP permits JSON tool output in text content when structuredContent is absent.
@@ -141,7 +142,13 @@ function resultsFrom(result) {
     const blocks = result.content.filter(block => block?.type === 'text' && typeof block.text === 'string');
     if (blocks.length === 1) payload = parseJSON(blocks[0].text);
   }
-  if (!isRecord(payload) || !Array.isArray(payload.results)) throw fail('PROTOCOL_ERROR');
+  if (!isRecord(payload)) throw fail('PROTOCOL_ERROR');
+  return payload;
+}
+
+function resultsFrom(result) {
+  const payload = payloadFrom(result);
+  if (!Array.isArray(payload.results)) throw fail('PROTOCOL_ERROR');
   return payload.results;
 }
 
@@ -293,7 +300,8 @@ export class NanoleafClient {
     await this.#initializing;
   }
 
-  async #call(name, args, timeoutMs = this.#timeoutMs, { isCurrent } = {}) {
+  async #call(name, args, timeoutMs = this.#timeoutMs,
+    { isCurrent, method = 'tools/call', parse = resultsFrom } = {}) {
     if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) throw fail('INVALID_ARGUMENT');
     const deadline = this.#now() + timeoutMs;
     const remaining = () => {
@@ -314,12 +322,53 @@ export class NanoleafClient {
       } finally { clearTimeout(timer); }
       checkCurrent(isCurrent);
       try {
-        return resultsFrom(await this.#post('tools/call', { name, arguments: args }, { timeoutMs: remaining() }));
+        return parse(await this.#post(method, method === 'tools/list' ? args : { name, arguments: args },
+          { timeoutMs: remaining() }));
       } catch (error) {
         // Only a read rejected by an expired session is replayed, once. Never replay a mutation.
-        if (!(error instanceof ExpiredSessionError) || !READ_ONLY_TOOLS.has(name) || attempt > 0) throw error;
+        if (!(error instanceof ExpiredSessionError)
+          || !(method === 'tools/list' || READ_ONLY_TOOLS.has(name)) || attempt > 0) throw error;
       }
     }
+  }
+
+  async requireScreenMirrorSupport({ isCurrent } = {}) {
+    const required = new Set(['get_screen_mirror_status', 'start_screen_mirror', 'stop_screen_mirror']);
+    const seen = new Set();
+    const deadline = this.#now() + this.#timeoutMs;
+    let cursor;
+    for (let page = 0; page < 8; page++) {
+      const result = await this.#call(undefined, cursor ? { cursor } : {},
+        Math.max(1, deadline - this.#now()), { isCurrent, method: 'tools/list', parse: value => value });
+      if (this.#now() >= deadline) throw fail('APP_TIMEOUT');
+      if (!Array.isArray(result.tools) || !result.tools.every(tool => typeof tool?.name === 'string')) {
+        throw fail('PROTOCOL_ERROR');
+      }
+      for (const tool of result.tools) required.delete(tool.name);
+      if (!required.size) return;
+      if (result.nextCursor === undefined) throw fail('MIRROR_UNSUPPORTED');
+      cursor = checkedText(result.nextCursor);
+      if (seen.has(cursor)) throw fail('PROTOCOL_ERROR');
+      seen.add(cursor);
+    }
+    throw fail('PROTOCOL_ERROR');
+  }
+
+  async getScreenMirrorStatus({ timeoutMs = this.#timeoutMs, isCurrent } = {}) {
+    const payload = await this.#call('get_screen_mirror_status', {}, timeoutMs, { isCurrent, parse: payloadFrom });
+    if (typeof payload.isRunning !== 'boolean' || !MIRROR_MODES.includes(payload.mode)) throw fail('PROTOCOL_ERROR');
+    return { isRunning: payload.isRunning, mode: payload.mode };
+  }
+
+  async startScreenMirror(mode, { isCurrent } = {}) {
+    if (!MIRROR_MODES.includes(mode)) throw fail('INVALID_ARGUMENT');
+    const payload = await this.#call('start_screen_mirror', { mode }, this.#timeoutMs, { isCurrent, parse: payloadFrom });
+    if (payload.ok !== true) throw fail('PROTOCOL_ERROR');
+  }
+
+  async stopScreenMirror({ isCurrent } = {}) {
+    const payload = await this.#call('stop_screen_mirror', {}, this.#timeoutMs, { isCurrent, parse: payloadFrom });
+    if (payload.ok !== true) throw fail('PROTOCOL_ERROR');
   }
 
   async listDevices({ timeoutMs = this.#timeoutMs } = {}) {

@@ -14,6 +14,7 @@ const imageNames = [
   'power-on-key', 'power-off-key', 'power-unknown-key', 'brightness-up-action',
   'brightness-down-action', 'brightness-dial-action', 'scene-dial-action',
   'brightness-up-key', 'brightness-down-key', 'brightness-dial-key', 'scene-dial-key',
+  'screen-mirror-action', 'screen-mirror-key',
 ];
 
 // Explicit public payload: runtime logs, profiles, private artwork, caches,
