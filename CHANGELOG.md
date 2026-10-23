@@ -1,11 +1,18 @@
 # Changelog
 
+## Documentation follow-up — 2026-10-23 (no new release)
+
+- Record the separately approved public v0.6.0-beta.2 Mac upgrade: manifest 0.6.0.2, all 50 installed payload files matching the published installer and all 32 profile files preserved. Record tester-confirmed power, scene and brightness-key operation.
+- Record one successful Mac cold-start scene-key trial after fully quitting Desktop: no related processes/local MCP listener before the press, then tester-confirmed automatic app launch and scene output. All 82 installed-plugin/profile files remained unchanged across that trial. Other controls, repeated/slow startup, cancellation and recovery are not newly hardware-validated.
+- Record the tester's Windows physical-button-section pass without inferring exact environment/package identity, per-action details, brightness boundaries, dial/touch, automatic-launch or recovery acceptance. Windows remains experimental.
+- Reconcile current English/Korean status and release notes with completed publication CI/package checks and post-release evidence. Preserve historical build-specific records, release tag/assets/checksums, current installation and settings. No new code, version or installer; mirror improvement and Marketplace submission remain on hold.
+
 ## 0.6.0-beta.2 — 2026-10-23, Mac beta / Windows experimental beta
 
 - Prepare a new dual-platform prerelease with separate Mac Apple Silicon and Windows 11 x64 installers plus their shared checksum file. Require final installer inspection and passing macOS/Windows CI for the exact release source before publication; use the GitHub release record for completed checks and publication status, not this source entry alone.
 - Include the cancellation corrections below in the new release version. This is the first Mac release line to include the common unsent-input safeguards introduced in the Windows preview, without importing private beta.3 mirror compensation.
 - Preserve plugin/action identifiers, saved settings and per-control app-launch consent. Publishing does not install either package, replace the retained private Mac build, change profiles, restart applications or control a light.
-- Neither exact new installer has completed physical-device acceptance. Windows installation discovery/native startup/MCP/USB/physical-control acceptance remains pending. Mac mirror stop-time power changes and ON-without-output remain unresolved. Mirror improvement and Marketplace submission remain on hold.
+- At publication, neither exact new installer had physical-device acceptance. The subsequent partial Mac and Windows results are recorded in the documentation follow-up above, not retroactively attributed to the release gate. Mac mirror stop-time power changes and ON-without-output remain unresolved. Mirror improvement and Marketplace submission remain on hold.
 - Keep old versions and assets intact. The matching GitHub release carries final-source CI links and the checksum for each attached file; earlier 232/316-test results are not a substitute for this release gate.
 
 ### Correction development record — before release version assignment

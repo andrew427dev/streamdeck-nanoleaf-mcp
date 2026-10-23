@@ -2,15 +2,47 @@
 
 For the current public/downloaded/installed/development distinction, use [STATUS.md](STATUS.md). Sections below are dated evidence, not claims that the currently installed or edited build passed every historical test.
 
-## v0.6.0-beta.2 — release gates and evidence boundaries, 2026-10-23
+## v0.6.0-beta.2 — publication and post-release validation, 2026-10-23
 
-Release scope: **Mac beta / Windows 11 x64 experimental beta**, containing the common cancellation correction documented below. Publication is approved only after final installer inspection and passing macOS/Windows CI for the exact release source; preparing this document does not mean those gates have completed. The [GitHub release record](https://github.com/andrew427dev/streamdeck-nanoleaf-mcp/releases/tag/v0.6.0-beta.2) must contain the final commit, CI run links, actual test/package outcomes and checksum evidence for both attached OS files. It is the authority for completed publication checks, avoiding a self-referential source-commit claim here.
+Release scope: **Mac beta / Windows 11 x64 experimental beta**, containing the common cancellation correction documented below. The [GitHub prerelease](https://github.com/andrew427dev/streamdeck-nanoleaf-mcp/releases/tag/v0.6.0-beta.2) is published from source/tag commit [`adc211e0c99a41a799e8c973921152a7c123d64e`](https://github.com/andrew427dev/streamdeck-nanoleaf-mcp/commit/adc211e0c99a41a799e8c973921152a7c123d64e). This documentation follow-up records later evidence; it does not move that tag, change version metadata or replace the installers/checksums.
 
-After assigning `0.6.0-beta.2` / manifest `0.6.0.2`, the local Node.js **24.13.1** full suite passed **316/316 tests**, with no real app launch or light access. The release pack command passed official validation/packaging and internal ZIP verification for both OS files, each with **50 allowlisted files** and approximately **812.0 kB unpacked**. These are actual new-version local checks, separate from the earlier pre-release evidence below. Exact-commit/tag CI, public-asset readback and final preservation comparison are distinct publication gates; consult the GitHub release record for their completed results rather than inferring them from this paragraph.
+After assigning `0.6.0-beta.2` / manifest `0.6.0.2`, the local Node.js **24.13.1** full suite passed **316/316 tests**, with no real app launch or light access. Both [exact main-commit CI](https://github.com/andrew427dev/streamdeck-nanoleaf-mcp/actions/runs/39925750730) and [release-tag CI](https://github.com/andrew427dev/streamdeck-nanoleaf-mcp/actions/runs/39925942804) passed on macOS and Windows: **316 tests per job**, zero failures/cancelled/skipped, followed by official validation/packaging. Both installers passed internal ZIP verification with **50 allowlisted files** each. Their 49 non-manifest files match; the manifest differs only in the top-level OS declaration. Published installers and the checksum file were downloaded and matched the verified originals. See the release record for hashes and cross-host build differences. Native Windows CI ran on Windows Server 2025, not a Windows 11 user desktop; it is not hardware certification.
 
-Neither exact new installer has passed physical-device acceptance. The Mac package has earlier build-specific hardware evidence only. Windows registered-installation discovery, actual PowerShell/native Desktop startup, MCP/USB compatibility, plugin install/reinstall/settings retention, physical keys/dials/touch and recovery remain unverified. Native Windows CI is automated execution on its recorded runner, not Windows 11 Desktop/hardware certification.
+### Mac installation and physical controls — post-release checks
 
-The correction changes no Screen Mirror request/`prepareApp` behavior and imports no private beta.3 compensation. Mirror stop-time power changes/flash and engine ON without light output remain unresolved. The working Mac private v0.5.0-beta.3 installation, profiles, Desktop and saved scenes must remain untouched by this release process; capture and compare a fresh preservation baseline. Marketplace and mirror improvement remain on hold. Old assets are preserved rather than overwritten.
+Recorded environment: **macOS 27.0.1 / Apple Silicon arm64, Stream Deck 7.6.0, Nanoleaf Desktop 3.0.2, Stream Deck + and USB NL82K2**. The installed plugin is now the public **v0.6.0-beta.2 / manifest 0.6.0.2**. This supersedes the private installed-version status in the historical sections below, not their test results.
+
+| Check | Evidence and boundary |
+| --- | --- |
+| Separately approved in-place installation | Installed the published Mac installer through Stream Deck's normal installer, without uninstalling. All **50 installed payload files** matched the public package. Plugin/action identifiers and saved settings remained compatible. This was an upgrade, not a clean-install test. |
+| Profiles/settings preserved | All **32 profile files**, including **12 JSON documents**, were byte-identical before/after installation and after the physical checks. Existing buttons, titles, device/scene selections and per-control launch preferences were not edited. These counts are files/documents, not numbers of profiles. |
+| Power | Tester pressed the existing power key twice for OFF → ON and reported normal operation. |
+| Saved scene | Tester executed an existing scene key and reported normal lighting output. |
+| Brightness keys | Tester pressed brightness − and + once each and reported normal operation. Read-only post-check showed power ON and brightness 100%. This does not validate every boundary or off-state brightness side effect. |
+| Local connection and scene list | Read-only MCP queries succeeded for the USB device, power, brightness and saved scenes. The saved-scene list remained unchanged. Successful API responses are recorded separately from tester-observed light output. |
+
+### Mac automatic launch from a fully closed app — one scene-key trial
+
+1. Fully quit Nanoleaf Desktop normally. Read-only checks found **zero related app processes** and the local MCP port closed; this was not merely closing its window.
+2. Without manually opening Desktop or changing settings, the tester pressed **one existing scene key with app launch already enabled**. They confirmed: **the app launched automatically and the scene worked normally**.
+3. Subsequent read-only checks found the app running and MCP connected, with power ON, brightness 100%, saved scenes unchanged and mirroring OFF. All **82 installed-plugin/profile files** (**50 payload + 32 profile files**) matched the pre-trial hashes; no settings were changed.
+
+This validates one cold-start scene-key path on this installed build. It does **not** establish repeated/slow-start endurance, every control's cold-start path, real-world cancellation under delay, option-OFF/failure scenarios, or mirroring auto-launch. The trial changed the active scene as requested, not saved scene definitions.
+
+### Windows physical-button report — partial hardware coverage
+
+On **2026-10-23**, the tester reported the **Windows physical-button section passed** in the v0.6.0-beta.2 validation follow-up. This is user-reported hardware evidence, not an independently observed Windows session. Exact Windows/app/controller versions, installed-package identity and per-action results were not supplied with that report; they remain to be recorded. Do not infer 0%/100% boundary behavior, brightness-induced power changes or a complete MCP/USB compatibility matrix from the section-level pass.
+
+The [Windows acceptance checklist](WINDOWS.md) distinguishes this reported pass from still-unverified registered-installation discovery, PowerShell/native automatic launch, clean install/reinstall/settings retention, dials/touch/scaling, failure/cancellation paths and restart/sleep/USB recovery. Windows remains an **experimental beta**. Basic physical-key operation has a tester report; wider protocol, device and environment coverage has not been independently verified.
+
+### Still unverified and unchanged scope
+
+- Mac: clean installation; new-build physical dial/touch/display-style/text-size/title regressions; all-control and repeated/slow cold starts; delayed-input cancellation on real hardware; failure, sleep/restart and USB recovery. Older dated passes below are not relabelled as current-build passes.
+- Windows: all checklist items outside the limited physical-button report above, including detailed environment/build attribution and boundary checks.
+- Screen Mirror's request/`prepareApp` path is unchanged and private beta.3 compensation is excluded. Stop-time power changes/flash and engine ON without actual screen-colour output remain unresolved; no new mirror test or fix is claimed.
+- Marketplace submission/DRM testing and mirror improvement remain on hold. No device identifiers, scene names, profile exports or raw private logs are published.
+
+Publication itself preserved the then-installed private v0.5.0-beta.3 (83 plugin/profile files, manifest 0.5.0.3). The later **separately approved** upgrade and tests above changed the installed version to public v0.6.0-beta.2 while retaining settings. This documentation-only follow-up preserves that current installation and all settings; it does not reinstall, restart apps, send lighting commands or alter release assets.
 
 ## Pre-release local cancellation corrections — 2026-10-23
 
@@ -64,7 +96,7 @@ The final documentation-only commit **`33e053ed58e1ac996e1e690ac1fa96a07d7755ab`
 
 The release candidate was rebuilt separately from the preserved initial local packages. Its Windows installer SHA-256 is `cc2abe878270fb5cd1d48583e22f5d0e06e8bc493b64327ac614d7b2050fd7ae`. Public `SHA256SUMS.txt` lists only that Windows asset; the existing Mac v0.5.0-beta.2 assets are not replaced. Installer ZIP timestamps can differ between builds, so use the checksum paired with the actual download, not the initial local preparation checksums above.
 
-The v0.6.0-beta.1 packages were not installed on the working Mac. Historical tests below do not establish that preview's hardware compatibility. The private beta.3 no-reillumination regression is not in this beta.2-based source copy: its failing result remains preserved in the separate audit/canonical workspace, not weakened or declared fixed. Only the Windows experimental installer was published; its paired Mac candidate remains local. Further publication was on hold at that stage; the later v0.6.0-beta.2 approval above supersedes only that publication hold, not the installation, mirror improvement or Marketplace holds.
+The v0.6.0-beta.1 packages were not installed on the working Mac. Historical tests below do not establish that preview's hardware compatibility. The private beta.3 no-reillumination regression is not in this beta.2-based source copy: its failing result remains preserved in the separate audit/canonical workspace, not weakened or declared fixed. Only the Windows experimental installer was published; its paired Mac candidate remains local. Further publication was on hold at that stage; later v0.6.0-beta.2 publication and separately approved Mac installation are recorded above. Mirror improvement and Marketplace remain on hold.
 
 ### Relevant later beta.2 / beta.3 observations retained as known limitations
 
@@ -170,18 +202,22 @@ On 2026-10-18, beta.4 passed **184 automated tests** with Node.js 24, official S
 
 ## Remaining coverage
 
-- The exact beta.2 in-place installation, settings retention and physical power control are verified above. A complete repeat of the mirror and existing-control physical suites, and a separate fresh-install check, remain pending.
+- The latest v0.6.0-beta.2 in-place installation, settings retention, power/scene/brightness keys and one cold-start scene trial are verified above. A complete physical regression, dial/touch and fresh-install checks remain pending. Historical v0.5.0-beta.2 installation/power/mirror incident evidence remains separately attributed below the current-build section.
 - Reproduce and investigate the ON-without-output incident with separate engine-state and tester-observed output evidence; one recovery after restarting Desktop is not a verified permanent fix. Follow the [reliability plan](SCREEN-MIRROR-RELIABILITY-PLAN.md).
 - Complete the additional mirror-specific scenarios listed in the beta.2 scope; the four reported checks do not cover every error or recovery path.
 - Repeat compatibility checks after a Nanoleaf Desktop update; the earlier results do not guarantee future app versions.
 - Test minimum supported OS/app versions, Intel Macs and other Stream Deck key devices before describing them as physically verified.
 - Test the Marketplace-processed/DRM package separately, including fresh install and upgrade with preserved settings. It has not been submitted or tested.
 
-Wi-Fi/LAN lights and other USB models remain unsupported. Windows 11 x64 is available only as the experimental preview described above; hardware acceptance is pending. Marketplace preparation is tracked in the [submission plan](MARKETPLACE-PLAN.md).
+Wi-Fi/LAN lights and other USB models remain unsupported. Windows 11 x64 remains experimental with only the physical-button section reported passed; the remaining acceptance items above are open. Marketplace preparation is tracked in the [submission plan](MARKETPLACE-PLAN.md).
 
 ## 한국어 요약
 
-2026-10-23 새 배포 대상은 v0.6.0-beta.2의 Mac 베타와 Windows 실험적 베타입니다. 정확한 새 커밋의 양쪽 OS CI와 설치 파일 검사를 통과한 뒤 공개하며, 완료 근거는 해당 GitHub 릴리스 기록을 기준으로 확인합니다. 유지 중인 Mac 설치본은 비공개 v0.5.0-beta.3이며 교체하지 않습니다. 이전 Windows 최종 커밋 `33e053e`의 232개 CI 시험과 이번 보완의 사전 316개 시험·10,700개 집중 회귀는 별도 기록입니다. 새 설치 파일이나 실제 Windows 앱 실행·MCP·USB·물리 기기 합격으로 바꾸어 해석하지 않습니다.
+2026-10-23 v0.6.0-beta.2의 **Mac 베타 / Windows 실험적 베타**가 공개됐습니다. 정확한 배포 커밋·태그의 Mac·Windows CI가 각각 316개 시험과 패키징을 통과했고 공개 파일 재다운로드 검증도 완료했습니다. 이후 별도 승인된 Mac 업데이트로 현재 설치본은 **공개 v0.6.0-beta.2 / 0.6.0.2**입니다. 공개 패키지 50개 파일 일치와 기존 프로필 32개 파일 유지, 사용자가 직접 확인한 전원·씬·밝기 키 정상 동작을 기록했습니다.
+
+Mac 자동 실행은 앱 완전 종료(관련 프로세스 0개·로컬 포트 닫힘) 후 기존 자동 실행 ON 씬 키를 한 번 누른 시험입니다. 사용자가 앱 실행과 씬 정상 작동을 확인했고 이후 설치본·프로필 82개 파일도 모두 동일했습니다. 모든 버튼의 자동 실행, 지연·반복·취소·절전·USB 복구까지 검증한 것은 아닙니다.
+
+Windows는 **물리 버튼 섹션 통과라는 사용자 보고**를 반영했습니다. 정확한 환경·설치 파일 대조·개별 동작 상세는 제공되지 않았으므로 미확인으로 남깁니다. 다이얼·터치·자동 실행·설치 및 설정 유지·0/100% 경계·복구 등은 여전히 미검증입니다. 이번 문서 갱신은 현재 설치본·설정·버전·배포 파일을 바꾸지 않으며 미러링 개선과 Marketplace 제출은 계속 보류합니다. 이전 빌드의 시험은 아래처럼 별도 이력으로 보존합니다.
 
 2026-10-18 사용자 보고 기준으로 설치된 v0.5.0-beta.1의 미러링 시작·정지 및 이전 상태 복원·전환 2회·앱 완전 종료 후 자동 실행의 4개 항목이 모두 통과했습니다. beta.2 공개 배포 자체는 로컬 설치본을 교체하지 않았지만, 이후 별도 승인된 업데이트로 실제 설치 정보 0.5.0.2와 공개 패키지 50개 파일의 일치, 기존 설정 유지와 실제 전원 제어를 확인했습니다. beta.1의 4개 항목 전체를 beta.2에서 다시 통과한 것으로 기록하지 않습니다.
 
