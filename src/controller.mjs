@@ -28,6 +28,8 @@ export const ERROR_MESSAGES = Object.freeze({
 });
 
 function fail(code) { return Object.assign(new Error(ERROR_MESSAGES[code]), { code }); }
+const alwaysCurrent = () => true;
+function checkCurrent(isCurrent) { if (!isCurrent()) throw fail('BUSY'); }
 export function safeError(error) {
   const code = Object.hasOwn(ERROR_MESSAGES, error?.code) ? error.code : 'INTERNAL_ERROR';
   return { code, message: ERROR_MESSAGES[code] };
@@ -46,34 +48,46 @@ export class LightController {
     this.now = now;
   }
 
-  async #startupDevices(startup, deviceId) {
-    await startup.ready;
-    while (this.now() < startup.deadline) {
-      try {
-        // Share each in-flight read, but let every button wait for its own selected light.
-        if (!startup.reading) {
-          startup.reading = this.client.listDevices(
-            { timeoutMs: Math.min(READ_TIMEOUT_MS, Math.max(1, startup.deadline - this.now())) })
-            .finally(() => { startup.reading = undefined; });
+  async #startupDevices(startup, deviceId, isCurrent) {
+    const waiter = { isCurrent };
+    startup.waiters.add(waiter);
+    try {
+      await startup.ready;
+      checkCurrent(isCurrent);
+      while (this.now() < startup.deadline) {
+        checkCurrent(isCurrent);
+        try {
+          // Share each in-flight read, but let every button wait for its own selected light.
+          if (!startup.reading) {
+            startup.reading = this.client.listDevices(
+              { timeoutMs: Math.min(READ_TIMEOUT_MS, Math.max(1, startup.deadline - this.now())) })
+              .finally(() => { startup.reading = undefined; });
+          }
+          const devices = await startup.reading;
+          checkCurrent(isCurrent);
+          if (this.now() >= startup.deadline) throw fail('APP_TIMEOUT');
+          if (deviceId === undefined || devices.some(device => device.id === deviceId)) return devices;
+        } catch (error) {
+          checkCurrent(isCurrent);
+          if (!['APP_CONNECTION', 'APP_TIMEOUT'].includes(error?.code)) throw error;
         }
-        const devices = await startup.reading;
-        if (this.now() >= startup.deadline) throw fail('APP_TIMEOUT');
-        if (deviceId === undefined || devices.some(device => device.id === deviceId)) return devices;
-      } catch (error) {
-        if (!['APP_CONNECTION', 'APP_TIMEOUT'].includes(error?.code)) throw error;
+        const remaining = startup.deadline - this.now();
+        if (remaining > 0) await this.sleep(Math.min(POLL_MS, remaining));
       }
-      const remaining = startup.deadline - this.now();
-      if (remaining > 0) await this.sleep(Math.min(POLL_MS, remaining));
+      checkCurrent(isCurrent);
+      throw fail('APP_TIMEOUT');
+    } finally {
+      startup.waiters.delete(waiter);
     }
-    throw fail('APP_TIMEOUT');
   }
 
-  async #devices(autoLaunch, deviceId, onLaunch = () => {}) {
+  async #devices(autoLaunch, deviceId, onLaunch = () => {}, isCurrent = alwaysCurrent) {
+    checkCurrent(isCurrent);
     // Only button presses with explicit consent join startup; inspector reads stay immediate.
     if (autoLaunch && this.#starting) {
       if (this.#starting.deadline === undefined || this.now() < this.#starting.deadline) {
         onLaunch();
-        return await this.#startupDevices(this.#starting, deviceId);
+        return await this.#startupDevices(this.#starting, deviceId, isCurrent);
       }
       this.#starting = undefined;
     }
@@ -82,22 +96,34 @@ export class LightController {
     } catch (error) {
       // Launching is explicit per-button consent, and is never triggered from the inspector.
       if (!autoLaunch || error?.code !== 'APP_CONNECTION') throw error;
+      checkCurrent(isCurrent);
       onLaunch();
       if (!this.#starting) {
-        const startup = {};
-        startup.ready = (async () => {
-          try { await this.launchApp(); } catch (error) {
-            throw fail(['LAUNCH_NOT_FOUND', 'LAUNCH_AMBIGUOUS', 'PLATFORM_UNSUPPORTED'].includes(error?.code)
+        const startup = { waiters: new Set(), cancelled: false };
+        const launchIsCurrent = () => {
+          if (startup.cancelled) return false;
+          if ([...startup.waiters].some(waiter => waiter.isCurrent())) return true;
+          // A cancelled launch cannot accept a new waiter before its rejection settles.
+          startup.cancelled = true;
+          if (this.#starting === startup) this.#starting = undefined;
+          return false;
+        };
+        this.#starting = startup;
+        // Register the first waiter before entering the native launcher. Any still-valid
+        // opted-in waiter can keep shared startup alive, not just its original caller.
+        startup.ready = Promise.resolve().then(async () => {
+          checkCurrent(launchIsCurrent);
+          try { await this.launchApp({ isCurrent: launchIsCurrent }); } catch (error) {
+            throw fail(['BUSY', 'LAUNCH_NOT_FOUND', 'LAUNCH_AMBIGUOUS', 'PLATFORM_UNSUPPORTED'].includes(error?.code)
               ? error.code : 'LAUNCH_FAILED');
           }
           startup.deadline = this.now() + APP_READY_MS;
-        })().catch(launchError => {
+        }).catch(launchError => {
           if (this.#starting === startup) this.#starting = undefined;
           throw launchError;
         });
-        this.#starting = startup;
       }
-      return await this.#startupDevices(this.#starting, deviceId);
+      return await this.#startupDevices(this.#starting, deviceId, isCurrent);
     }
   }
 
@@ -124,24 +150,29 @@ export class LightController {
     finally { this.#appBusy = false; }
   }
 
-  async #checkDevice(deviceId, autoLaunch = false) {
+  async #checkDevice(deviceId, autoLaunch = false, isCurrent = alwaysCurrent) {
     if (!text(deviceId)) throw fail('INVALID_ARGUMENT');
-    const device = (await this.#devices(autoLaunch, deviceId)).find(item => item.id === deviceId);
+    const devices = await this.#devices(autoLaunch, deviceId, undefined, isCurrent);
+    checkCurrent(isCurrent);
+    const device = devices.find(item => item.id === deviceId);
     if (!device) throw fail('DEVICE_MISSING');
     if (device.model !== 'NL82K2') throw fail('DEVICE_UNSUPPORTED');
     return device;
   }
 
-  async #readyState(deviceId) {
+  async #readyState(deviceId, isCurrent = alwaysCurrent) {
     const deadline = this.now() + DEVICE_READY_MS;
     while (this.now() < deadline) {
+      checkCurrent(isCurrent);
       try {
         const state = await this.client.getState(deviceId,
           { timeoutMs: Math.min(READ_TIMEOUT_MS, Math.max(1, deadline - this.now())) });
+        checkCurrent(isCurrent);
         // A late successful read must never turn an expired button press into a mutation.
         if (this.now() >= deadline) throw fail('APP_TIMEOUT');
         return state;
       } catch (error) {
+        checkCurrent(isCurrent);
         if (error?.code !== 'DEVICE_ERROR') throw error;
       }
       const remaining = deadline - this.now();
@@ -174,10 +205,14 @@ export class LightController {
   }
 
   /** Explicit scene-chooser input may opt into startup; opening its control never calls this. */
-  async listSceneChoices(settings = {}) {
+  async listSceneChoices(settings = {}, { isCurrent = alwaysCurrent } = {}) {
+    if (typeof isCurrent !== 'function') throw fail('INVALID_ARGUMENT');
+    checkCurrent(isCurrent);
     const { deviceId, autoLaunch } = settings ?? {};
-    await this.#checkDevice(deviceId, autoLaunch === true);
+    await this.#checkDevice(deviceId, autoLaunch === true, isCurrent);
+    checkCurrent(isCurrent);
     const scenes = await this.client.listScenes(deviceId);
+    checkCurrent(isCurrent);
     if (!Array.isArray(scenes) || !scenes.every(text)) throw fail('PROTOCOL_ERROR');
     return [...scenes];
   }
@@ -198,13 +233,13 @@ export class LightController {
     if (this.#busy.has(deviceId)) throw fail('BUSY');
     this.#busy.add(deviceId);
     try {
-      await this.#checkDevice(deviceId, autoLaunch === true);
+      await this.#checkDevice(deviceId, autoLaunch === true, isCurrent);
       checkCurrent();
       if (kind === 'scene') {
         if (isCurrent) await this.client.playScene(deviceId, sceneName, { isCurrent });
         else await this.client.playScene(deviceId, sceneName);
       } else {
-        const state = await this.#readyState(deviceId);
+        const state = await this.#readyState(deviceId, isCurrent);
         checkCurrent();
         if (kind === 'brightness') {
           if (state.brightness === undefined || state.brightness === null) throw fail('BRIGHTNESS_UNAVAILABLE');

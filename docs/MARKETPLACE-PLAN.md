@@ -1,5 +1,7 @@
 # Marketplace submission preparation plan
 
+**2026-10-23 status clarification:** submission remains on hold. The plan below was drafted on 2026-10-18 for a Mac listing, before the experimental Windows GitHub release. That release does not authorize expanding the proposed Marketplace scope or establish Windows hardware acceptance. No submission version/platform scope has been selected; use [current status](STATUS.md) and [validation](VALIDATION.md) when this plan is separately resumed. In particular, the historical `v0.4.0-beta.3` physical pass below is not a pass of the currently retained private `v0.5.0-beta.3` mirror experiment.
+
 Status on **2026-10-18: plan only**. No product has been created, uploaded, submitted for review or published in Maker Console as part of this work. GitHub beta releases remain separate. The project will keep its original icon and MIT license; this plan does not request use of the Nanoleaf logo.
 
 ## Preparation sequence
@@ -42,8 +44,8 @@ Resolve review feedback and obtain final publication approval. Keep the same ide
 | --- | --- |
 | Original public icon, MIT license, support repository | Available |
 | USB-only scope and privacy/security documentation | Available |
-| Six physical regression groups on installed beta.3 | Passed by tester report; not a beta.4 or DRM package test |
-| Version/build consistency safeguards | Included in beta.4 release preparation |
+| Six physical regression groups on historical installed v0.4.0-beta.3 | Passed by tester report; not a v0.4.0-beta.4, current v0.5.0-beta.3 or DRM package test |
+| Version/build consistency safeguards | Introduced with v0.4.0-beta.4; retained in later public source |
 | Exact submission-package physical installation | Pending |
 | Listing name/organization and free listing confirmation | Pending before product creation |
 | AI assistance disclosure and Marketplace eligibility review | Required before submission; acceptance not assumed |

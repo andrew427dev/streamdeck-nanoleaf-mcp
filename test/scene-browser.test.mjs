@@ -135,6 +135,26 @@ test('dispose invalidates the mutation guard and ignores its late completion', a
   assert.equal(views.length, 3);
 });
 
+test('opening passes a lifecycle guard so a disposed chooser cannot launch the app later', async () => {
+  const pending = deferred();
+  let guard;
+  const { browser, reads, writes, views } = setup({ readScenes: (_value, options) => {
+    guard = options?.isCurrent;
+    return pending.promise;
+  } });
+  const opening = browser.press();
+  assert.equal(typeof guard, 'function');
+  assert.equal(guard(), true);
+  browser.dispose();
+  assert.equal(guard(), false);
+  pending.reject(failure('BUSY'));
+  await opening;
+  assert.deepEqual(reads, []);
+  assert.deepEqual(writes, []);
+  assert.equal(views.length, 1);
+  assert.equal(browser.state.status, 'loading');
+});
+
 test('dispose from feedback prevents a read or mutation that has not yet been dispatched', async () => {
   for (const status of ['loading', 'applying']) {
     let browser;

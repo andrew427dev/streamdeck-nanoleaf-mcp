@@ -40,7 +40,9 @@ export class SceneBrowser {
       this.#publish({ ...this.#state, status: 'loading', errorCode: undefined });
       if (!isCurrent()) return this.#state;
       try {
-        const scenes = await this.#readScenes(this.#settings);
+        // Discovery can optionally open Desktop; cancellation must reach that
+        // boundary as well as the later scene mutation.
+        const scenes = await this.#readScenes(this.#settings, { isCurrent });
         if (!isCurrent()) return this.#state;
         if (!Array.isArray(scenes) || !scenes.every(validScene)) throw failure('PROTOCOL_ERROR');
         if (!scenes.length) throw failure('SCENE_NOT_READY');

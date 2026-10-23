@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.6.0-beta.2 — 2026-10-23, Mac beta / Windows experimental beta
+
+- Prepare a new dual-platform prerelease with separate Mac Apple Silicon and Windows 11 x64 installers plus their shared checksum file. Require final installer inspection and passing macOS/Windows CI for the exact release source before publication; use the GitHub release record for completed checks and publication status, not this source entry alone.
+- Include the cancellation corrections below in the new release version. This is the first Mac release line to include the common unsent-input safeguards introduced in the Windows preview, without importing private beta.3 mirror compensation.
+- Preserve plugin/action identifiers, saved settings and per-control app-launch consent. Publishing does not install either package, replace the retained private Mac build, change profiles, restart applications or control a light.
+- Neither exact new installer has completed physical-device acceptance. Windows installation discovery/native startup/MCP/USB/physical-control acceptance remains pending. Mac mirror stop-time power changes and ON-without-output remain unresolved. Mirror improvement and Marketplace submission remain on hold.
+- Keep old versions and assets intact. The matching GitHub release carries final-source CI links and the checksum for each attached file; earlier 232/316-test results are not a substitute for this release gate.
+
+### Correction development record — before release version assignment
+
+- Reconcile the public Mac v0.5.0-beta.2, public Windows v0.6.0-beta.1, private installed Mac v0.5.0-beta.3 and unpublished Mac candidate in a current-status index. Preserve historical test results under their original builds.
+- Record passing CI for final Windows release commit `33e053e` and its tag, without describing mocked Windows Server tests as Windows 11 Desktop/USB acceptance.
+- Prevent invalidated power/scene/brightness input and scene-list loading from launching Desktop late; verify Mac/Windows not-yet-sent lighting-input cancellation, including reappearance, device changes and relevant settings changes. Discard late event payloads with old device/action/app-launch settings instead of redirecting them to the current device. Preserve valid participants in shared startup and do not terminate an already-launched app. Screen Mirror's request/`prepareApp` path is unchanged.
+- Local verification: 316 tests passed with Node.js 24.13.1 (0 failures/cancelled/skipped), including 84 new regressions. The final 107-case focused group passed 100 repetitions (10,700 passes). Both OS bundle paths use mocks; no native Windows hardware acceptance or installation is claimed. See `docs/VALIDATION.md` for boundaries.
+- Official validation passed for both 50-file staging targets; their only payload difference was the manifest OS declaration. No new installer was generated. Existing installer checksums and all 83 working Mac plugin/profile file hashes were unchanged.
+- During that local correction phase, package/manifest metadata, the existing installation, profiles and settings were unchanged; no version bump or publication was performed. Subsequent v0.6.0-beta.2 release preparation changes version metadata and permits publication only after its gates above. Mirror behavior/compensation changes, installation and Marketplace submission remain excluded.
+
 ## 0.6.0-beta.1 — 2026-10-23, experimental Windows prerelease
 
 - Add a Windows app-launch adapter using registered installation metadata, bounded read-only discovery and direct process spawn; do not wait for or terminate the GUI process. Preserve the existing Mac launch command and per-control opt-in settings.
@@ -106,7 +123,7 @@
 - Bounded, per-device brightness input queue: combine same-direction movement, retain reversals, and cancel pending input after failure, disappearance, or reconfiguration.
 - Brightness-only MCP requests preserve power/scene fields; automatic launch remains an explicit per-control choice.
 - Synthetic backend, settings, state/queue, and bundled SDK regression coverage: 99 automated tests passed.
-- The user confirmed live power feedback, brightness increase/decrease keys, and the brightness dial on a physical Stream Deck + with Nanoleaf Desktop 3.0.1 and Stream Deck 7.6.0 on macOS. Installed only in the temporary test profile; original profiles and the existing helper remain unchanged. Cold-start launch was not re-tested on this build. This version remains an unpublished development beta.
+- The user confirmed live power feedback, brightness increase/decrease keys, and the brightness dial on a physical Stream Deck + with Nanoleaf Desktop 3.0.1 and Stream Deck 7.6.0 on macOS. New actions were configured only in the temporary test profile; original profile settings and the existing helper remained unchanged. The installed plugin binary was shared by every profile using its UUID, so this was not an installation isolated to one profile. Cold-start launch was not re-tested on this build. This version remains an unpublished development beta.
 
 ## 0.1.0-beta.2 — 2026-10-11
 

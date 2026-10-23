@@ -391,6 +391,9 @@ for (const simulatedPlatform of ['darwin', 'win32']) test('built plugin handles 
 
     // Execute a different key while another inspector is visible, then reopen its own inspector.
     from = webSocketMessages.messages.length;
+    // Model an actual settings edit; an old/empty input payload no longer
+    // overrides the latest visible settings snapshot on its own.
+    send(actionEvent('didReceiveSettings', 'power', powerContext));
     send(actionEvent('keyDown', 'power', powerContext));
     await webSocketMessages.wait(message => message.event === 'showAlert' && message.context === powerContext,
       'hidden key validation feedback', from);
@@ -405,6 +408,7 @@ for (const simulatedPlatform of ['darwin', 'win32']) test('built plugin handles 
     assert.ok(restoredResult.payload.sequence > powerSuccess.payload.sequence);
 
     // A newer BUSY rejection must remain the last press, even when the older command finishes.
+    send(actionEvent('didReceiveSettings', 'power', powerContext, powerSettings));
     child.send({ type: 'hold-next-power' });
     await ipc.wait(message => message.type === 'control-ready' && message.command === 'hold-next-power', 'power gate setup');
     from = webSocketMessages.messages.length;

@@ -42,11 +42,14 @@ const localPath = value => typeof value === 'string' && value.length <= 4096
   && /^[A-Za-z]:\\/.test(value) && !/[\x00-\x1f"<>|?*]/.test(value)
   && !value.slice(2).includes(':') && !value.split(/[\\/]/).some(part => part === '..' || part === '.');
 
-/** OS-specific launch behind the controller's existing launchApp() interface. */
+/** OS-specific launch; cancellation applies only before dispatch, never by killing an app. */
 export function createAppLauncher({ platform = process.platform, execute = promisify(execFile),
   start = spawn, fileStat = stat, systemRoot = process.env.SystemRoot,
   schedule = setTimeout, cancel = clearTimeout } = {}) {
-  return async () => {
+  return async ({ isCurrent = () => true } = {}) => {
+    if (typeof isCurrent !== 'function') throw fail('INVALID_ARGUMENT');
+    const checkCurrent = () => { if (!isCurrent()) throw fail('BUSY'); };
+    checkCurrent();
     if (platform === 'darwin') {
       // Preserve the existing Mac command, including its opt-in hidden startup.
       try { await execute('/usr/bin/open', ['-a', 'Nanoleaf Desktop', '--args', '--hidden'], { timeout: 5000 }); }
@@ -63,6 +66,7 @@ export function createAppLauncher({ platform = process.platform, execute = promi
         { timeout: 5000, maxBuffer: 64 * 1024, encoding: 'utf8', windowsHide: true, shell: false });
       paths = JSON.parse(result.stdout.replace(/^\uFEFF/, '').trim()).paths;
     } catch { throw fail('LAUNCH_FAILED'); }
+    checkCurrent();
     if (!Array.isArray(paths) || paths.length > 32
       || paths.some(p => !localPath(p) || path.win32.basename(p).toLowerCase() !== 'nanoleaf desktop.exe')) {
       throw fail('LAUNCH_FAILED');
@@ -78,6 +82,7 @@ export function createAppLauncher({ platform = process.platform, execute = promi
     const executable = candidates[0];
     try { if (!(await fileStat(executable)).isFile()) throw Error(); }
     catch { throw fail('LAUNCH_NOT_FOUND'); }
+    checkCurrent();
 
     // A Windows GUI process lives for the whole app session. Resolve on spawn,
     // NOT exit. Never use an execFile timeout that could kill the user's app.

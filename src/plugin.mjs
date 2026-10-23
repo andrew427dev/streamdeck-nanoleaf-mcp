@@ -121,7 +121,7 @@ class LightAction extends SingletonAction {
       void token.ready.catch(() => {});
       token.browser = new SceneBrowser({
         settings: token.settings,
-        readScenes: settings => controller.listSceneChoices(settings),
+        readScenes: (settings, options) => controller.listSceneChoices(settings, options),
         playScene: (settings, options) => execute('scene', settings, options),
         onChange: state => {
           token.scene = state;
@@ -195,11 +195,30 @@ class LightAction extends SingletonAction {
     if (this.#visible.get(ev.action.id) !== token) return;
     this.#status(ev.action.id, 'success', undefined, attempt);
   }
+
+  #inputView(ev) {
+    const view = this.#visible.get(ev.action.id);
+    if (!view) return;
+    const saved = view.settings ?? {};
+    const input = ev.payload.settings ?? {};
+    // A delayed event belongs to its original command, not a newly selected
+    // device/scene. Drop mismatches instead of retargeting them to this view.
+    if (input.deviceId !== saved.deviceId || (input.autoLaunch === true) !== (saved.autoLaunch === true)) return;
+    if (this.kind === 'power' && input.powerMode !== saved.powerMode) return;
+    if (this.kind === 'scene' && input.sceneName !== saved.sceneName) return;
+    if (this.kind.startsWith('brightness-')) {
+      const fallback = this.kind === 'brightness-dial' ? 2 : 5;
+      if (!Object.is(input.brightnessStep ?? fallback, saved.brightnessStep ?? fallback)) return;
+    }
+    // Display/title preferences do not change the command and are intentionally ignored.
+    return view;
+  }
+
   async onDialDown(ev) {
     if (!ev.action.isDial()) return;
     if (this.kind === 'scene-dial') return this.#sceneConfirm(ev);
     if (this.kind !== 'brightness-dial') return;
-    const view = this.#visible.get(ev.action.id);
+    const view = this.#inputView(ev);
     if (!view) return;
     await this.#dispatch(ev, () => execute('power', { ...view.settings, powerMode: 'toggle' },
       { isCurrent: () => this.#visible.get(ev.action.id) === view }));
@@ -212,7 +231,7 @@ class LightAction extends SingletonAction {
     await this.#cycleDisplay(ev);
   }
   async #sceneConfirm(ev) {
-    const view = this.#visible.get(ev.action.id);
+    const view = this.#inputView(ev);
     if (!view?.browser || ['loading', 'applying'].includes(view.browser.state.status)) return;
     await this.#dispatch(ev, () => view.browser.press());
   }
@@ -245,23 +264,24 @@ class LightAction extends SingletonAction {
           { isCurrent: () => this.#visible.get(ev.action.id) === view });
       });
     }
-    const view = this.#visible.get(ev.action.id);
+    const view = this.#inputView(ev);
     if (!view) return;
     await this.#dispatch(ev, () => {
       if (this.kind === 'brightness-up' || this.kind === 'brightness-down') {
         const delta = step(view.settings, 5) * (this.kind === 'brightness-up' ? 1 : -1);
         return brightness.enqueue(ev.action.id, view.settings, delta);
       }
-      return execute(this.kind, ev.payload.settings, { isCurrent: () => this.#visible.get(ev.action.id) === view });
+      // The matching snapshot and lifecycle token travel together through discovery.
+      return execute(this.kind, view.settings, { isCurrent: () => this.#visible.get(ev.action.id) === view });
     });
   }
   async onDialRotate(ev) {
     if (this.kind === 'scene-dial') {
-      this.#visible.get(ev.action.id)?.browser?.rotate(ev.payload.ticks);
+      this.#inputView(ev)?.browser?.rotate(ev.payload.ticks);
       return;
     }
     if (this.kind !== 'brightness-dial' || !Number.isSafeInteger(ev.payload.ticks) || ev.payload.ticks === 0) return;
-    const view = this.#visible.get(ev.action.id);
+    const view = this.#inputView(ev);
     if (!view) return;
     await this.#dispatch(ev, () => {
       const delta = Math.max(-100, Math.min(100, ev.payload.ticks * step(view.settings, 2)));
