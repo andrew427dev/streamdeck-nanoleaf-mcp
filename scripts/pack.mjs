@@ -9,6 +9,7 @@ import {
   verifyInstaller, checksumLine,
 } from './artifacts.mjs';
 import { validateVersions } from './version.mjs';
+import { TARGETS, platformManifest, installerName } from './platforms.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const readJSON = async name => JSON.parse(await readFile(path.join(root, name), 'utf8'));
@@ -34,23 +35,47 @@ const runNode = args => new Promise((resolve, reject) => {
 await runNode([path.join(root, 'scripts/build.mjs')]);
 const temporary = await mkdtemp(path.join(os.tmpdir(), 'nanoleaf-public-pack-'));
 try {
-  const stagedPlugin = path.join(temporary, PLUGIN_FOLDER);
-  const packed = path.join(temporary, 'output');
-  await stagePublicPlugin(path.join(root, PLUGIN_FOLDER), stagedPlugin);
   const cli = path.join(root, 'node_modules/@elgato/cli/bin/streamdeck.mjs');
-  await runNode([cli, 'validate', stagedPlugin, '--no-update-check']);
-  await runNode([cli, 'pack', stagedPlugin, '--output', packed, '--no-update-check', '--no-file-list']);
-  const installer = path.join(packed, INSTALLER_NAME);
-  await verifyInstaller(installer, stagedPlugin, metadata, lock);
-  const checksum = await checksumLine(installer);
+  const outputs = [];
+  let baseline;
+  for (const target of TARGETS) {
+    const stagedPlugin = path.join(temporary, target, PLUGIN_FOLDER);
+    const packed = path.join(temporary, target, 'output');
+    await stagePublicPlugin(path.join(root, PLUGIN_FOLDER), stagedPlugin);
+    const manifestPath = path.join(stagedPlugin, 'manifest.json');
+    const manifest = platformManifest(JSON.parse(await readFile(manifestPath, 'utf8')), target);
+    await writeFile(manifestPath, JSON.stringify(manifest, null, 2) + '\n');
+    // Only OS declarations may differ between these packages.
+    if (baseline) {
+      const { PUBLIC_FILES } = await import('./artifacts.mjs');
+      for (const name of PUBLIC_FILES.filter(name => name !== 'manifest.json')) {
+        if (!(await readFile(path.join(stagedPlugin, name))).equals(await readFile(path.join(baseline, name)))) {
+          throw new Error('Unexpected cross-platform payload difference: ' + name);
+        }
+      }
+      const previous = JSON.parse(await readFile(path.join(baseline, 'manifest.json'), 'utf8'));
+      if (JSON.stringify({ ...previous, OS: [] }) !== JSON.stringify({ ...manifest, OS: [] })) {
+        throw new Error('Unexpected cross-platform manifest difference');
+      }
+    } else baseline = stagedPlugin;
+    await runNode([cli, 'validate', stagedPlugin, '--no-update-check']);
+    await runNode([cli, 'pack', stagedPlugin, '--output', packed, '--no-update-check', '--no-file-list']);
+    const installer = path.join(packed, INSTALLER_NAME);
+    await verifyInstaller(installer, stagedPlugin, metadata, lock);
+    const name = installerName(metadata.version, target);
+    const namedInstaller = path.join(packed, name);
+    await copyFile(installer, namedInstaller, constants.COPYFILE_EXCL);
+    outputs.push({ name, installer: namedInstaller, checksum: await checksumLine(namedInstaller) });
+  }
 
   await mkdir(dist, { recursive: true });
   // Exclusive directory/file creation also protects against concurrent packs.
   await mkdir(release);
-  await copyFile(installer, path.join(release, INSTALLER_NAME), constants.COPYFILE_EXCL);
-  await writeFile(path.join(release, 'SHA256SUMS.txt'), checksum, { flag: 'wx' });
-  console.log(`Verified release: dist/v${metadata.version}/${INSTALLER_NAME}`);
-  console.log(`SHA-256: ${checksum.trim()}`);
+  for (const output of outputs) {
+    await copyFile(output.installer, path.join(release, output.name), constants.COPYFILE_EXCL);
+    console.log('Prepared locally (not published): ' + output.name);
+  }
+  await writeFile(path.join(release, 'SHA256SUMS.txt'), outputs.map(output => output.checksum).join(''), { flag: 'wx' });
   if ((await readdir(dist)).some(name => name.endsWith('.streamDeckPlugin'))) {
     console.warn('Legacy installers remain directly under dist/; they were preserved and are NOT this release. Use only the versioned directory printed above.');
   }

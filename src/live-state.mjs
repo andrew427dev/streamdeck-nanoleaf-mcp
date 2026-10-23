@@ -114,6 +114,7 @@ export class BrightnessQueue {
 
   cancelContext(context) {
     for (const device of this.#devices.values()) {
+      if (device.job?.context === context) device.job.cancelled = true;
       const removed = device.pending.filter(job => job.context === context);
       device.pending = device.pending.filter(job => job.context !== context);
       for (const job of removed) for (const waiter of job.waiters) waiter.reject(invalid('BUSY'));
@@ -129,10 +130,15 @@ export class BrightnessQueue {
     device.active = true;
     while (device.pending.length) {
       const job = device.pending.shift();
+      device.job = job;
       try {
-        await this.execute({ ...job.settings, brightnessDelta: job.delta });
+        await this.execute({ ...job.settings, brightnessDelta: job.delta }, { isCurrent: () => !job.cancelled });
         for (const waiter of job.waiters) waiter.resolve();
       } catch (error) {
+        if (job.cancelled && error?.code === 'BUSY') {
+          for (const waiter of job.waiters) waiter.reject(error);
+          continue;
+        }
         // A failed/ambiguous mutation is never replayed by pending dial movement.
         for (const cancelled of [job, ...device.pending.splice(0)]) {
           for (const waiter of cancelled.waiters) waiter.reject(error);
@@ -140,6 +146,7 @@ export class BrightnessQueue {
         break;
       }
     }
+    device.job = undefined;
     device.active = false;
     this.#devices.delete(device.id);
   }

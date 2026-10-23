@@ -1,12 +1,21 @@
 # Nanoleaf MCP for Stream Deck
 
-Stream Deck에서 **USB 연결형 Nanoleaf PC Screen Mirror Lightstrip(NL82K2)**의 전원·밝기·저장된 씬·Desktop 화면 미러링을 제어하는 macOS용 비공식 오픈소스 플러그인입니다. **Wi-Fi를 지원하지 않는 이 모델용**이며, Wi-Fi/LAN 나노리프 제품이나 모든 USB 모델을 지원하는 범용 플러그인이 아닙니다.
+Stream Deck에서 **USB 연결형 Nanoleaf PC Screen Mirror Lightstrip(NL82K2)**의 전원·밝기·저장된 씬을 제어하는 비공식 오픈소스 플러그인입니다. macOS 버전과 실험적 Windows 시험판을 제공합니다. **Wi-Fi를 지원하지 않는 이 모델용**이며, Wi-Fi/LAN 제품이나 모든 USB 모델을 지원하는 범용 플러그인이 아닙니다. 화면 미러링은 알려진 제한이 있는 Mac 전용 기능입니다.
 
 제어 경로는 **Stream Deck → Nanoleaf Desktop(로컬 MCP) → USB → 조명**입니다. 조명의 Wi-Fi 연결이나 IP 주소는 필요하지 않지만, Nanoleaf Desktop이 실행 중이거나 자동 실행이 켜져 있어야 합니다. 나노리프도 이 제품의 [USB/HID 통신을 Wi-Fi API와 별도로 안내](https://support.nanoleaf.me/hc/en-us/articles/46020382680468-API-Nanoleaf-OpenAPI-Documentation-Forum-Guidelines)합니다.
 
 [English](../README.md) · [릴리스](https://github.com/andrew427dev/streamdeck-nanoleaf-mcp/releases) · [검증 기록](VALIDATION.md) · [개인정보 안내](../PRIVACY.md)
 
-**v0.5.0-beta.2**는 화면 미러링 키와 명확해진 앱 실행 안내를 공개합니다. 2026-10-18 배포 후 사용자 승인에 따라 정확한 공개 설치 파일로 업데이트했으며, 설치된 50개 파일의 일치, 기존 프로필·동작 설정 유지와 실제 전원 버튼의 정상 작동을 확인했습니다. 앞서 통과한 미러링 4개 항목은 **v0.5.0-beta.1**의 결과로 유지하며 beta.2 전체 재검증으로 간주하지 않습니다.
+**v0.6.0-beta.1은 Windows 11 x64용 실험적 공개 시험판이며, 실기기 검증 완료판이 아닙니다.** 실제 Nanoleaf 앱 자동 실행·설치 정보·MCP 연결·USB·물리 버튼·다이얼 검증은 아직 남아 있습니다. 자동 테스트는 모의 장치를 사용하므로 실제 호환성을 보장하지 않습니다. [Windows 시험판과 검증 목록](WINDOWS.md)을 확인해 주세요. 미러링 개선과 Marketplace 제출은 계속 보류합니다.
+
+| 다운로드 | 범위 |
+| --- | --- |
+| [Windows x64 설치 파일 — v0.6.0-beta.1](https://github.com/andrew427dev/streamdeck-nanoleaf-mcp/releases/download/v0.6.0-beta.1/nanoleaf-mcp-v0.6.0-beta.1-windows-x64.streamDeckPlugin) | Windows 11용 실험적 시험판입니다. **화면 미러링은 지원하지 않습니다.** [배포 안내·체크섬](https://github.com/andrew427dev/streamdeck-nanoleaf-mcp/releases/tag/v0.6.0-beta.1) |
+| [Mac 설치 파일 — 기존 v0.5.0-beta.2](https://github.com/andrew427dev/streamdeck-nanoleaf-mcp/releases/tag/v0.5.0-beta.2) | 기존 Mac 공개판을 그대로 제공합니다. 아래 미러링 제한을 확인해 주세요. |
+
+GitHub의 소스 ZIP이 아니라 `.streamDeckPlugin` 파일을 받으세요. v0.6.0-beta.1에는 Windows 설치 파일만 공개합니다. 별도로 빌드한 Mac 후보 파일은 로컬에 보관하며 현재 사용 중인 비공개 beta.3를 대체하지 않습니다.
+
+공개 v0.5.0-beta.2를 기준으로 작업했으며, 미공개 v0.5.0-beta.3의 사후 전원 보정은 포함하지 않았습니다. **미러링 정지 시 전원 변화·깜빡임은 해결하지 않았습니다.** 현재 Mac 설치본은 유지하며, 미러링 개선을 기대하고 이 Mac 시험판을 설치하지 마세요. 아래 과거 검증 기록은 각각 명시된 이전 버전에 해당합니다.
 
 **미러링 안정성 안내:** beta.2 업데이트 후 Desktop은 실행 중으로 표시했지만 조명이 선택한 화면을 따르지 않는 사례가 있었습니다. 사용자가 Nanoleaf Desktop을 완전히 종료한 뒤 다시 열어 정상 작동으로 복구됐다고 보고했습니다. 이 과정에서 플러그인 코드나 프로필은 수정하지 않았으며, 정확한 원인은 미확정입니다. 엔진 실행 상태가 실제 조명 출력까지 보장하지는 않습니다. [설치·오류·복구 기록](VALIDATION.md)과 [안정성 보완 계획](SCREEN-MIRROR-RELIABILITY-PLAN.md)을 참고해 주세요. Marketplace 제출은 여전히 [계획만 작성](MARKETPLACE-PLAN.md)한 상태입니다.
 
@@ -59,7 +68,7 @@ Brightness Dial은 해 모양, Scene Browser는 목록·재생 모양을 사용�
 | Nanoleaf Desktop | 로컬 MCP 서버 사용 가능·활성화 및 USB 장치 설정 완료 | 검증 버전은 3.0.1입니다. 모든 3.x·이후 버전의 호환성을 보장하지 않습니다. |
 | 조명 | USB PC Screen Mirror Lightstrip(NL82K2)만 지원 | 실제 시험한 모델입니다. Wi-Fi/LAN 제품과 다른 USB 모델은 지원하지 않습니다. |
 | Stream Deck 기기 | 키 제어 지원, 다이얼·터치는 Stream Deck + 필요 | 실물 시험은 Stream Deck +에서 진행했습니다. 다른 기종은 별도 검증하지 않았습니다. |
-| Windows | 미지원 | Windows 구현·실물 검증을 진행하지 않았습니다. |
+| Windows | Windows 11 x64 실험적 시험판 | 구현·모의 시험 단계입니다. Windows 실제 실행·MCP·USB·실기기 검증은 남아 있으며, Windows 10·ARM64는 검증하지 않았습니다. |
 
 ### 실제 확인한 항목
 
@@ -73,11 +82,15 @@ Brightness Dial은 해 모양, Scene Browser는 목록·재생 모양을 사용�
 
 자동 테스트는 합성 장치와 모의 MCP 응답을 사용합니다. 테스트나 패키지 검사를 통과했다고 실제 하드웨어 호환성까지 검증된 것은 아닙니다. 기존 프로필 설정과 플러그인·동작 식별자는 유지하며 설정 이전은 필요하지 않습니다.
 
+Windows 앱 실행은 등록된 설치 정보와 실행 파일의 제품 정보를 확인한 경우에만 시도합니다. 설치 경로를 못 찾거나 여러 설치본이 있거나 PowerShell 실행이 제한되면 직접 앱을 열도록 안내합니다. 임의 명령·관리자 권한·보안 설정 변경은 사용하지 않습니다.
+
+밝기 요청에 전원 필드를 넣지 않아도 Desktop 자체가 0%에서 끄거나 양수 밝기에서 켤 수 있습니다. 전원 유지가 보장되는 것은 아니며, Windows에서의 실제 동작은 별도로 검증해야 합니다.
+
 ## 설치와 버튼 설정
 
 아래는 **공개 릴리스**를 설치하는 절차입니다. GitHub에 새 버전을 공개해도 기존 로컬 설치본이 자동으로 교체되지는 않습니다.
 
-1. [릴리스 페이지](https://github.com/andrew427dev/streamdeck-nanoleaf-mcp/releases)에서 `io.github.andrew427dev.nanoleaf-mcp.streamDeckPlugin`을 받으세요.
+1. 위 다운로드 표에서 Windows 시험판 또는 기존 Mac 공개판을 선택하고, 운영체제별 제한을 확인한 뒤 `.streamDeckPlugin` 파일을 받으세요.
 2. 설치 파일을 두 번 클릭한 뒤 Stream Deck의 설치 안내를 따라 주세요.
 3. Nanoleaf Desktop을 열고 앱에서 장치가 정상 작동하는지 확인해 주세요.
 4. 원하시면 Stream Deck에 **Nanoleaf** 폴더를 만드세요. 폴더 안에서 **Nanoleaf MCP** 작업 분류의 **Power** 또는 **Scene**을 버튼에 끌어다 놓으세요.

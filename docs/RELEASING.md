@@ -2,6 +2,14 @@
 
 Build releases from the source checkout, not from an installed Stream Deck plugin. Publishing a GitHub release must not install the plugin, restart applications, change profiles, or modify existing helper scripts. Marketplace submission is a separate approval and workflow; see [Marketplace plan](MARKETPLACE-PLAN.md).
 
+**Current scope:** v0.6.0-beta.1 is approved for a Windows-only experimental GitHub prerelease. Actual Windows Desktop/USB acceptance is still pending and must be prominently disclosed. Existing Mac release assets and installed settings are not replaced. Marketplace submission and mirror stability changes remain on hold.
+
+## Platform packages
+
+One `npm run pack` builds both `nanoleaf-mcp-v<version>-macos-apple-silicon.streamDeckPlugin` and `nanoleaf-mcp-v<version>-windows-x64.streamDeckPlugin` under the same version directory, plus a shared `SHA256SUMS.txt`. Each gets a separate staging folder and official validation. Runtime/UI bytes, UUIDs and all manifest fields other than the top-level OS declaration must match. Screen Mirror has `OS: ["mac"]` in both, plus a runtime guard on Windows. Architecture names identify intended test targets, not architecture-specific native code: the plugin uses Stream Deck's bundled Node.js runtime.
+
+For a future approved dual-platform release, attach both installers and checksums to the same release with explicitly labelled links. For the approved Windows-only v0.6.0-beta.1 preview, publish only the Windows installer and a `SHA256SUMS.txt` containing that asset's checksum; keep the paired local build output unchanged. Link Mac users to the existing v0.5.0-beta.2 release. Never describe pending Windows MCP/native launch and hardware acceptance as validated support. Do not confuse GitHub's source ZIP with an installer.
+
 ## Version ordering
 
 The root `package.json` is the release identifier and the build embeds that version in the local MCP client identification. Both root version fields in `package-lock.json` must match it. The Stream Deck manifest uses [four numeric components](https://docs.elgato.com/streamdeck/sdk/references/manifest/).

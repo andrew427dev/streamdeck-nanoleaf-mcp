@@ -1,12 +1,21 @@
 # Nanoleaf MCP for Stream Deck
 
-Control the **USB-connected Nanoleaf PC Screen Mirror Lightstrip (NL82K2)** from Stream Deck: power, brightness, saved scenes and Desktop screen mirroring. This is an unofficial, open-source plugin for macOS, specifically for this non-Wi-Fi model—not a Wi-Fi/LAN Nanoleaf plugin or a controller for every USB model.
+Control the **USB-connected Nanoleaf PC Screen Mirror Lightstrip (NL82K2)** from Stream Deck: power, brightness and saved scenes. This unofficial project has a macOS version and an experimental Windows preview. It is specifically for this non-Wi-Fi model—not a Wi-Fi/LAN Nanoleaf plugin or a controller for every USB model. Screen Mirror remains Mac-only with known limitations.
 
 Control path: **Stream Deck → Nanoleaf Desktop (local MCP) → USB → lightstrip**. The light does not need Wi-Fi pairing or a device IP address, but Nanoleaf Desktop must be running (or automatic launch enabled). Nanoleaf documents this product's [USB/HID communication separately from its Wi-Fi APIs](https://support.nanoleaf.me/hc/en-us/articles/46020382680468-API-Nanoleaf-OpenAPI-Documentation-Forum-Guidelines).
 
 [한국어 안내](docs/README.ko.md) · [Releases](https://github.com/andrew427dev/streamdeck-nanoleaf-mcp/releases) · [Validation](docs/VALIDATION.md) · [Privacy](PRIVACY.md)
 
-**v0.5.0-beta.2** publishes Screen Mirror keys and clearer app-launch guidance. On 2026-10-18, the exact public installer was subsequently installed with the tester's approval: all 50 installed package files matched, existing profile/action settings were retained, and physical power control was confirmed. The earlier four-check mirror suite remains attributed to **v0.5.0-beta.1**, not beta.2.
+**v0.6.0-beta.1 is an experimental Windows 11 x64 prerelease, not a hardware-validated release.** Windows device control, native Desktop startup, install/reinstall and physical dial/touch behavior still require testing on a Windows PC. Automated tests use mocked devices and cannot certify USB/MCP compatibility. See [Windows preview and acceptance checklist](docs/WINDOWS.md). Marketplace submission and mirror improvements remain on hold.
+
+| Download | Scope |
+| --- | --- |
+| [Windows x64 installer — v0.6.0-beta.1](https://github.com/andrew427dev/streamdeck-nanoleaf-mcp/releases/download/v0.6.0-beta.1/nanoleaf-mcp-v0.6.0-beta.1-windows-x64.streamDeckPlugin) | Experimental Windows 11 preview; **no Screen Mirror**. [Release notes/checksum](https://github.com/andrew427dev/streamdeck-nanoleaf-mcp/releases/tag/v0.6.0-beta.1). |
+| [Mac installer — existing v0.5.0-beta.2](https://github.com/andrew427dev/streamdeck-nanoleaf-mcp/releases/tag/v0.5.0-beta.2) | Existing public Mac beta, unchanged; known mirror limitations below. |
+
+Choose the `.streamDeckPlugin` asset, not GitHub's source ZIP. Only the Windows installer is published in v0.6.0-beta.1; the separately built Mac candidate remains local and is not a recommended upgrade for the private beta.3 test installation.
+
+This work starts from public v0.5.0-beta.2. It does **not** incorporate the unpublished v0.5.0-beta.3 mirror power compensation or fix the known stop-time power change/flash. The current Mac installation is left untouched; do not install this Mac preview expecting a mirror fix. Historical results below refer to their named builds, not this preview.
 
 **Mirror reliability note:** after the beta.2 upgrade, Desktop reported mirroring ON but the light did not follow the selected screen. The tester reported recovery after fully quitting and reopening Nanoleaf Desktop; no plugin-code or profile change was made. The cause is unresolved, and engine state is not proof of actual light output. See the [installation and incident record](docs/VALIDATION.md) and [reliability plan](docs/SCREEN-MIRROR-RELIABILITY-PLAN.md). Marketplace submission is [planned only](docs/MARKETPLACE-PLAN.md).
 
@@ -32,7 +41,7 @@ Title entry/removal, blank-title restoration after restarting Stream Deck, and d
 
 ### Controls
 
-- **Screen Mirror:** start, stop or toggle Desktop's screen mirroring with shared live status. This controls all targets selected in Desktop, not a device selected in the plugin. It preserves Desktop's current mirroring mode and layout.
+- **Screen Mirror (Mac only):** start, stop or toggle Desktop's screen mirroring with shared live status. It controls all targets selected in Desktop and preserves its current mode and layout. Windows does not expose this action and rejects imported mirror controls.
 - **Power:** turn a selected device on, off, or toggle its power.
 - **Live power icon:** mint ON, gray OFF, or a dash when state is unavailable. Visible controls share read-only polling, approximately every two seconds after each response; polling never opens the app. Custom Stream Deck icons override plugin images.
 - **Brightness Up / Down:** separate physical key actions, initially 5 percentage points per press.
@@ -59,7 +68,7 @@ Declared minimum versions are installation requirements, **not a claim that ever
 | Nanoleaf Desktop | Local MCP server available and enabled; USB device set up | Tested version: 3.0.1. This is not a compatibility guarantee for every 3.x or future release. |
 | Lighting device | USB PC Screen Mirror Lightstrip (NL82K2) only | The hardware used for the physical checks. Wi-Fi/LAN models and other USB models are unsupported. |
 | Stream Deck hardware | Key actions; dial/touch actions require Stream Deck + | Physical checks used Stream Deck +. Other Stream Deck models have not been separately tested. |
-| Windows | Unsupported | No Windows implementation or physical verification. |
+| Windows | Experimental Windows 11 x64 preview | Implementation and simulated tests only; Windows execution, local MCP compatibility, USB and hardware verification pending. Windows 10 and ARM64 are not verified. |
 
 ### What has actually been checked
 
@@ -77,7 +86,7 @@ Automated tests use synthetic devices and mock MCP responses. Passing them or pa
 
 The steps below install a **public release**. Publishing a new GitHub release does not itself update an existing local installation.
 
-1. Download `io.github.andrew427dev.nanoleaf-mcp.streamDeckPlugin` from a [release](https://github.com/andrew427dev/streamdeck-nanoleaf-mcp/releases).
+1. Choose the Windows preview or existing Mac release in the download table above, then download its `.streamDeckPlugin` asset. Read the platform-specific limitations before installing.
 2. Double-click the installer and follow Stream Deck's installation prompt.
 3. Open Nanoleaf Desktop and confirm that the device works in the app.
 4. In Stream Deck, optionally create a folder named **Nanoleaf**. Inside it, find the **Nanoleaf MCP** action category and drag **Power** or **Scene** onto a button.
@@ -86,7 +95,7 @@ The steps below install a **public release**. Publishing a new GitHub release do
 
 The plugin uses your existing saved scenes; it does not include scene definitions. Installing it does not migrate or replace existing helper scripts, Shortcuts, or buttons. You can leave those in place while testing new buttons. This release retains the plugin/action identifiers and settings format: existing button assignments, selected devices/scenes, brightness steps, automatic-launch choices, and title preferences do not require reconfiguration. Export important profiles as a backup before updating; do not uninstall the plugin or delete its actions first.
 
-### Screen Mirror keys
+### Screen Mirror keys (Mac only; stability work on hold)
 
 1. In Nanoleaf Desktop, configure Screen Mirror's display, target lights, layout and screen-recording permission first.
 2. Drag **Screen Mirror** onto a key and select **Start**, **Stop**, or **Toggle**. Add separate keys if desired. No device dropdown is used: these commands affect all targets selected in Desktop.
@@ -103,6 +112,9 @@ The plugin uses your existing saved scenes; it does not include scene definition
 Select the Brightness Dial and choose **Brightness text size** to adjust its main percentage text. Leave **Large (original size)** selected to keep the previous appearance. Existing dials without this preference retain the original size; no migration is required.
 
 ## Troubleshooting
+
+- **Windows cannot launch Desktop:** the preview reads registered installations and matching executable product metadata. Missing, ambiguous, portable/unregistered installs or blocked PowerShell are not guessed around. Open the intended app manually and retry. No administrator rights or security-policy changes are requested.
+- **Brightness changes power:** the plugin sends a brightness-only request, but Desktop can still turn the light off at 0% or on for positive brightness. Omitting a power field does not guarantee unchanged power; Windows behavior needs physical verification.
 
 - **A button shows an error:** select it in Stream Deck and read its last command status in the settings. This status stays in memory only and resets when the plugin restarts; it is not a live power indicator.
 - **No connection:** open Nanoleaf Desktop, check its version, and try again. Automatic app launch is disabled unless you enable it for that button.

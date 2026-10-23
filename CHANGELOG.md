@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.6.0-beta.1 — 2026-10-23, experimental Windows prerelease
+
+- Add a Windows app-launch adapter using registered installation metadata, bounded read-only discovery and direct process spawn; do not wait for or terminate the GUI process. Preserve the existing Mac launch command and per-control opt-in settings.
+- Prepare separate macOS Apple Silicon and Windows x64 installers from identical runtime/UI source and one version; only platform declarations differ. Preserve plugin/action UUIDs and all saved settings fields.
+- Keep Windows Screen Mirror hidden and reject imported mirror events at runtime before polling, app launch or mutations. Mac mirror logic remains at public beta.2; unpublished beta.3 compensation and stability work are excluded.
+- Cancel not-yet-sent power/scene/brightness input after context disappearance or reconfiguration, including brightness jobs already awaiting discovery.
+- Replace the Mac-only archive inspection command with build-only ZIP parsing, strict payload/size/link/path/CRC checks and platform package comparison.
+- Add mocked Windows/Mac launcher, action lifecycle and bundled WebSocket coverage, plus macOS/Windows GitHub Actions test/package jobs.
+- Publish only the Windows installer and matching checksum. Keep the existing Mac release assets, installed plugin and profiles unchanged; the Mac candidate remains local.
+- Windows Desktop installation metadata, real native app launch, MCP, USB, physical controls and restart/sleep behavior remain unverified. This is a prerelease for testing, not certified Windows support. Marketplace and mirror improvements remain on hold.
+
 ## Documentation follow-up — 2026-10-18 (no new release)
 
 - Record the separately approved, post-publication beta.2 installation: manifest 0.5.0.2, all 50 installed package files matching the published installer, retained profile/action settings, local MCP checks and tester-confirmed physical power control.

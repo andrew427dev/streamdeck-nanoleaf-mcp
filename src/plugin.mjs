@@ -1,5 +1,4 @@
-import { execFile } from 'node:child_process';
-import { promisify } from 'node:util';
+import { createAppLauncher, assertMirrorPlatform } from './app-launcher.mjs';
 import streamDeck, { action, SingletonAction } from '@elgato/streamdeck';
 import { NanoleafClient } from './nanoleaf.mjs';
 import { LightController, safeError } from './controller.mjs';
@@ -13,11 +12,10 @@ import { ScreenMirror } from './screen-mirror.mjs';
 
 // Keep SDK wire-level settings/device payloads out of normal log output.
 streamDeck.logger.setLevel('error');
-const run = promisify(execFile);
 const client = new NanoleafClient();
 const controller = new LightController({
   client,
-  launchApp: () => run('/usr/bin/open', ['-a', 'Nanoleaf Desktop', '--args', '--hidden'], { timeout: 5000 }),
+  launchApp: createAppLauncher(),
 });
 const mirror = new ScreenMirror({ client, controller });
 const live = new LiveState({ read: deviceId => controller.inspectState(deviceId) });
@@ -26,7 +24,7 @@ async function execute(kind, settings, options) {
   try { await controller.execute(kind, settings, options); }
   finally { live.end(settings?.deviceId); }
 }
-const brightness = new BrightnessQueue({ execute: settings => execute('brightness', settings) });
+const brightness = new BrightnessQueue({ execute: (settings, options) => execute('brightness', settings, options) });
 function step(settings, fallback) {
   const value = settings?.brightnessStep ?? fallback;
   if (!Number.isInteger(value) || value < 1 || value > 100) {
@@ -99,12 +97,18 @@ class LightAction extends SingletonAction {
   }
 
   #watch(ev) {
+    brightness.cancelContext(ev.action.id);
     if (this.kind === 'screen-mirror') mirror.forget(ev.action.id);
     this.#visible.get(ev.action.id)?.browser?.dispose();
     const token = { settings: ev.payload.settings, state: undefined,
       presentation: this.#titles.get(ev.action.id) ?? titlePresentation(undefined, ev.action.isDial() ? 'Encoder' : 'Keypad') };
     this.#visible.set(ev.action.id, token);
     if (this.kind === 'screen-mirror') {
+      // Imported profiles must not start polling or launching on Windows.
+      if (process.platform !== 'darwin') {
+        void this.#render(ev.action, token).catch(() => {});
+        return;
+      }
       mirror.watch(ev.action.id, async state => {
         if (this.#visible.get(ev.action.id) !== token) return;
         token.state = state;
@@ -235,15 +239,20 @@ class LightAction extends SingletonAction {
     if (this.kind === 'screen-mirror') {
       const view = this.#visible.get(ev.action.id);
       if (!view) return;
-      return this.#dispatch(ev, () => mirror.request(view.settings?.mirrorMode ?? 'toggle', view.settings,
-        { isCurrent: () => this.#visible.get(ev.action.id) === view }));
+      return this.#dispatch(ev, () => {
+        assertMirrorPlatform();
+        return mirror.request(view.settings?.mirrorMode ?? 'toggle', view.settings,
+          { isCurrent: () => this.#visible.get(ev.action.id) === view });
+      });
     }
+    const view = this.#visible.get(ev.action.id);
+    if (!view) return;
     await this.#dispatch(ev, () => {
       if (this.kind === 'brightness-up' || this.kind === 'brightness-down') {
-        const delta = step(ev.payload.settings, 5) * (this.kind === 'brightness-up' ? 1 : -1);
-        return brightness.enqueue(ev.action.id, ev.payload.settings, delta);
+        const delta = step(view.settings, 5) * (this.kind === 'brightness-up' ? 1 : -1);
+        return brightness.enqueue(ev.action.id, view.settings, delta);
       }
-      return execute(this.kind, ev.payload.settings);
+      return execute(this.kind, ev.payload.settings, { isCurrent: () => this.#visible.get(ev.action.id) === view });
     });
   }
   async onDialRotate(ev) {
@@ -252,9 +261,11 @@ class LightAction extends SingletonAction {
       return;
     }
     if (this.kind !== 'brightness-dial' || !Number.isSafeInteger(ev.payload.ticks) || ev.payload.ticks === 0) return;
+    const view = this.#visible.get(ev.action.id);
+    if (!view) return;
     await this.#dispatch(ev, () => {
-      const delta = Math.max(-100, Math.min(100, ev.payload.ticks * step(ev.payload.settings, 2)));
-      return brightness.enqueue(ev.action.id, ev.payload.settings, delta);
+      const delta = Math.max(-100, Math.min(100, ev.payload.ticks * step(view.settings, 2)));
+      return brightness.enqueue(ev.action.id, view.settings, delta);
     });
   }
   async onSendToPlugin(ev) {
@@ -266,7 +277,7 @@ class LightAction extends SingletonAction {
       if (ev.payload?.event !== 'mirrorStatus' || typeof ev.payload.requestId !== 'string'
         || ev.payload.requestId.length > 2048) return;
       const response = { event: 'mirrorStatus', requestId: ev.payload.requestId };
-      try { response.mirror = await client.getScreenMirrorStatus(); }
+      try { assertMirrorPlatform(); response.mirror = await client.getScreenMirrorStatus(); }
       catch (error) { Object.assign(response, { error: safeError(error).message, errorCode: safeError(error).code }); }
       if (streamDeck.ui.action?.id === ev.action.id) await streamDeck.ui.sendToPropertyInspector(response).catch(() => {});
       return;

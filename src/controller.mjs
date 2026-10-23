@@ -17,6 +17,10 @@ export const ERROR_MESSAGES = Object.freeze({
   DEVICE_UNSUPPORTED: 'This beta supports the NL82K2 PC Screen Mirror Lightstrip only.',
   BUSY: 'A command is already running for this light. Wait, then press again.',
   LAUNCH_FAILED: 'Could not open Nanoleaf Desktop. Install and open it manually.',
+  LAUNCH_NOT_FOUND: 'A registered Nanoleaf Desktop installation was not found. Open the app manually.',
+  LAUNCH_AMBIGUOUS: 'Multiple Nanoleaf Desktop installations were found. Open the intended app manually.',
+  PLATFORM_UNSUPPORTED: 'This operating system is not supported by this preview.',
+  MIRROR_PLATFORM_UNSUPPORTED: 'Screen mirroring is not supported on Windows in this preview.',
   INTERNAL_ERROR: 'The command failed. Reopen the action settings and try again.',
   APP_BUSY: 'Another light or screen-mirror command is running. Wait before pressing again.',
   MIRROR_UNSUPPORTED: 'This Nanoleaf Desktop version does not provide all screen-mirror commands.',
@@ -82,7 +86,10 @@ export class LightController {
       if (!this.#starting) {
         const startup = {};
         startup.ready = (async () => {
-          try { await this.launchApp(); } catch { throw fail('LAUNCH_FAILED'); }
+          try { await this.launchApp(); } catch (error) {
+            throw fail(['LAUNCH_NOT_FOUND', 'LAUNCH_AMBIGUOUS', 'PLATFORM_UNSUPPORTED'].includes(error?.code)
+              ? error.code : 'LAUNCH_FAILED');
+          }
           startup.deadline = this.now() + APP_READY_MS;
         })().catch(launchError => {
           if (this.#starting === startup) this.#starting = undefined;

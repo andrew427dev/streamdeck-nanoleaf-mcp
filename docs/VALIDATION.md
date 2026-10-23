@@ -1,5 +1,24 @@
 # Nanoleaf MCP validation record
 
+## v0.6.0-beta.1 — experimental Windows prerelease, hardware acceptance pending
+
+Built in an isolated source copy based on public v0.5.0-beta.2. Existing Mac installation/profiles and the canonical unpublished beta.3 changes are retained. Common app-launch interfaces now have Mac/Windows adapters; Windows mirror events are blocked; ordinary key/brightness lifecycle guards prevent unsent stale commands.
+
+Local Node.js 24.13.1 automated tests pass (232 tests at initial verification). This includes inert launcher tests, 10 delayed-command cancellation cases, real ZIP-file safety tests, and bundled Stream Deck WebSocket runs with simulated `darwin` and `win32` platforms. All native app launch methods and real MCP traffic are blocked in those tests. Real PowerShell/registry discovery against Desktop, USB/MCP behavior, Windows plugin install/reinstall, UI scaling, physical buttons/dials, and startup/recovery are **not tested**. The [acceptance checklist](WINDOWS.md) remains open. GitHub Actions runs automated tests and packaging on macOS and Windows; exact release-commit CI must pass before publication, but does not verify actual hardware.
+
+Final verification: 232 passed, 0 failed, 0 skipped. Official CLI validation/packaging passed for both targets, each with 50 reviewed files. Their only file difference is `manifest.json` and only the top-level OS declaration differs inside it. Both SHA-256 checksums were read back and matched. The working Mac plugin/profile baseline had 83 files; all remained byte-identical after packaging. Version ordering passed against public v0.5.0-beta.2 and installed v0.5.0-beta.3.
+
+Local package checksums (not GitHub assets):
+
+- Mac Apple Silicon: `a3614f0e25f78ae8423f322309fd37ff4282380c6420f33936d88941c2da7398`
+- Windows x64: `eccc4ec234937feaae58fc2a0b2c78e2788d0d101a1ab38b9c4aafb4041b6fce`
+
+The new packages have not been installed on the working Mac. Historical tests below do not establish this preview's hardware compatibility. The private beta.3 no-reillumination regression is not in this beta.2-based source copy: its failing result remains preserved in the separate audit/canonical workspace, not weakened or declared fixed. Only Windows experimental publication is approved; mirror improvement and Marketplace submission remain on hold.
+
+### Relevant later beta.2 / beta.3 observations retained as known limitations
+
+After beta.2 installation, the user confirmed power control; mirror engine/button feedback initially did not correspond to actual screen-color output. Completely quitting and reopening Desktop restored output. Later, stopping mirroring turned an initially ON light OFF. The private beta.3 after-stop compensation restored final power but the user observed an OFF→ON flash, and manual-OFF testing showed a brief ON→OFF flash. These observations supersede any interpretation of the earlier four-case pass as a guarantee across all restoration states. This Windows preview adds no remedy or new hardware claim.
+
 ## v0.5.0-beta.1 — installed screen-mirror preview
 
 Start/Stop/Toggle, app-global exclusion, capabilities, current-mode reuse, same-state no-ops, ambiguous-response readback, inactive-context guards, cold/warm startup, shared polling, localized settings and artwork are covered by synthetic tests. The bundled Stream Deck WebSocket test uses mocked MCP responses and cannot capture a screen or control a real light.
@@ -107,7 +126,7 @@ On 2026-10-18, beta.4 passed **184 automated tests** with Node.js 24, official S
 - Test minimum supported OS/app versions, Intel Macs and other Stream Deck key devices before describing them as physically verified.
 - Test the Marketplace-processed/DRM package separately, including fresh install and upgrade with preserved settings. It has not been submitted or tested.
 
-Wi-Fi/LAN lights, other USB models and Windows remain outside the supported scope. Marketplace preparation is tracked in the [submission plan](MARKETPLACE-PLAN.md).
+Wi-Fi/LAN lights and other USB models remain unsupported. Windows 11 x64 is available only as the experimental preview described above; hardware acceptance is pending. Marketplace preparation is tracked in the [submission plan](MARKETPLACE-PLAN.md).
 
 ## 한국어 요약
 

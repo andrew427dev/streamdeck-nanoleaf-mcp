@@ -118,3 +118,19 @@ test('brightness queue rejects invalid deltas and missing devices without execut
   }
   await assert.rejects(queue.enqueue('key', {}, 5), { code: 'INVALID_ARGUMENT' });
 });
+
+test('cancelling a brightness job already in discovery prevents its write, but permits fresh input', async () => {
+  const clock = timers(); const gate = deferred(); const writes = [];
+  let first = true;
+  const queue = new BrightnessQueue({ ...clock, execute: async (settings, { isCurrent }) => {
+    if (first) { first = false; await gate.promise; }
+    if (!isCurrent()) throw Object.assign(Error(), { code: 'BUSY' });
+    writes.push(settings.brightnessDelta);
+  } });
+  const stale = queue.enqueue('context', { deviceId: 'device' }, 5);
+  const rejected = assert.rejects(stale, { code: 'BUSY' });
+  clock.run(); queue.cancelContext('context');
+  const fresh = queue.enqueue('context', { deviceId: 'device' }, -2);
+  gate.resolve(); await rejected; await fresh;
+  assert.deepEqual(writes, [-2]);
+});

@@ -21,6 +21,7 @@ const STREAM_DECK = 'TEST-STREAM-DECK';
 const MCP_PRELOAD = `
 import childProcess from 'node:child_process';
 import { syncBuiltinESMExports } from 'node:module';
+Object.defineProperty(process, 'platform', { value: process.env.NANOLEAF_TEST_PLATFORM });
 let power = true;
 let scene = 'Example Scene';
 let brightness = 50;
@@ -32,6 +33,7 @@ childProcess.execFile = (...args) => {
   const callback = args.at(-1);
   queueMicrotask(() => callback(new Error('Native process launch blocked by smoke test')));
 };
+childProcess.spawn = () => { send({ type: 'unexpected-launch' }); throw Error('Native spawn blocked by smoke test'); };
 syncBuiltinESMExports();
 let holdNextPower = false;
 let releasePower;
@@ -143,9 +145,9 @@ function mailbox() {
   };
 }
 
-function registrationInfo() {
+function registrationInfo(platform = 'darwin') {
   return {
-    application: { font: 'Arial', language: 'en', platform: 'mac', platformVersion: '15.0', version: '7.1.0' },
+    application: { font: 'Arial', language: 'en', platform: platform === 'win32' ? 'windows' : 'mac', platformVersion: platform === 'win32' ? '10.0.26100' : '15.0', version: '7.1.0' },
     colors: {
       buttonMouseOverBackgroundColor: '#303030', buttonPressedBackgroundColor: '#202020',
       buttonPressedBorderColor: '#ffffff', buttonPressedTextColor: '#ffffff', highlightColor: '#0088ff',
@@ -222,7 +224,7 @@ function hasSceneDisplay(message, context, status, selectedIndex) {
     && (selectedIndex === undefined || svg.includes(`data-selected-index="${selectedIndex}"`));
 }
 
-test('built plugin handles light commands, touch displays, and scene browsing over Stream Deck WebSocket',
+for (const simulatedPlatform of ['darwin', 'win32']) test('built plugin handles commands and dials (simulated ' + simulatedPlatform + ')',
   { timeout: 30_000 }, async t => {
     try {
       await access(join(SOURCE, 'bin', 'plugin.js'));
@@ -271,12 +273,12 @@ test('built plugin handles light commands, touch displays, and scene browsing ov
       '--import', `data:text/javascript,${encodeURIComponent(MCP_PRELOAD)}`,
       join(pluginDirectory, 'bin', 'plugin.js'),
       '-port', String(server.address().port), '-pluginUUID', 'TEST-PLUGIN-INSTANCE',
-      '-registerEvent', 'registerPlugin', '-info', JSON.stringify(registrationInfo()),
+      '-registerEvent', 'registerPlugin', '-info', JSON.stringify(registrationInfo(simulatedPlatform)),
     ], {
       cwd: pluginDirectory,
       // Do not surface SDK output: it can contain filesystem paths.
       stdio: ['ignore', 'ignore', 'ignore', 'ipc'],
-      env: { ...process.env, NODE_OPTIONS: '' },
+      env: { ...process.env, NODE_OPTIONS: '', NANOLEAF_TEST_PLATFORM: simulatedPlatform, APPDATA: temporaryRoot },
     });
     childClosed = once(child, 'close');
     const pendingTraces = new Set();
@@ -821,6 +823,26 @@ test('built plugin handles light commands, touch displays, and scene browsing ov
     from = webSocketMessages.messages.length;
     const mirrorContext = 'TEST-MIRROR-CONTEXT';
     const mirrorImage = (message, status) => keyCanvas(message, mirrorContext).includes(`data-mirror-status="${status}"`);
+    if (simulatedPlatform === 'win32') {
+      const beforeMirror = ipc.messages.length;
+      send(actionEvent('willAppear', 'screen-mirror', mirrorContext, { mirrorMode: 'start', autoLaunch: true }));
+      send({ event: 'propertyInspectorDidAppear', action: `${PLUGIN}.screen-mirror`, context: mirrorContext, device: STREAM_DECK });
+      send({ event: 'sendToPlugin', action: `${PLUGIN}.screen-mirror`, context: mirrorContext,
+        payload: { event: 'mirrorStatus', requestId: 'blocked-mirror' } });
+      const status = await webSocketMessages.wait(message => message.payload?.requestId === 'blocked-mirror', 'Windows mirror inspector blocked');
+      assert.equal(status.payload.errorCode, 'MIRROR_PLATFORM_UNSUPPORTED');
+      for (const mode of ['start', 'stop', 'toggle']) {
+        from = webSocketMessages.messages.length;
+        const settings = { mirrorMode: mode, autoLaunch: true };
+        send(actionEvent('didReceiveSettings', 'screen-mirror', mirrorContext, settings));
+        send(actionEvent('keyDown', 'screen-mirror', mirrorContext, settings));
+        await webSocketMessages.wait(message => message.context === mirrorContext
+          && message.payload?.errorCode === 'MIRROR_PLATFORM_UNSUPPORTED', 'Windows imported mirror blocked', from);
+      }
+      await syncIPC();
+      assert.equal(ipc.messages.slice(beforeMirror).some(m => /screen_mirror/.test(m.request?.params?.name)), false);
+      send(actionEvent('willDisappear', 'screen-mirror', mirrorContext));
+    } else {
     send(actionEvent('willAppear', 'screen-mirror', mirrorContext, { mirrorMode: 'start', autoLaunch: true }));
     await webSocketMessages.wait(message => mirrorImage(message, 'stopped'), 'read-only mirror feedback', from);
     send({ event: 'propertyInspectorDidAppear', action: `${PLUGIN}.screen-mirror`, context: mirrorContext, device: STREAM_DECK });
@@ -844,6 +866,7 @@ test('built plugin handles light commands, touch displays, and scene browsing ov
     const mirrorExpanded = await changeTitle('screen-mirror', mirrorContext, '', { showTitle: true }, 'expanded');
     assert.ok(mirrorImage(mirrorExpanded, 'stopped'));
     send(actionEvent('willDisappear', 'screen-mirror', mirrorContext));
+    }
 
     from = webSocketMessages.messages.length;
     child.send({ type: 'offline' });

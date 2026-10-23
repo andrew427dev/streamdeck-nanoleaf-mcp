@@ -12,6 +12,8 @@ This local connection does not imply that Nanoleaf Desktop itself works entirely
 
 ## Settings and device information
 
+On Windows, an explicitly enabled app-launch action may run a fixed, read-only PowerShell query of current-user and machine uninstall registrations and inspect candidate executable product metadata. This locates Nanoleaf Desktop only; it does not scan the disk, execute registry command strings, write the registry, download software or request elevation. Candidate paths are held in memory, not saved to profiles or emitted in normal logs. Missing/ambiguous installations require manual startup. No discovery or launch is performed merely by opening settings or polling state.
+
 The plugin processes device identifiers, available scene names, and light state to populate button settings and perform the action you select. The selected device ID, scene name, power action, app-launch preference, brightness step, display mode (bar/ring/number), and brightness text size (small/medium/large) are stored in Stream Deck's local key or dial settings. Each action keeps its own preferences. Existing dials without a brightness-text-size preference keep the original large appearance without a settings migration.
 
 Last-command status is kept in plugin memory, associated with the local button context, and cleared on plugin restart. It uses predefined status/error codes rather than raw backend messages; it is not written into profile settings or sent to a cloud service.
@@ -21,6 +23,8 @@ Visible power keys and brightness dials periodically read the selected device's 
 Device IDs and custom scene names can be identifying or personal. Exported Stream Deck profiles, backups, and synchronized copies may include them. Review a profile before sharing it. Plugin installation does not distribute the maintainer's personal profiles, device state files, or scene definitions.
 
 ## Screen mirroring
+
+This preview disables Screen Mirror on Windows, including requests from imported profiles. The following behavior describes the retained Mac action only; its stop-time power restoration limitations are not fixed by this preview.
 
 The Screen Mirror action sends only start, stop and status requests to Desktop's local MCP server. It uses Desktop's configured targets, display, layout and current mode. The plugin does not capture or collect screen images, previews, window titles or screen content; screen-recording permission and capture belong to Nanoleaf Desktop. The per-key start/stop/toggle choice and app-launch preference are stored in Stream Deck. Capture-engine status is kept in memory and shared across visible mirror keys; status reads never open Desktop. A running engine does not certify output from every selected light.
 

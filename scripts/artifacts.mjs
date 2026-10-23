@@ -1,8 +1,7 @@
 import { createHash } from 'node:crypto';
-import { execFile } from 'node:child_process';
-import { copyFile, lstat, mkdir, readFile } from 'node:fs/promises';
+import { copyFile, lstat, mkdir, readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
-import { promisify } from 'node:util';
+import { ZipReader, Uint8ArrayReader, Uint8ArrayWriter } from '@zip.js/zip.js';
 import { validateVersions } from './version.mjs';
 
 export const PLUGIN_ID = 'io.github.andrew427dev.nanoleaf-mcp';
@@ -83,22 +82,45 @@ export async function stagePublicPlugin(source, destination) {
   }
 }
 
-const run = promisify(execFile);
-const unzip = async args => (await run('/usr/bin/unzip', args, {
-  encoding: 'buffer', maxBuffer: 32 * 1024 * 1024,
-})).stdout;
+export async function readInstaller(filename) {
+  if ((await stat(filename)).size > 32 * 1024 * 1024) throw new Error('Installer exceeds size limit');
+  const reader = new ZipReader(new Uint8ArrayReader(await readFile(filename)), {
+    useWebWorkers: false, strictness: 'strict', filenameValidation: 'strict',
+    checkCrc32: true, checkOverlappingEntry: true,
+  });
+  try {
+    const entries = await reader.getEntries();
+    const expected = PUBLIC_FILES.map(name => PLUGIN_FOLDER + '/' + name);
+    let size = 0;
+    if (entries.length !== expected.length || new Set(entries.map(e => e.filename.toLowerCase())).size !== entries.length
+      || entries.some(e => !expected.includes(e.filename) || e.directory || e.encrypted || e.symlink
+        || ((e.externalFileAttributes >>> 16) & 0o170000) === 0o120000
+        || !Number.isSafeInteger(e.uncompressedSize) || e.uncompressedSize < 0
+        || e.uncompressedSize > 16 * 1024 * 1024 || (size += e.uncompressedSize) > 32 * 1024 * 1024)) {
+      throw new Error('Installer file list differs from the reviewed public payload');
+    }
+    const contents = new Map();
+    for (const entry of entries) {
+      const bytes = Buffer.from(await entry.getData(new Uint8ArrayWriter()));
+      if (bytes.length !== entry.uncompressedSize) throw new Error('Installer entry size mismatch');
+      contents.set(entry.filename, bytes);
+    }
+    return contents;
+  } finally { await reader.close(); }
+}
 
-export async function verifyInstaller(filename, stagedPlugin, metadata, lock, readZip = unzip) {
+export async function verifyInstaller(filename, stagedPlugin, metadata, lock, readZip) {
   // The official CLI produces a standard ZIP. Inspect without extracting files
   // or executing anything from the installer.
-  const listed = (await readZip(['-Z1', filename])).toString('utf8').trim().split('\n');
+  const contents = readZip ? undefined : await readInstaller(filename);
+  const listed = readZip ? (await readZip(['-Z1', filename])).toString('utf8').trim().split('\n') : [...contents.keys()];
   const expected = PUBLIC_FILES.map(name => `${PLUGIN_FOLDER}/${name}`);
   if (listed.length !== expected.length || new Set(listed).size !== listed.length ||
       listed.some(name => !expected.includes(name))) {
     throw new Error('Installer file list differs from the reviewed public payload');
   }
   for (const name of PUBLIC_FILES) {
-    const archived = await readZip(['-p', filename, `${PLUGIN_FOLDER}/${name}`]);
+    const archived = readZip ? await readZip(['-p', filename, `${PLUGIN_FOLDER}/${name}`]) : contents.get(`${PLUGIN_FOLDER}/${name}`);
     const staged = await readFile(path.join(stagedPlugin, name));
     assertPublicContent(name, archived);
     if (name === 'bin/plugin.js') assertRuntimeVersion(archived, metadata.version);
