@@ -68,7 +68,7 @@ Declared minimum versions are installation requirements, **not a claim that ever
 | Nanoleaf Desktop | Local MCP server available and enabled; USB device set up | Tested version: 3.0.1. This is not a compatibility guarantee for every 3.x or future release. |
 | Lighting device | USB PC Screen Mirror Lightstrip (NL82K2) only | The hardware used for the physical checks. Wi-Fi/LAN models and other USB models are unsupported. |
 | Stream Deck hardware | Key actions; dial/touch actions require Stream Deck + | Physical checks used Stream Deck +. Other Stream Deck models have not been separately tested. |
-| Windows | Experimental Windows 11 x64 preview | Implementation and simulated tests only; Windows execution, local MCP compatibility, USB and hardware verification pending. Windows 10 and ARM64 are not verified. |
+| Windows | Experimental Windows 11 x64 preview | Automated suite/build passed on Windows Server 2025 CI. Real Windows 11 installation, Desktop launch, MCP, USB and physical controls remain unverified. Windows 10 and ARM64 are not verified. |
 
 ### What has actually been checked
 

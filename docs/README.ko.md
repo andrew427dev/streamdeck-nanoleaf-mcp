@@ -68,7 +68,7 @@ Brightness Dial은 해 모양, Scene Browser는 목록·재생 모양을 사용�
 | Nanoleaf Desktop | 로컬 MCP 서버 사용 가능·활성화 및 USB 장치 설정 완료 | 검증 버전은 3.0.1입니다. 모든 3.x·이후 버전의 호환성을 보장하지 않습니다. |
 | 조명 | USB PC Screen Mirror Lightstrip(NL82K2)만 지원 | 실제 시험한 모델입니다. Wi-Fi/LAN 제품과 다른 USB 모델은 지원하지 않습니다. |
 | Stream Deck 기기 | 키 제어 지원, 다이얼·터치는 Stream Deck + 필요 | 실물 시험은 Stream Deck +에서 진행했습니다. 다른 기종은 별도 검증하지 않았습니다. |
-| Windows | Windows 11 x64 실험적 시험판 | 구현·모의 시험 단계입니다. Windows 실제 실행·MCP·USB·실기기 검증은 남아 있으며, Windows 10·ARM64는 검증하지 않았습니다. |
+| Windows | Windows 11 x64 실험적 시험판 | Windows Server 2025 CI에서 자동 시험·빌드를 통과했습니다. 실제 Windows 11 설치·앱 실행·MCP·USB·물리 기기는 미검증입니다. Windows 10·ARM64도 검증하지 않았습니다. |
 
 ### 실제 확인한 항목
 

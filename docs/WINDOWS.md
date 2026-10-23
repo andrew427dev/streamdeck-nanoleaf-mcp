@@ -10,8 +10,8 @@ The source baseline is public v0.5.0-beta.2. The private beta.3 mirror compensat
 
 | Package | Intended target | Current verification |
 | --- | --- | --- |
-| `nanoleaf-mcp-v0.6.0-beta.1-macos-apple-silicon.streamDeckPlugin` | Apple Silicon Mac, manifest minimum macOS 13 | Local Node.js tests and package validation; this exact version not installed on hardware |
-| `nanoleaf-mcp-v0.6.0-beta.1-windows-x64.streamDeckPlugin` | Windows 11 x64, manifest NT 10.0.22000 minimum | Simulated Windows branches on Mac and package validation; native Windows and USB tests pending |
+| `nanoleaf-mcp-v0.6.0-beta.1-macos-apple-silicon.streamDeckPlugin` (local only) | Apple Silicon Mac, manifest minimum macOS 13 | Local/CI automated tests and packaging; this exact version not installed on hardware or published |
+| `nanoleaf-mcp-v0.6.0-beta.1-windows-x64.streamDeckPlugin` | Windows 11 x64, manifest NT 10.0.22000 minimum | 232 automated tests and packaging passed on Windows Server 2025 CI; real Windows 11/Desktop/USB tests pending |
 
 Both use SDK 3 / Stream Deck 7.1 minimum / bundled Node.js 24. They share source, runtime bytes, identifiers and settings fields. Actual minimum-version compatibility, Intel Mac, Windows 10 and Windows ARM64 are not certified. Only USB PC Screen Mirror Lightstrip NL82K2 is in scope; Wi-Fi/LAN products are excluded. No separate helper, Shortcuts app, AI account or AI API payment is needed for plugin commands.
 
@@ -29,7 +29,7 @@ Windows Screen Mirror is hidden by OS metadata and guarded in runtime: imported 
 
 Brightness-only requests do not explicitly set power or scene, but Desktop may turn a light off at 0% or on at positive brightness. Windows must be tested, not assumed equivalent. First Windows hardware tests must run with Desktop mirroring disabled; mixed-stream behavior is unverified.
 
-## Windows acceptance checklist — not yet performed
+## Windows acceptance checklist — hardware items 1–9 not yet performed
 
 1. Record Windows edition/build/architecture, Stream Deck, Desktop, plugin and USB model versions without serial numbers or private paths.
 2. With Desktop already open, read devices/state/scenes through the plugin. Verify local MCP availability and response compatibility without changing lights first. Do not weaken Windows firewall or execution policy to bypass a failure.
@@ -40,7 +40,7 @@ Brightness-only requests do not explicitly set power or scene, but Desktop may t
 7. Change devices or leave the profile while a request is waiting. No unsent stale command may reach the old light. Do not expect already-transmitted commands to be undone.
 8. Test USB disconnect/reconnect, Desktop restart, sleep/wake, long idle, Windows restart and preview reinstall; preserve selected device/scene, titles, steps, launch and display settings. Measure actual output, not just button feedback.
 9. Import a mirror action only in the Windows test profile and confirm it is blocked without launch or requests. Do not use the working Mac profiles for this test.
-10. Run Node.js 24 automated tests and package validation on native Windows. GitHub Actions now defines separate Windows/macOS jobs; inspect the exact release commit's checks. These jobs use synthetic devices and do not run the real Nanoleaf app, USB light or physical Stream Deck. A passing CI job does not complete checklist items 1–9.
+10. **Automated portion passed:** Node.js 24.21.0 on Windows Server 2025 and macOS CI each passed 232 tests (0 failures/skips) and package validation on 2026-10-23. See the [record and CI link](VALIDATION.md#public-windows-release-candidate). This is not a Windows 11 desktop test. These jobs use synthetic devices and do not run the real Nanoleaf app, USB light or physical Stream Deck; checklist items 1–9 remain open.
 
 Windows 11 x64, a Stream Deck + and NL82K2 are needed to complete this list. Moving the currently used Mac USB device or quitting the Mac app requires separate permission. Passing mocked tests does not complete this checklist.
 

@@ -8,10 +8,16 @@ Local Node.js 24.13.1 automated tests pass (232 tests at initial verification). 
 
 Final verification: 232 passed, 0 failed, 0 skipped. Official CLI validation/packaging passed for both targets, each with 50 reviewed files. Their only file difference is `manifest.json` and only the top-level OS declaration differs inside it. Both SHA-256 checksums were read back and matched. The working Mac plugin/profile baseline had 83 files; all remained byte-identical after packaging. Version ordering passed against public v0.5.0-beta.2 and installed v0.5.0-beta.3.
 
-Local package checksums (not GitHub assets):
+Initial local preparation checksums (archived evidence, not the GitHub assets):
 
 - Mac Apple Silicon: `a3614f0e25f78ae8423f322309fd37ff4282380c6420f33936d88941c2da7398`
 - Windows x64: `eccc4ec234937feaae58fc2a0b2c78e2788d0d101a1ab38b9c4aafb4041b6fce`
+
+### Public Windows release candidate
+
+On **2026-10-23**, source commit `1d9ab6bd9443f55247b5579e9573a9c8d4320ebf` passed [GitHub Actions on both macOS and Windows](https://github.com/andrew427dev/streamdeck-nanoleaf-mcp/actions/runs/39918888810). Each job passed **232 tests, 0 failures, 0 skipped**, followed by official validation/packaging of both 50-file platform payloads. CI used Node.js **24.21.0**; the Windows runner was **Windows Server 2025**, not a Windows 11 user desktop. Real app launches and Nanoleaf requests remain blocked by mocks. This establishes native Windows execution of the automated suite/build, not Desktop discovery/USB/physical-device acceptance. The final documentation-only release commit must also pass CI before its tag is published.
+
+The release candidate was rebuilt separately from the preserved initial local packages. Its Windows installer SHA-256 is `cc2abe878270fb5cd1d48583e22f5d0e06e8bc493b64327ac614d7b2050fd7ae`. Public `SHA256SUMS.txt` lists only that Windows asset; the existing Mac v0.5.0-beta.2 assets are not replaced. Installer ZIP timestamps can differ between builds, so use the checksum paired with the actual download, not the initial local preparation checksums above.
 
 The new packages have not been installed on the working Mac. Historical tests below do not establish this preview's hardware compatibility. The private beta.3 no-reillumination regression is not in this beta.2-based source copy: its failing result remains preserved in the separate audit/canonical workspace, not weakened or declared fixed. Only Windows experimental publication is approved; mirror improvement and Marketplace submission remain on hold.
 
