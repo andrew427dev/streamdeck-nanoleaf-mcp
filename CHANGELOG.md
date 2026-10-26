@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.6.0-beta.3 — candidate preparation, 2026-10-26 (not published)
+
+- Assign `0.6.0-beta.3` / manifest `0.6.0.3` to the common hardening work below, preserving plugin/action identifiers and saved settings. This candidate does not include the separate private v0.5.0-beta.3 mirror compensation experiment.
+- Prepare separate Mac Apple Silicon and experimental Windows 11 x64 installers with matching-source checksums. Source commits/pushes on `release/v0.6.0-beta.3` are permitted for exact-source macOS/Windows CI and artifact verification; completed results are recorded in the [candidate record](docs/releases/v0.6.0-beta.3.md), not inferred from earlier development tests.
+- New-version local checks passed with Node.js 24.22.1: clean dependency installation, zero known advisory findings, 335/335 tests and official packaging/inspection of both 50-file installers. Exact-source native CI is pending at this preparation checkpoint; these local checks are not physical-device acceptance.
+- Keep `main`, public v0.6.0-beta.2 downloads and the working Mac installation/profiles unchanged. No GitHub release or tag, candidate installation, new hardware test, mirror improvement or Marketplace submission is part of this preparation. The weekly security schedule remains inactive on the default branch until that workflow is separately incorporated there.
+
+## Local hardening development record — 2026-10-25 (before candidate assignment)
+
+- Fix Mac/Windows app relaunch after a completed automatic start followed by a quick Desktop exit. Recheck idle startup state, reuse successful discovery, retain the original readiness deadline and valid concurrent waiters, and discard obsolete inputs.
+- Give shared MCP initialization its own bounded client deadline. A short first caller stops only its own wait and no longer cancels a later caller with time remaining; expired callers never send their tool commands.
+- Clarify English/Korean timeout feedback: the command may already have been applied; check the actual light state before pressing again. Keep raw backend details private and never replay uncertain mutations.
+- Pin Zod 4.6.7 only under `@elgato/utils`, retaining SDK 3.0.2 after actual utility-schema compatibility checks. Update build-only fast-uri to 3.1.9. Add a small bounded-array security regression and SDK schema tests.
+- Add a lockfile-based security gate for production and development dependencies before both OS CI jobs, plus manual and weekly advisory-only checks. These workflow edits had not run on GitHub during the 2026-10-25 local phase.
+- During that phase, keep package/manifest versions at the beta.2 development baseline without generating/installing an installer or pushing GitHub changes. Those modified sources were not the immutable published beta.2 bytes. The later beta.3 preparation above assigns a new version and permits source/CI/package checks while preserving the installation and settings. Mirror improvement/compensation and Marketplace submission remain on hold. See [dated validation](docs/VALIDATION.md) for phase-specific results and pending coverage.
+
 ## Documentation follow-up — 2026-10-23 (no new release)
 
 - Record the separately approved public v0.6.0-beta.2 Mac upgrade: manifest 0.6.0.2, all 50 installed payload files matching the published installer and all 32 profile files preserved. Record tester-confirmed power, scene and brightness-key operation.

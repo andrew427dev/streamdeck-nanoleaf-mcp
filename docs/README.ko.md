@@ -1,5 +1,7 @@
 # Nanoleaf MCP for Stream Deck
 
+**2026-10-26 후보판 안내:** 앱 재실행·공유 연결 초기화 결함, 오류 안내와 보안 의존성·CI 보완을 **v0.6.0-beta.3 / 0.6.0.3**으로 준비합니다. 별도 검증 브랜치에서 Mac·Windows CI와 설치 파일을 확인하며 [후보판 기록](releases/v0.6.0-beta.3.md)·[현재 상태](STATUS.md)·[검증 기록](VALIDATION.md)에 구분합니다. GitHub 릴리스·태그는 만들지 않으며 기존 공개 다운로드와 Mac 설치본은 beta.2 그대로입니다. 새 버전 실기기 검증, 미러링 개선과 Marketplace 제출은 완료되지 않았습니다.
+
 Stream Deck에서 **USB 연결형 Nanoleaf PC Screen Mirror Lightstrip(NL82K2)**의 전원·밝기·저장된 씬을 제어하는 비공식 오픈소스 플러그인입니다. macOS 버전과 실험적 Windows 시험판을 제공합니다. **Wi-Fi를 지원하지 않는 이 모델용**이며, Wi-Fi/LAN 제품이나 모든 USB 모델을 지원하는 범용 플러그인이 아닙니다. 화면 미러링은 알려진 제한이 있는 Mac 전용 기능입니다.
 
 제어 경로는 **Stream Deck → Nanoleaf Desktop(로컬 MCP) → USB → 조명**입니다. 조명의 Wi-Fi 연결이나 IP 주소는 필요하지 않지만, Nanoleaf Desktop이 실행 중이거나 자동 실행이 켜져 있어야 합니다. 나노리프도 이 제품의 [USB/HID 통신을 Wi-Fi API와 별도로 안내](https://support.nanoleaf.me/hc/en-us/articles/46020382680468-API-Nanoleaf-OpenAPI-Documentation-Forum-Guidelines)합니다.

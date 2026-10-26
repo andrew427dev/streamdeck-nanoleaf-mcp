@@ -8,6 +8,7 @@ Use Node.js 24 and npm, then run:
 
 ```sh
 npm ci
+npm run audit:security
 npm test
 npm run pack
 ```
@@ -30,6 +31,10 @@ Packaging refuses to overwrite an existing version directory. Normally, incremen
 `scripts/artifacts.mjs` maintains an explicit public-file allowlist. Runtime logs, profiles, private preview artwork, caches, source maps and unexpected files are not copied. Every pack rebuilds original public icons, checks common personal paths/secrets in text files, and compares the archive to the staged payload. These checks are defense in depth, not a guarantee of anonymization: still review source, documentation and assets for real identifiers, scene data, private branding, credentials and redistribution rights before publishing.
 
 Keep tests independent of a real Nanoleaf installation. Use mocked transport responses and synthetic device IDs, scene names, and paths. Do not add tests that automatically change a real light or start an installed application.
+
+`npm run audit:security` checks production and development dependencies and fails for any known advisory severity or registry/query failure. Do not use `npm audit fix --force`, suppress the audit, or downgrade the SDK just to make the check green. Review the affected path, compatibility and license notices, then rerun the full suite and platform validation. The CI security gate uses the exact lockfile without lifecycle scripts; push/PR/manual runs must pass that gate before the macOS/Windows jobs. A weekly scheduled run only rechecks advisories, without packaging. Local workflow changes do not take effect on GitHub until an approved push.
+
+The scoped `@elgato/utils` → `zod` override is a deliberate compatibility exception: utils 0.6.1 still declares Zod 3, but uses the `zod/v4-mini` API retained by the pinned patched Zod 4.6.7. SDK 3.0.2 is unchanged. `test/dependency-compatibility.test.mjs` checks the actual utility schemas and bounded-array early rejection. Reassess and remove the override when upstream supports a patched version; do not widen it globally or assume these tests certify every upstream API. See [Security](SECURITY.md#dependency-maintenance).
 
 ## Verify a change
 

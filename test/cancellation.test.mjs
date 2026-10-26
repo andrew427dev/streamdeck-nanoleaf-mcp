@@ -253,3 +253,37 @@ test('a cancelled startup waiter stops polling without consuming the discovery d
   assert.equal(reads, 2);
   assert.equal(sleeps, 0);
 });
+
+test('cancellation during an idle-window connection probe cannot relaunch or mutate', async () => {
+  for (const outcome of ['connected', 'closed']) {
+    let running = false, launches = 0, writes = 0, current = true;
+    const discover = async () => { if (!running) throw offline(); return [device]; };
+    const client = {
+      listDevices: discover,
+      getState: async () => ({ power: false }),
+      setPower: async () => { writes++; },
+    };
+    const controller = new LightController({ client, now: () => 0,
+      launchApp: async () => { launches++; running = true; } });
+    const settings = { deviceId: device.id, powerMode: 'on', autoLaunch: true };
+    await controller.execute('power', settings);
+    const probe = deferred();
+    client.listDevices = () => probe.promise;
+    const pending = controller.execute('power', settings, { isCurrent: () => current });
+    const rejected = assert.rejects(pending, { code: 'BUSY' });
+    current = false;
+    if (outcome === 'closed') probe.reject(offline());
+    else probe.resolve([device]);
+    await rejected;
+    assert.equal(launches, 1, outcome);
+    assert.equal(writes, 1, outcome);
+
+    // Cancellation must neither keep the same-device lock nor poison the next input.
+    client.listDevices = discover;
+    running = false;
+    current = true;
+    await controller.execute('power', settings, { isCurrent: () => current });
+    assert.equal(launches, 2);
+    assert.equal(writes, 2);
+  }
+});

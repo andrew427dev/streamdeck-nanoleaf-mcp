@@ -263,6 +263,205 @@ test('a newly launched app may discover its USB device after returning empty lis
   assert.deepEqual(calls, [['power', device.id, true]]);
   assert.equal(reads, 4);
 });
+test('a new input relaunches an app closed just after a successful cold start', async () => {
+  let time = 0, running = false, launches = 0, power = false;
+  const writes = [];
+  const controller = new LightController({
+    now: () => time,
+    sleep: async ms => { time += ms; },
+    launchApp: async () => { launches++; running = true; },
+    client: {
+      listDevices: async () => {
+        if (!running) throw Object.assign(new Error('Synthetic closed app'), { code: 'APP_CONNECTION' });
+        return [device];
+      },
+      getState: async () => ({ power }),
+      setPower: async (_id, next) => { writes.push(next); power = next; },
+    },
+  });
+  const settings = { deviceId: device.id, powerMode: 'toggle', autoLaunch: true };
+  await controller.execute('power', settings);
+  assert.equal(launches, 1);
+  assert.deepEqual(writes, [true]);
+
+  // This is a new button press after the previous command completed, not a retry.
+  time = 1000;
+  running = false;
+  await controller.execute('power', settings);
+  assert.equal(launches, 2);
+  assert.equal(time, 1000, 'a completed start must not force the new input to wait out its old deadline');
+  assert.deepEqual(writes, [true, false]);
+});
+test('a successful idle-window probe is reused before the original discovery deadline', async () => {
+  let time = 0, running = false, launches = 0, reads = 0, writes = 0;
+  const controller = new LightController({ now: () => time,
+    launchApp: async () => { launches++; running = true; },
+    client: {
+      listDevices: async () => {
+        reads++;
+        if (!running) throw Object.assign(new Error('Synthetic closed app'), { code: 'APP_CONNECTION' });
+        if (time >= 14_000) time += 600;
+        return [device];
+      },
+      getState: async () => ({ power: false }),
+      setPower: async () => { writes++; },
+    },
+  });
+  const settings = { deviceId: device.id, powerMode: 'on', autoLaunch: true };
+  await controller.execute('power', settings);
+  time = 14_000;
+  await controller.execute('power', settings);
+  assert.equal(time, 14_600, 'do not repeat a successful connection-and-device lookup');
+  assert.equal(reads, 3);
+  assert.equal(writes, 2);
+  assert.equal(launches, 1);
+});
+test('an idle-window probe cannot authorize a write at or after the original deadline', async () => {
+  for (const delay of [1000, 1001]) {
+    let time = 0, running = false, writes = 0;
+    const controller = new LightController({ now: () => time,
+      launchApp: async () => { running = true; },
+      client: {
+        listDevices: async () => {
+          if (!running) throw Object.assign(new Error('Synthetic closed app'), { code: 'APP_CONNECTION' });
+          if (time >= 14_000) time += delay;
+          return [device];
+        },
+        getState: async () => ({ power: false }),
+        setPower: async () => { writes++; },
+      },
+    });
+    const settings = { deviceId: device.id, powerMode: 'on', autoLaunch: true };
+    await controller.execute('power', settings);
+    time = 14_000;
+    await assert.rejects(controller.execute('power', settings), { code: 'APP_TIMEOUT' });
+    assert.equal(writes, 1, 'a late successful probe must not send the second command');
+  }
+});
+test('an idle-window connection probe uses only the remaining startup time', async () => {
+  let time = 0, running = false;
+  const budgets = [];
+  const controller = new LightController({ now: () => time,
+    launchApp: async () => { running = true; },
+    client: {
+      listDevices: async options => {
+        if (!running) throw Object.assign(new Error('Synthetic closed app'), { code: 'APP_CONNECTION' });
+        budgets.push(options?.timeoutMs);
+        return [device];
+      },
+      getState: async () => ({ power: false }),
+      setPower: async () => {},
+    },
+  });
+  const settings = { deviceId: device.id, powerMode: 'on', autoLaunch: true };
+  await controller.execute('power', settings);
+  time = 14_900;
+  await controller.execute('power', settings);
+  assert.deepEqual(budgets, [8000, 100], 'rechecking cannot outlive the original discovery window');
+});
+test('an older idle-window probe joins a newer startup without skipping device readiness', async () => {
+  const deferred = () => {
+    let resolve, reject;
+    const promise = new Promise((yes, no) => { resolve = yes; reject = no; });
+    return { promise, resolve, reject };
+  };
+  const tick = () => new Promise(resolve => setImmediate(resolve));
+  const offline = () => Object.assign(new Error('Synthetic closed app'), { code: 'APP_CONNECTION' });
+  const other = { ...device, id: 'SECOND-DEVICE' };
+  let running = false, launches = 0;
+  const writes = [];
+  const client = {
+    listDevices: async () => { if (!running) throw offline(); return [device]; },
+    getState: async () => ({ power: false }),
+    setPower: async (id, next) => { writes.push([id, next]); },
+  };
+  const controller = new LightController({ client, now: () => 1000,
+    launchApp: async () => { launches++; running = true; } });
+  const settings = { deviceId: device.id, powerMode: 'on', autoLaunch: true };
+  await controller.execute('power', settings);
+
+  running = false;
+  const firstProbe = deferred(), secondProbe = deferred(), discovery = deferred();
+  let probes = 0;
+  client.listDevices = async options => {
+    if (++probes === 1) return await firstProbe.promise;
+    if (probes === 2) return await secondProbe.promise;
+    if (options) return await discovery.promise;
+    if (!running) throw offline();
+    return [];
+  };
+  const first = controller.execute('power', settings);
+  const second = controller.execute('power', { ...settings, deviceId: other.id })
+    .then(() => 'OK', error => error.code);
+  firstProbe.reject(offline());
+  await tick();
+  assert.equal(launches, 2);
+  // Its older connection probe finishes after the other input began a new launch.
+  secondProbe.resolve([device, other]);
+  await tick();
+  assert.deepEqual(writes, [[device.id, true]], 'the old probe cannot bypass the new startup readiness');
+  discovery.resolve([device, other]);
+  await first;
+  assert.equal(await second, 'OK');
+  assert.equal(launches, 2, 'both new inputs must share the second app launch');
+  assert.deepEqual(writes, [[device.id, true], [device.id, true], [other.id, true]]);
+});
+for (const kind of ['scene', 'brightness', 'scene-list']) {
+  test(`${kind}: a new input can relaunch within an earlier successful discovery window`, async () => {
+    let running = false, launches = 0, time = 0;
+    const calls = [];
+    const controller = new LightController({ now: () => time,
+      sleep: async ms => { time += ms; },
+      launchApp: async () => { launches++; running = true; },
+      client: {
+        listDevices: async () => {
+          if (!running) throw Object.assign(new Error('Synthetic closed app'), { code: 'APP_CONNECTION' });
+          return [device];
+        },
+        getState: async () => ({ power: true, brightness: 50 }),
+        setPower: async () => { calls.push('initial-power'); },
+        playScene: async (_id, name) => { calls.push(['scene', name]); },
+        setBrightness: async (_id, value) => { calls.push(['brightness', value]); },
+        listScenes: async () => ['Example Scene'],
+      },
+    });
+    const settings = { deviceId: device.id, autoLaunch: true };
+    await controller.execute('power', { ...settings, powerMode: 'on' });
+    time = 1000;
+    running = false;
+    if (kind === 'scene-list') {
+      assert.deepEqual(await controller.listSceneChoices(settings), ['Example Scene']);
+      assert.deepEqual(calls, ['initial-power'], 'browsing must not mutate the light');
+    } else {
+      await controller.execute(kind, { ...settings, sceneName: 'Example Scene', brightnessDelta: 5 });
+      assert.deepEqual(calls, ['initial-power', [kind, kind === 'scene' ? 'Example Scene' : 55]]);
+    }
+    assert.equal(launches, 2);
+    assert.equal(time, 1000);
+  });
+}
+test('an idle discovery window never relaunches after a non-connection failure', async () => {
+  for (const code of ['APP_TIMEOUT', 'PROTOCOL_ERROR', 'DEVICE_ERROR', undefined]) {
+    let running = false, launches = 0, writes = 0;
+    const client = {
+      listDevices: async () => {
+        if (!running) throw Object.assign(new Error('Synthetic closed app'), { code: 'APP_CONNECTION' });
+        return [device];
+      },
+      getState: async () => ({ power: false }),
+      setPower: async () => { writes++; },
+    };
+    const controller = new LightController({ client, now: () => 0,
+      launchApp: async () => { launches++; running = true; } });
+    const settings = { deviceId: device.id, powerMode: 'on', autoLaunch: true };
+    await controller.execute('power', settings);
+    const failure = Object.assign(new Error('Synthetic ambiguous response'), { code });
+    client.listDevices = async () => { throw failure; };
+    await assert.rejects(controller.execute('power', settings), error => error === failure);
+    assert.equal(launches, 1);
+    assert.equal(writes, 1);
+  }
+});
 test('startup waits for the selected USB light even when other lights are already discovered', async () => {
   const other = { ...device, id: 'OTHER-LIGHT', model: 'LAN-MODEL' };
   let time = 0;

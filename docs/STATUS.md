@@ -1,6 +1,14 @@
 # Release, installation and development status
 
-Last reconciled: **2026-10-23**. This is the current-status index; dated records in [Validation](VALIDATION.md) and [Changelog](../CHANGELOG.md) retain their original test/release scope.
+Last reconciled: **2026-10-26**. This is the current-status index; dated records in [Validation](VALIDATION.md) and [Changelog](../CHANGELOG.md) retain their original test/release scope.
+
+## Current candidate — v0.6.0-beta.3, not published
+
+The 2026-10-25 common hardening work is being prepared as **v0.6.0-beta.3 / manifest 0.6.0.3** on `release/v0.6.0-beta.3`. It fixes quick app-exit/relaunch and shared MCP initialization deadlines, clarifies timeout guidance, and includes patched dependencies, compatibility regressions and the CI security gate. This candidate is separate from the historical private **v0.5.0-beta.3** mirror compensation experiment, which remains excluded.
+
+Candidate preparation permits source commits/pushes to the validation branch, native macOS/Windows CI, separate installers and checksum verification. The new-version local checks passed with Node.js 24.22.1: clean installation of dependencies, zero reported advisories, **335/335 tests**, and official packaging of both **50-file installers**. **Exact-source native macOS/Windows CI is still pending at this checkpoint**; use the [candidate record](releases/v0.6.0-beta.3.md) and [dated validation](VALIDATION.md) for completed evidence. These local results are distinct from the earlier development run and do not establish physical acceptance. A non-default validation branch does not activate the weekly schedule on `main`.
+
+**The public downloads and working Mac installation remain v0.6.0-beta.2.** No new release/tag, replacement of existing release assets, change to `main`, installation or physical-device testing is authorized by this preparation. Existing profiles, launch preferences, Desktop and saved scenes are preserved. GitHub release publication, mirror power/flash improvements, private compensation and Marketplace submission remain on hold. Shared transport/startup changes do not claim to repair mirror output or restoration.
 
 ## Release tracks, current installation and historical work
 
@@ -8,16 +16,17 @@ Last reconciled: **2026-10-23**. This is the current-status index; dated records
 
 | Track | Version / source | Status and evidence |
 | --- | --- | --- |
+| Current Mac/Windows candidate | `v0.6.0-beta.3`, manifest `0.6.0.3`, branch `release/v0.6.0-beta.3` | Not published or installed. New-version local tests passed 335/335 and both 50-file installers passed packaging checks. Exact-source native CI is pending; results belong in the [candidate record](releases/v0.6.0-beta.3.md). No beta.3 physical acceptance is claimed. |
 | Current Mac release track | `v0.6.0-beta.2`, manifest `0.6.0.2` | Published Mac beta. Exact-package installation/settings preservation, power, scene and brightness keys passed; one fully-quit-app scene-button auto-launch passed. Full physical regression remains incomplete; mirror limitations remain. |
 | Current Windows release track | `v0.6.0-beta.2`, manifest `0.6.0.2` | Published Windows 11 x64 experimental beta. Physical-button section passed according to the tester's report; exact environment/package identity and per-action/boundary detail were not supplied. Native discovery/auto-launch, dials/touch and remaining acceptance are unverified. No Windows Screen Mirror support. |
 | Previous public Mac installer | [v0.5.0-beta.2](https://github.com/andrew427dev/streamdeck-nanoleaf-mcp/releases/tag/v0.5.0-beta.2), manifest `0.5.0.2`, commit `b56010f1f881b58168281be83f858298e51dc0e2` | Historical download retained. Exact-package installation/settings/power checks were recorded; a full physical regression and mirror restoration coverage remain incomplete. |
 | Previous public Windows installer | [v0.6.0-beta.1](https://github.com/andrew427dev/streamdeck-nanoleaf-mcp/releases/tag/v0.6.0-beta.1), manifest `0.6.0.1`, commit `33e053ed58e1ac996e1e690ac1fa96a07d7755ab` | Historical experimental download retained. Native CI tests/build passed; not Windows Desktop/MCP/USB or physical acceptance. |
-| Current maintainer Mac installation | Public `v0.6.0-beta.2`, manifest `0.6.0.2` | Separately approved post-release update completed. All 50 installed package files match the published Mac installer; all 32 profile files were preserved. This documentation update does not change the installation or settings. |
+| Current maintainer Mac installation | Public `v0.6.0-beta.2`, manifest `0.6.0.2` | Separately approved post-release update completed. All 50 installed package files match the published Mac installer; all 32 profile files were preserved. Candidate preparation does not change the installation or settings. |
 | Previous private maintainer Mac installation | Private `v0.5.0-beta.3`, manifest `0.5.0.3` | Historical, not a public release. It was retained during publication, then replaced by the separately approved public Mac update. Its experimental mirror power compensation had known failures and is not included in v0.6.0-beta.2. Original private development work remains separate. |
 | Previously prepared Mac candidate | Local `v0.6.0-beta.1` installer | Never published or installed. Historical candidate sharing the Windows preview's common improvements, without private beta.3 compensation. |
 | Pre-release correction evidence | Local edits originally based on public commit `33e053e`, now included in the `v0.6.0-beta.2` source | Local 316-test suite and 10,700 focused case-runs passed before version assignment. These dated results do not replace final release-version CI/package checks. |
 
-The release used a new version rather than replacing `v0.6.0-beta.1` or `v0.5.0-beta.2` assets. Modified local builds carrying older metadata are historical development artifacts, not byte-identical copies of those public releases. Publication did not itself update the Mac installation; the later Mac update and physical checks were separately approved. The present follow-up changes documentation only, not code, version, tags, installers, profiles or button settings.
+The release used a new version rather than replacing `v0.6.0-beta.1` or `v0.5.0-beta.2` assets. Modified local builds carrying older metadata are development artifacts, not byte-identical copies of those public releases. Publication did not itself update the Mac installation; the later Mac update and physical checks were separately approved. The 2026-10-23 follow-up changed documentation only. The 2026-10-25 source correction retained beta.2 development metadata; the 2026-10-26 preparation assigns beta.3 without changing public assets or the installation. The dated 2026-10-25 no-push/no-installer evidence remains a record of that earlier phase.
 
 ## Verification boundaries
 
@@ -33,17 +42,17 @@ The release used a new version rather than replacing `v0.6.0-beta.1` or `v0.5.0-
 - For the subsequent Mac cold-start check, Desktop was fully quit and confirmed to have zero related processes and a closed local MCP port. The tester then pressed one existing auto-launch-enabled scene key, without manually opening Desktop, and confirmed automatic startup and scene playback. MCP/device queries succeeded afterward. All **82 installed-plugin/profile files** remained byte-identical across that check. This verifies one scene-button cold start, not every action, slow-start/cancellation stress, recovery or mirroring.
 - Windows physical-button section: **tester-reported pass on 2026-10-23**. No exact environment/package identity, per-action log, brightness boundary/power-side-effect results or independently captured Windows telemetry were supplied. This limited end-to-end report does not complete the [Windows acceptance checklist](WINDOWS.md).
 
-## Scope of this correction and approved publication
+## Historical beta.2 correction and approved publication
 
-The released correction reconciles version/validation records, prevents invalidated power/scene/brightness input or scene-list loading from launching Desktop late, and verifies not-yet-sent lighting-input cancellation in the common Mac/Windows source. Per-control app-launch opt-in, action/settings identifiers and already-sent-command semantics remain unchanged. Cancelling a pending action must not stop an app that has already been launched or cancel another still-valid action's startup. Screen Mirror's request/`prepareApp` path is unchanged under the mirror-work hold; this correction is not a claim that every app-launch path is newly guarded. Publication, the later Mac installation, and the reported hardware checks are distinct events. The current approval is to record their results in documentation and GitHub, not to publish a new binary.
+The released correction reconciles version/validation records, prevents invalidated power/scene/brightness input or scene-list loading from launching Desktop late, and verifies not-yet-sent lighting-input cancellation in the common Mac/Windows source. Per-control app-launch opt-in, action/settings identifiers and already-sent-command semantics remain unchanged. Cancelling a pending action must not stop an app that has already been launched or cancel another still-valid action's startup. Screen Mirror's request/`prepareApp` path is unchanged under the mirror-work hold; this correction is not a claim that every app-launch path is newly guarded. Publication, the later Mac installation, and the reported hardware checks are distinct events. Their 2026-10-23 follow-up recorded results in documentation and GitHub without a new binary. The current beta.3 preparation is a separate source/CI/package phase, not release publication.
 
 The following remain **on hold**:
 
 - Mirror power-restoration changes, no-flash experiments and private beta.3 compensation changes.
-- Further installation/replacement of the working Mac plugin, profile/button/dial changes, application restarts and additional real-light tests are outside this documentation-only update. The separately approved installation and completed tests above are historical evidence, not pending work.
-- Replacing existing release tags/assets and Marketplace submission. Updating the existing release's validation notes is in scope; new installers or versions are not.
+- Further installation/replacement of the working Mac plugin, profile/button/dial changes, application restarts and additional real-light tests are outside candidate preparation. The separately approved installation and completed tests above are historical evidence, not pending work.
+- GitHub release publication, new tags, replacement of existing release tags/assets, and Marketplace submission. Source commits/pushes to the validation branch and CI artifact creation are permitted for the requested checks; they are not release publication and do not change `main`.
 
-The installed plugin binary is shared by all profiles using its UUID. Placing actions in a temporary profile does not isolate installation changes. This documentation update neither installs a candidate nor updates an existing profile.
+The installed plugin binary is shared by all profiles using its UUID. Placing actions in a temporary profile does not isolate installation changes. Candidate preparation neither installs a candidate nor updates an existing profile.
 
 ## Remaining acceptance and known limitations
 
@@ -55,6 +64,8 @@ The installed plugin binary is shared by all profiles using its UUID. Placing ac
 
 ## 한국어 요약
 
+**2026-10-26 후보 준비:** 10월 25일 수정본에 **v0.6.0-beta.3 / 설치 정보 0.6.0.3**을 지정하고 `release/v0.6.0-beta.3` 브랜치에서 Mac·Windows CI와 설치 파일 검증을 진행합니다. 새 버전으로 Node.js 24.22.1의 로컬 시험 **335/335**, 알려진 보안 권고 **0건**, 두 **50개 파일 설치 패키지**의 공식 검사·패키징을 통과했습니다. 정확한 소스의 양 OS 원격 CI는 아직 대기 중이며 완료 근거는 [후보 기록](releases/v0.6.0-beta.3.md)에 구분해 남깁니다. CI에 필요한 소스 커밋·push와 산출물 생성만 허용되며 `main`, 공개 다운로드와 현재 Mac 설치본은 기존 상태를 유지합니다. GitHub 릴리스·태그 생성, 설치, 미러링 개선과 Marketplace 제출은 보류합니다. 비기본 브랜치의 주간 점검 설정은 `main`에 반영되기 전에는 활성화되지 않습니다.
+
 현재 공개판은 **v0.6.0-beta.2의 Mac 베타 / Windows 11 x64 실험적 베타**입니다. 설치 파일 검사와 정확한 릴리스 소스·태그의 macOS/Windows CI를 통과한 뒤 공개됐고, CI 링크·체크섬은 [GitHub 릴리스 기록](https://github.com/andrew427dev/streamdeck-nanoleaf-mcp/releases/tag/v0.6.0-beta.2)에서 확인할 수 있습니다. 현재 Mac 설치본도 별도 승인 후 업데이트한 **공개 v0.6.0-beta.2**입니다. 비공개 v0.5.0-beta.3 유지 기록은 배포 당시의 이력이며 현재 설치 상태가 아닙니다.
 
-Mac은 공개 설치 파일과 설치본 50개 파일의 일치, 기존 프로필 32개 파일 유지, 실제 전원·씬·밝기 키, 앱 완전 종료 후 기존 씬 키의 자동 실행 1회를 확인했습니다. 자동 실행 시험 전후 설치본·프로필 총 82개 파일도 동일했습니다. Windows는 사용자가 **물리 버튼 섹션 통과**를 보고했으나, 정확한 환경·파일 식별·각 동작·밝기 경계값은 별도로 확인되지 않았습니다. Windows 다이얼·터치·자동 실행·복구 등과 Mac의 남은 회귀 항목은 미검증으로 유지합니다. 이번 작업은 문서와 기존 GitHub 릴리스의 검증 안내만 갱신하며, 설치본·설정·배포 파일은 변경하지 않습니다. 미러링 개선과 Marketplace 제출은 계속 보류합니다.
+2026-10-23에는 Mac 공개 설치 파일과 설치본 50개 파일의 일치, 기존 프로필 32개 파일 유지, 실제 전원·씬·밝기 키, 앱 완전 종료 후 기존 씬 키의 자동 실행 1회를 확인했습니다. 자동 실행 시험 전후 설치본·프로필 총 82개 파일도 동일했습니다. Windows는 사용자가 **물리 버튼 섹션 통과**를 보고했으나, 정확한 환경·파일 식별·각 동작·밝기 경계값은 별도로 확인되지 않았습니다. Windows 다이얼·터치·자동 실행·복구 등과 Mac의 남은 회귀 항목은 미검증으로 유지합니다. 당시 후속 작업은 문서와 기존 GitHub 릴리스의 검증 안내만 갱신했습니다. 2026-10-25에는 로컬 소스·시험·문서·CI 설정만 보완했고, 10월 26일부터 별도 승인된 beta.3 후보 준비를 진행합니다. 이 과거 실기기 결과는 새 beta.3의 합격을 의미하지 않습니다.

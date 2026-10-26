@@ -271,10 +271,13 @@ export class NanoleafClient {
     this.#sessionId = undefined;
   }
 
-  async #initialize(timeoutMs = this.#timeoutMs) {
+  async #initialize() {
     if (!this.#initializing) {
       const epoch = this.#sessionEpoch;
-      const deadline = this.#now() + timeoutMs;
+      // Initialization belongs to the shared client, not its first caller.
+      // Each caller bounds its own wait in #call; one short read must not
+      // abort initialization needed by another still-valid request.
+      const deadline = this.#now() + this.#timeoutMs;
       const remaining = () => {
         const ms = deadline - this.#now();
         if (ms <= 0) throw fail('APP_TIMEOUT');
@@ -316,7 +319,7 @@ export class NanoleafClient {
       let timer;
       const budget = remaining();
       try {
-        await Promise.race([this.#initialize(budget), new Promise((_, reject) => {
+        await Promise.race([this.#initialize(), new Promise((_, reject) => {
           timer = setTimeout(() => reject(fail('APP_TIMEOUT')), budget);
         })]);
       } finally { clearTimeout(timer); }

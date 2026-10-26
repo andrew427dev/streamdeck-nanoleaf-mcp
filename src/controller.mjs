@@ -6,7 +6,7 @@ const READ_TIMEOUT_MS = 8000;
 
 export const ERROR_MESSAGES = Object.freeze({
   APP_CONNECTION: 'Open Nanoleaf Desktop and enable its MCP server, then try again.',
-  APP_TIMEOUT: 'Nanoleaf Desktop timed out. Check the light before pressing again.',
+  APP_TIMEOUT: 'Nanoleaf Desktop timed out. The command may already have been applied. Check the actual light state before pressing again.',
   APP_ERROR: 'Nanoleaf Desktop could not complete the request. Check the app.',
   PROTOCOL_ERROR: 'The Nanoleaf Desktop response is not supported by this plugin version.',
   DEVICE_ERROR: 'The light did not respond. Check its USB connection in Nanoleaf Desktop.',
@@ -85,11 +85,38 @@ export class LightController {
     checkCurrent(isCurrent);
     // Only button presses with explicit consent join startup; inspector reads stay immediate.
     if (autoLaunch && this.#starting) {
-      if (this.#starting.deadline === undefined || this.now() < this.#starting.deadline) {
-        onLaunch();
-        return await this.#startupDevices(this.#starting, deviceId, isCurrent);
+      const startup = this.#starting;
+      if (startup.deadline === undefined || this.now() < startup.deadline) {
+        // Preserve discovery time for later devices, but do not let an idle
+        // completed start hide an app that has since been closed.
+        let probedDevices;
+        if (startup.waiters.size === 0) {
+          try {
+            const remaining = startup.deadline === undefined ? READ_TIMEOUT_MS : startup.deadline - this.now();
+            probedDevices = await this.client.listDevices({ timeoutMs: Math.min(READ_TIMEOUT_MS, Math.max(1, remaining)) });
+          } catch (error) {
+            checkCurrent(isCurrent);
+            if (error?.code !== 'APP_CONNECTION') throw error;
+            // A concurrent input may already be waiting on this startup.
+            if (this.#starting === startup && startup.waiters.size === 0) this.#starting = undefined;
+          }
+        }
+        checkCurrent(isCurrent);
+        if (this.#starting && this.#starting !== startup) {
+          // Re-evaluate a newer launch created while this connection probe waited.
+          return await this.#devices(autoLaunch, deviceId, onLaunch, isCurrent);
+        }
+        if (this.#starting === startup) {
+          onLaunch();
+          if (probedDevices) {
+            if (this.now() >= startup.deadline) throw fail('APP_TIMEOUT');
+            if (deviceId === undefined || probedDevices.some(device => device.id === deviceId)) return probedDevices;
+          }
+          return await this.#startupDevices(startup, deviceId, isCurrent);
+        }
+      } else {
+        this.#starting = undefined;
       }
-      this.#starting = undefined;
     }
     try {
       return await this.client.listDevices();

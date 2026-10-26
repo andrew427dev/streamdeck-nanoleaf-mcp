@@ -301,6 +301,23 @@ test("command feedback rejects other keys, stale outcomes, and unrecognized erro
   }
 });
 
+test("command timeout warns that the light may already have changed before another press", () => {
+  for (const language of ["en", "ko"]) {
+    const ui = inspector({ language });
+    ui.socket.receive({ event: "sendToPropertyInspector", context: "TEST-ACTION-CONTEXT", payload: {
+      event: "commandStatus", actionContext: "TEST-ACTION-CONTEXT", state: "error", sequence: 1,
+      errorCode: "APP_TIMEOUT", error: "PRIVATE raw backend response",
+    } });
+    const message = ui.elements.get("command-status").textContent;
+    assert.match(message, language === "ko" ? /명령이 이미 적용되었을 수 있습니다/ : /command may already have been applied/);
+    assert.match(message, language === "ko" ? /다시 누르기 전에 실제 조명 상태를 확인/ : /Check the actual light state before pressing again/);
+    assert.doesNotMatch(message, /PRIVATE|raw backend/);
+    assert.equal(ui.elements.get("command-status").dataset.kind, "error");
+    assert.equal(ui.commands("setSettings").length, 0);
+    assert.deepEqual(ui.commands("sendToPlugin").map(message => message.payload.event), ["commandStatus", "devices"]);
+  }
+});
+
 test("rejects malformed responses without crashing and recovers on a matching invalid reply", () => {
   const ui = inspector();
   ui.socket.receive("not json");

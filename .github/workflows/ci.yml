@@ -1,11 +1,30 @@
-name: Test and package
+name: Security, test and package
 on:
   push:
   pull_request:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 13 * * 1'
 permissions:
   contents: read
 jobs:
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      # Audit the exact lockfile, including build-only dependencies, without
+      # executing dependency lifecycle scripts. Registry errors also fail.
+      - run: npm ci --ignore-scripts
+      - run: npm run audit:security
   test:
+    needs: security
+    # Weekly runs only recheck advisories. Pushes, PRs and manual runs also
+    # exercise both native CI platforms and packaging after the security gate.
+    if: github.event_name != 'schedule'
     strategy:
       fail-fast: false
       matrix:

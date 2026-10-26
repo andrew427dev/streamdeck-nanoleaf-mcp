@@ -648,3 +648,45 @@ test('a short initialization waiter times out without cancelling another caller 
   assert.equal(backend.calls.filter(call => call.request.method === 'initialize').length, 1);
   assert.equal(backend.calls.filter(call => call.request.method === 'tools/call').length, 1);
 });
+
+test('a short first caller cannot impose its initialization deadline on a later caller', async () => {
+  let release;
+  const backend = server(request => json(rpc(request, tool([]))));
+  const client = new NanoleafClient({ fetchImpl: async (url, options) => {
+    if (JSON.parse(options.body).method === 'initialize') await new Promise(resolve => { release = resolve; });
+    return backend.fetchImpl(url, options);
+  } });
+  const short = client.listDevices({ timeoutMs: 20 });
+  const longer = client.listDevices({ timeoutMs: 1000 }).then(
+    value => ({ value }), error => ({ error: error.code }));
+  await assert.rejects(short, { code: 'APP_TIMEOUT' });
+  release();
+  assert.deepEqual(await longer, { value: [] });
+  assert.equal(backend.calls.filter(call => call.request.method === 'initialize').length, 1);
+  assert.equal(backend.calls.filter(call => call.request.method === 'tools/call').length, 1,
+    'the timed-out first caller must never send its tool request');
+});
+
+test('shared initialization keeps its client-wide deadline, cleans up and permits a fresh connection', async () => {
+  let attempts = 0;
+  let signal;
+  const backend = server(request => json(rpc(request, tool([]))));
+  const client = new NanoleafClient({ timeoutMs: 100, fetchImpl: async (url, options) => {
+    if (JSON.parse(options.body).method === 'initialize' && ++attempts === 1) {
+      signal = options.signal;
+      await new Promise((_, reject) => signal.addEventListener('abort',
+        () => reject(new Error('Synthetic initialization abort')), { once: true }));
+    }
+    return backend.fetchImpl(url, options);
+  } });
+  const short = client.listDevices({ timeoutMs: 20 });
+  const longer = assert.rejects(client.listDevices({ timeoutMs: 1000 }), { code: 'APP_TIMEOUT' });
+  await assert.rejects(short, { code: 'APP_TIMEOUT' });
+  assert.equal(signal.aborted, false, 'the first caller only stops its own wait');
+  await longer;
+  assert.equal(signal.aborted, true, 'the client-wide deadline still aborts the shared transport');
+  assert.equal(backend.calls.length, 0, 'neither expired caller sends a tool request');
+  assert.deepEqual(await client.listDevices(), []);
+  assert.equal(attempts, 2);
+  assert.equal(backend.calls.filter(call => call.request.method === 'tools/call').length, 1);
+});

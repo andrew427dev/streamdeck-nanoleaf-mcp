@@ -1,5 +1,7 @@
 # Windows preview / Windows 시험판
 
+**Unreleased candidate, 2026-10-26:** common startup/initialization fixes, timeout wording and dependency/CI hardening are assigned **v0.6.0-beta.3** for installer checks and native Mac/Windows CI on a separate verification branch. Results belong in the [candidate notes](releases/v0.6.0-beta.3.md) and [Validation](VALIDATION.md). No beta.3 GitHub release is published and the download links below remain beta.2. CI is not Windows Desktop/USB or physical-device acceptance; no new hardware pass is claimed.
+
 ## Status — v0.6.0-beta.2, 2026-10-23
 
 This page describes the published **Windows 11 x64 experimental beta** in the dual-platform v0.6.0-beta.2 release. Both installers passed final package inspection, and the exact release commit/tag passed macOS and Windows CI before publication. The [release record](https://github.com/andrew427dev/streamdeck-nanoleaf-mcp/releases/tag/v0.6.0-beta.2) contains CI evidence and checksums. See [current release/installation/development status](STATUS.md).

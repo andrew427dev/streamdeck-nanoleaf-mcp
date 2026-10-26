@@ -1,6 +1,6 @@
 {
   "name": "streamdeck-nanoleaf-mcp",
-  "version": "0.6.0-beta.2",
+  "version": "0.6.0-beta.3",
   "private": true,
   "type": "module",
   "description": "Unofficial macOS and experimental Windows Stream Deck control for the USB-only Nanoleaf PC Screen Mirror Lightstrip (NL82K2), through Nanoleaf Desktop local MCP",
@@ -15,10 +15,16 @@
     "build": "node scripts/build.mjs",
     "validate": "streamdeck validate io.github.andrew427dev.nanoleaf-mcp.sdPlugin",
     "pack": "node scripts/pack.mjs",
+    "audit:security": "npm audit --audit-level=info",
     "version:check": "node scripts/check-version.mjs"
   },
   "dependencies": {
     "@elgato/streamdeck": "3.0.2"
+  },
+  "overrides": {
+    "@elgato/utils": {
+      "zod": "4.6.7"
+    }
   },
   "devDependencies": {
     "@elgato/cli": "1.10.2",

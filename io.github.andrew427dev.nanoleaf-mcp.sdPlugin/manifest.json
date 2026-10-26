@@ -2,7 +2,7 @@
   "$schema": "https://schemas.elgato.com/streamdeck/plugins/manifest.json",
   "Name": "Nanoleaf MCP",
   "UUID": "io.github.andrew427dev.nanoleaf-mcp",
-  "Version": "0.6.0.2",
+  "Version": "0.6.0.3",
   "Author": "andrew427dev",
   "Description": "USB-only PC Screen Mirror Lightstrip (NL82K2) control via Nanoleaf Desktop local MCP. Power, brightness and saved scenes. macOS beta and experimental Windows preview; hardware validation of this build is pending. Screen Mirror is Mac-only with known power/restore limitations. Not for Wi-Fi/LAN models.",
   "URL": "https://github.com/andrew427dev/streamdeck-nanoleaf-mcp",
