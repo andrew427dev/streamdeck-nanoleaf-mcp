@@ -4,7 +4,7 @@
 
 - Assign `0.6.0-beta.3` / manifest `0.6.0.3` to the common hardening work below, preserving plugin/action identifiers and saved settings. This candidate does not include the separate private v0.5.0-beta.3 mirror compensation experiment.
 - Prepare separate Mac Apple Silicon and experimental Windows 11 x64 installers with matching-source checksums. Source commits/pushes on `release/v0.6.0-beta.3` are permitted for exact-source macOS/Windows CI and artifact verification; completed results are recorded in the [candidate record](docs/releases/v0.6.0-beta.3.md), not inferred from earlier development tests.
-- New-version local checks passed with Node.js 24.22.1: clean dependency installation, zero known advisory findings, 335/335 tests and official packaging/inspection of both 50-file installers. Exact-source native CI is pending at this preparation checkpoint; these local checks are not physical-device acceptance.
+- New-version local checks passed with Node.js 24.22.1: clean dependency installation, zero known advisory findings, 335/335 tests and official packaging/inspection of both 50-file installers. Exact-source native CI passed for source commit `40a4046`: the security gate and both OS jobs succeeded with 335 tests and packaging each. These are not physical-device acceptance.
 - Keep `main`, public v0.6.0-beta.2 downloads and the working Mac installation/profiles unchanged. No GitHub release or tag, candidate installation, new hardware test, mirror improvement or Marketplace submission is part of this preparation. The weekly security schedule remains inactive on the default branch until that workflow is separately incorporated there.
 
 ## Local hardening development record — 2026-10-25 (before candidate assignment)
