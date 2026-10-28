@@ -1,6 +1,6 @@
 # Nanoleaf MCP for Stream Deck
 
-**v0.6.0-beta.3 — Mac 베타 / Windows 11 x64 실험적 베타 (2026-10-28).** 앱 재실행·공유 연결 초기화 결함, 오류 안내와 보안 의존성·CI를 보완했습니다. 최종 소스·태그 CI 통과 후 공개하며, 완료된 검사와 체크섬은 [릴리스 페이지](https://github.com/andrew427dev/streamdeck-nanoleaf-mcp/releases/tag/v0.6.0-beta.3)에 기록합니다. [릴리스 기록](releases/v0.6.0-beta.3.md)·[현재 상태](STATUS.md)·[검증 기록](VALIDATION.md)을 참고해 주세요.
+**v0.6.0-beta.3 — Mac 베타 / Windows 11 x64 실험적 베타 (2026-10-28).** 앱 재실행·공유 연결 초기화 결함, 오류 안내와 보안 의존성·CI를 보완했습니다. 최종 소스·기본 브랜치·태그 CI 및 공개 파일 재다운로드 검증을 통과해 배포했습니다. 완료된 검사와 체크섬은 [릴리스 페이지](https://github.com/andrew427dev/streamdeck-nanoleaf-mcp/releases/tag/v0.6.0-beta.3)에 기록합니다. [릴리스 기록](releases/v0.6.0-beta.3.md)·[현재 상태](STATUS.md)·[검증 기록](VALIDATION.md)을 참고해 주세요.
 
 Stream Deck에서 **USB 연결형 Nanoleaf PC Screen Mirror Lightstrip(NL82K2)**의 전원·밝기·저장된 씬을 제어하는 비공식 오픈소스 플러그인입니다. macOS 버전과 실험적 Windows 시험판을 제공합니다. **Wi-Fi를 지원하지 않는 이 모델용**이며, Wi-Fi/LAN 제품이나 모든 USB 모델을 지원하는 범용 플러그인이 아닙니다. 화면 미러링은 알려진 제한이 있는 Mac 전용 기능입니다.
 
@@ -72,7 +72,7 @@ Brightness Dial은 해 모양, Scene Browser는 목록·재생 모양을 사용�
 | Nanoleaf Desktop | 로컬 MCP 서버 사용 가능·활성화 및 USB 장치 설정 완료 | 과거 실기기 검증에 기록된 버전은 3.0.1입니다. 2026-10-26 Mac v0.6.0-beta.3 설치·물리 버튼·씬 1회의 앱 자동 실행 검증은 3.0.2에서 진행했으며, 전체 실기기 회귀는 반복하지 않았습니다. 모든 3.x·이후 버전의 호환성을 보장하지 않습니다. |
 | 조명 | USB PC Screen Mirror Lightstrip(NL82K2)만 지원 | 실제 시험한 모델입니다. Wi-Fi/LAN 제품과 다른 USB 모델은 지원하지 않습니다. |
 | Stream Deck 기기 | 키 제어 지원, 다이얼·터치는 Stream Deck + 필요 | 기록된 Mac 실물 시험은 Stream Deck +에서 진행했습니다. Windows 보고에는 기종이 명시되지 않았으며 다른 기종의 별도 검증 기록은 없습니다. |
-| Windows | Windows 11 x64 실험적 시험판 | Windows Server 2025 CI에서 자동 시험·빌드를 통과했습니다. 2026-10-23에 물리 버튼 섹션 통과 보고를 받았지만 정확한 Windows·앱·기기 버전과 세부 시험은 전달되지 않았고 독립 관찰도 하지 않았습니다. 자동 실행·다이얼·터치 등 나머지는 미검증이며 Windows 10·ARM64도 검증하지 않았습니다. |
+| Windows | Windows 11 x64 실험적 시험판 | Windows Server 2025 CI에서 자동 시험·빌드를 통과했습니다. beta.2 후속 검증인 2026-10-23에 물리 버튼 섹션 통과 보고를 받았지만 정확한 Windows·앱·기기 버전과 세부 시험은 전달되지 않았고 독립 관찰도 하지 않았습니다. 자동 실행·다이얼·터치 등 나머지는 미검증이며 Windows 10·ARM64도 검증하지 않았습니다. |
 
 ### 실제 확인한 항목
 

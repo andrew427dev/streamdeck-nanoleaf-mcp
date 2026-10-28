@@ -1,6 +1,6 @@
 # Nanoleaf MCP for Stream Deck
 
-**v0.6.0-beta.3 — Mac beta / Windows 11 x64 experimental beta (2026-10-28).** Includes startup/connection fixes, clearer timeout guidance and dependency/CI hardening. See [release notes](docs/releases/v0.6.0-beta.3.md), [Status](docs/STATUS.md) and [Validation](docs/VALIDATION.md). Publication is gated on final-source and tag CI; the [GitHub release](https://github.com/andrew427dev/streamdeck-nanoleaf-mcp/releases/tag/v0.6.0-beta.3) records completed gates and asset checksums.
+**Published v0.6.0-beta.3 — Mac beta / Windows 11 x64 experimental beta (2026-10-28).** Includes startup/connection fixes, clearer timeout guidance and dependency/CI hardening. See [release notes](docs/releases/v0.6.0-beta.3.md), [Status](docs/STATUS.md) and [Validation](docs/VALIDATION.md). Final-source, main and tag CI passed, and all three public assets matched the originals on download. The [GitHub release](https://github.com/andrew427dev/streamdeck-nanoleaf-mcp/releases/tag/v0.6.0-beta.3) records completed gates and asset checksums.
 
 Control the **USB-connected Nanoleaf PC Screen Mirror Lightstrip (NL82K2)** from Stream Deck: power, brightness and saved scenes. This unofficial project has a macOS version and an experimental Windows preview. It is specifically for this non-Wi-Fi model—not a Wi-Fi/LAN Nanoleaf plugin or a controller for every USB model. Screen Mirror remains Mac-only with known limitations.
 

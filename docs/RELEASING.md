@@ -2,6 +2,8 @@
 
 Build releases from the source checkout, not from an installed Stream Deck plugin. Publishing a GitHub release must not install the plugin, restart applications, change profiles, or modify existing helper scripts. Marketplace submission is a separate approval and workflow; see [Marketplace plan](MARKETPLACE-PLAN.md).
 
+**Publication completed (2026-10-28):** final-source/main/tag CI passed and all three public downloads matched the retained candidates. The 50 installed Mac plugin files and 32 profile files were unchanged. See [Validation](VALIDATION.md) for the immutable release commit and CI links.
+
 **Current publication scope (2026-10-28):** publish **v0.6.0-beta.3 / 0.6.0.3** as a **Mac beta / Windows 11 x64 experimental beta** after final-source and tag CI plus installer verification. Reflect the separately completed Mac installation/power/scene/brightness/single-scene automatic-launch checks. The current Mac beta.3 installation and settings must remain untouched. Mirror improvement and Marketplace submission remain on hold.
 
 Retain the exact Mac-produced candidate pair and checksums prepared on 2026-10-26; their payload matches the tested source. Documentation follow-ups do not require rebuilding these files. The Windows beta.2 physical-button report does not validate beta.3 hardware. Update `main` without force, create a new tag only after source CI passes, wait for tag CI, then publish the verified files as a prerelease. Record completion in the [release record](releases/v0.6.0-beta.3.md).

@@ -4,15 +4,15 @@ Last reconciled: **2026-10-28**. Dated evidence in [Validation](VALIDATION.md), 
 
 ## Current release line — v0.6.0-beta.3
 
-**Mac beta / Windows 11 x64 experimental beta**, package `0.6.0-beta.3`, manifest `0.6.0.3`. Publication was approved on 2026-10-28 after the separately approved Mac installation and physical checks. Final-source/tag CI and public-asset checksum readback are publication gates; completed evidence is recorded in the [GitHub release](https://github.com/andrew427dev/streamdeck-nanoleaf-mcp/releases/tag/v0.6.0-beta.3) and [release notes](releases/v0.6.0-beta.3.md).
+**Mac beta / Windows 11 x64 experimental beta**, package `0.6.0-beta.3`, manifest `0.6.0.3`. Published on 2026-10-28 after the separately approved Mac installation and physical checks. Final-source/main/tag CI passed (335 tests per OS plus packaging and zero known advisories), and all three public assets matched the originals on download. Completed evidence is recorded in the [GitHub release](https://github.com/andrew427dev/streamdeck-nanoleaf-mcp/releases/tag/v0.6.0-beta.3) and [release notes](releases/v0.6.0-beta.3.md).
 
-This release fixes quick Desktop exit/relaunch after automatic startup and shared MCP initialization deadlines, improves timeout guidance, and hardens dependencies/CI. The retained package payload is unchanged from candidate source `40a4046`; subsequent changes are documentation only. Candidate local checks and both native OS CI jobs passed 335 tests and official packaging, with no known dependency advisories at that gate. Final release CI checks current advisories again. Incorporating the workflow into `main` enables its weekly advisory-only schedule; candidate-branch CI alone did not enable it.
+This release fixes quick Desktop exit/relaunch after automatic startup and shared MCP initialization deadlines, improves timeout guidance, and hardens dependencies/CI. The retained package payload is unchanged from candidate source `40a4046`; subsequent changes are documentation only. Candidate local checks and both native OS CI jobs passed 335 tests and official packaging, with no known dependency advisories at that gate. Final release CI rechecked current advisories and passed. Incorporating the workflow into `main` enables its weekly advisory-only schedule; candidate-branch CI alone did not enable it.
 
 | Track | Version | Evidence and boundaries |
 | --- | --- | --- |
 | Mac release | v0.6.0-beta.3 | Exact-candidate in-place update, settings preservation, power/scene/brightness keys and one fully-quit-app scene-key automatic launch passed on 2026-10-26. Wider physical acceptance remains incomplete. |
 | Windows release | v0.6.0-beta.3 | Experimental beta. Native mocked CI and packaging are verified; no Windows beta.3 hardware acceptance. The earlier physical-button-section report belongs to the beta.2 follow-up and lacks exact environment/package and per-action detail. |
-| Working Mac installation | v0.6.0-beta.3 / 0.6.0.3 | Already installed and tested. All 50 installed files matched the retained Mac candidate; all 32 profile files were unchanged through installation and testing. Publication preserves this installation and every existing setting. |
+| Working Mac installation | v0.6.0-beta.3 / 0.6.0.3 | Already installed and tested. All 50 installed files matched the retained Mac candidate; all 32 profile files were unchanged through installation and testing. Publication readback confirmed all 50 plugin and 32 profile files unchanged. |
 | Earlier public Mac/Windows release | v0.6.0-beta.2 | Retained historical downloads and checksums. Partial Mac acceptance and Windows button-section report remain attributed to beta.2. |
 | Earlier public Windows release | v0.6.0-beta.1 | Historical Windows-only experimental release; paired Mac candidate was never published or installed. |
 | Earlier public Mac release | v0.5.0-beta.2 | Historical installation and mirror incident evidence retained. |
@@ -38,7 +38,7 @@ GitHub publication is now authorized. Mirror improvements, no-flash experiments,
 
 ## 한국어 요약
 
-v0.6.0-beta.3를 **Mac 베타 / Windows 11 x64 실험적 베타**로 배포하도록 2026-10-28 승인됐습니다. 최종 소스·태그 CI와 공개 파일 검증 완료 근거는 릴리스에 기록합니다. 준비된 설치 파일을 그대로 사용하며 이전 버전의 태그·다운로드 파일을 덮어쓰지 않습니다.
+v0.6.0-beta.3를 **Mac 베타 / Windows 11 x64 실험적 베타**로 2026-10-28 공개했습니다. 최종 소스·기본 브랜치·태그 CI가 각 OS 335개 시험과 패키징을 통과했고 알려진 의존성 취약점은 0건입니다. 공개 파일 3개를 다시 내려받아 원본과 일치함을 확인했습니다. 준비된 설치 파일을 그대로 사용하며 이전 버전의 태그·다운로드 파일을 덮어쓰지 않습니다.
 
 현재 Mac에는 이미 beta.3가 설치돼 있습니다. 설치 파일 50개 일치, 프로필 32개 유지, 전원·씬·밝기 키와 앱 완전 종료 후 씬 버튼 자동 실행 1회가 확인됐습니다. 이번 배포는 설치본과 설정을 유지합니다. Windows beta.3는 실기기 미검증이며 이전 버튼 섹션 통과 보고는 beta.2 이력입니다.
 

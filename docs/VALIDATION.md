@@ -2,9 +2,19 @@
 
 For the current public/downloaded/installed/development distinction, use [STATUS.md](STATUS.md). Sections below are dated evidence, not claims that the currently installed or edited build passed every historical test.
 
+## v0.6.0-beta.3 publication — 2026-10-28
+
+Published as a **Mac beta / Windows 11 x64 experimental beta**, not a stable release. The [GitHub prerelease](https://github.com/andrew427dev/streamdeck-nanoleaf-mcp/releases/tag/v0.6.0-beta.3) uses source/tag commit [`10f1f485746276a6e9c50c7a9906a051386deea9`](https://github.com/andrew427dev/streamdeck-nanoleaf-mcp/commit/10f1f485746276a6e9c50c7a9906a051386deea9).
+
+[Final source CI](https://github.com/andrew427dev/streamdeck-nanoleaf-mcp/actions/runs/40643130010), [main CI](https://github.com/andrew427dev/streamdeck-nanoleaf-mcp/actions/runs/40643299986) and [tag CI](https://github.com/andrew427dev/streamdeck-nanoleaf-mcp/actions/runs/40643302763) all passed. Each OS job passed **335 tests** and official packaging; security gates found **0 known dependency advisories** at check time. Native CI uses mocks and does not add hardware acceptance. The unchanged Actions v4 versions emitted Node.js-20-deprecation warnings while GitHub ran them on Node.js 24; migrating those action versions remains CI maintenance, not a failed gate or a newly discovered npm advisory.
+
+The retained Mac-produced candidate pair was published without rebuilding. Both installers passed strict ZIP/CRC/path/link/size, 50-file allowlist, public-content and manifest/embedded-version checks. All **three public assets**, including `SHA256SUMS.txt`, were downloaded and matched the retained originals byte for byte. Producer-specific candidate/CI differences remain documented in the [release record](releases/v0.6.0-beta.3.md); the public pair is not a mixture of CI producers.
+
+A new publication baseline and final readback found **all 50 installed Mac plugin files and all 32 profile files unchanged**. The working installation remains beta.3; no installation, app restart, profile edit or real-light command was performed during publication. The Mac physical evidence below is from 2026-10-26. Windows beta.3 has no new hardware acceptance; the older Windows button report stays attributed to beta.2. Mirror improvements and Marketplace submission remain on hold. This evidence follow-up changes documentation only, not the release tag, payload or installed plugin.
+
 ## v0.6.0-beta.3 — approved Mac installation and physical checks, 2026-10-26
 
-After candidate preparation, the maintainer separately authorized updating the working Mac and testing power, scenes, brightness and automatic launch. This supersedes the installed-version status in the earlier preparation record below. Public downloads remain beta.2; beta.3 has no GitHub release or release tag.
+After candidate preparation, the maintainer separately authorized updating the working Mac and testing power, scenes, brightness and automatic launch. This supersedes the installed-version status in the earlier preparation record below. At that time, public downloads remained beta.2 and beta.3 had no GitHub release or release tag; the later 2026-10-28 publication is recorded above.
 
 Environment: **macOS 27.0.1 / Apple Silicon arm64, Stream Deck 7.6.0, Nanoleaf Desktop 3.0.2, Stream Deck +, USB NL82K2**, and the Stream Deck Node.js 24.22.1 runtime. The installed candidate is **v0.6.0-beta.3 / manifest 0.6.0.3**, from the retained Mac-produced installer with SHA-256 `2e00dd6fe44d2535c255a857a44e479685617df96ee8615932db20c094d64c60`.
 

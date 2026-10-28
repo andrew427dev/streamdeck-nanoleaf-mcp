@@ -42,13 +42,13 @@ The physical-button section report below is historical beta.2-follow-up evidence
 7. Change devices or leave the profile while a request is waiting. No unsent stale command may reach the old light. Do not expect already-transmitted commands to be undone.
 8. Test USB disconnect/reconnect, Desktop restart, sleep/wake, long idle, Windows restart and preview reinstall; preserve selected device/scene, titles, steps, launch and display settings. Measure actual output, not just button feedback.
 9. Import a mirror action only in the Windows test profile and confirm it is blocked without launch or requests. Do not use the working Mac profiles for this test.
-10. **Automated release gate:** candidate source `40a4046` passed [Mac/Windows CI](https://github.com/andrew427dev/streamdeck-nanoleaf-mcp/actions/runs/40276520259), with 335 tests and packaging per OS. Publication additionally requires final-source and tag CI; completed links belong in the [beta.3 release](https://github.com/andrew427dev/streamdeck-nanoleaf-mcp/releases/tag/v0.6.0-beta.3). Both retained installers contain 50 verified files and share a checksum list. These mocked native runs do not complete hardware acceptance.
+10. **Automated release gate: passed for beta.3.** Release source/tag `10f1f485746276a6e9c50c7a9906a051386deea9` passed [source CI](https://github.com/andrew427dev/streamdeck-nanoleaf-mcp/actions/runs/40643130010), [main CI](https://github.com/andrew427dev/streamdeck-nanoleaf-mcp/actions/runs/40643299986) and [tag CI](https://github.com/andrew427dev/streamdeck-nanoleaf-mcp/actions/runs/40643302763): 335 tests and packaging per OS, with zero known advisories at check time. Both 50-file installers and the checksum list matched the originals when downloaded from the [release](https://github.com/andrew427dev/streamdeck-nanoleaf-mcp/releases/tag/v0.6.0-beta.3). These mocked native runs do not complete hardware acceptance.
 
 Windows 11 x64, a Stream Deck + and NL82K2 are needed to complete this list. Moving the currently used Mac USB device or quitting the Mac app requires separate permission. Passing mocked tests does not complete this checklist.
 
 ## 한국어 요약
 
-- v0.6.0-beta.3는 Mac 베타·Windows 11 x64 실험적 베타로 구분합니다. 두 OS의 최종 소스·태그 CI 및 설치 파일 검사 후 공개하며 완료 근거는 릴리스에 기록합니다.
+- v0.6.0-beta.3는 Mac 베타·Windows 11 x64 실험적 베타로 구분합니다. 두 OS의 최종 소스·태그 CI 및 설치 파일 검사 후 공개했고, 공개 파일 재다운로드 대조까지 통과했습니다.
 - Windows beta.3 실기기 검증은 아직 없습니다. 2026-10-23 물리 버튼 섹션 통과 보고는 beta.2의 이력이며 상세 환경·파일 식별·개별 동작 결과는 미확인입니다.
 - Windows 설치 탐색·실제 자동 실행, 설치/재설치 및 설정 유지, 다이얼·터치·표시 배율, 밝기 경계값과 전원 부작용, 반복·지연·취소·절전·USB 복구 검증이 남아 있습니다.
 - Mac beta.3는 설치·설정 유지·전원·씬·밝기 및 앱 완전 종료 후 씬 버튼 자동 실행 1회를 확인했습니다. 이번 배포는 기존 Mac 설치본과 설정을 바꾸지 않습니다.
