@@ -2,6 +2,26 @@
 
 For the current public/downloaded/installed/development distinction, use [STATUS.md](STATUS.md). Sections below are dated evidence, not claims that the currently installed or edited build passed every historical test.
 
+## v0.6.0-beta.3 — approved Mac installation and physical checks, 2026-10-26
+
+After candidate preparation, the maintainer separately authorized updating the working Mac and testing power, scenes, brightness and automatic launch. This supersedes the installed-version status in the earlier preparation record below. Public downloads remain beta.2; beta.3 has no GitHub release or release tag.
+
+Environment: **macOS 27.0.1 / Apple Silicon arm64, Stream Deck 7.6.0, Nanoleaf Desktop 3.0.2, Stream Deck +, USB NL82K2**, and the Stream Deck Node.js 24.22.1 runtime. The installed candidate is **v0.6.0-beta.3 / manifest 0.6.0.3**, from the retained Mac-produced installer with SHA-256 `2e00dd6fe44d2535c255a857a44e479685617df96ee8615932db20c094d64c60`.
+
+| Check | Result and evidence |
+| --- | --- |
+| In-place update | Stream Deck's normal installer reported success without uninstalling. All **50 installed payload files** match the verified candidate, and one installed Nanoleaf plugin process was observed. |
+| Settings preservation | All **32 profile files** were byte-identical to the new pre-install baseline, both after installation and after all physical checks. No profiles, button/dial settings, titles, device/scene selections or launch preferences were edited. This baseline is distinct from the earlier preparation's active-page-only change. |
+| Power | The tester pressed the existing power key twice for OFF → ON and reported normal operation. |
+| Saved scene | The tester ran an existing scene key and reported normal lighting output. |
+| Brightness | The tester pressed brightness − and + once each and reported normal operation. Subsequent readback showed power ON and brightness 100%. |
+| Cold-start automatic launch | Desktop was quit normally; an independent read confirmed **zero app processes and a closed local MCP port**. Without manually reopening Desktop, the tester pressed one existing auto-launch-enabled scene key once and reported that both app startup and scene output worked. |
+| Post-start readback | Desktop processes returned, MCP connected and the supported USB device was present. Power was ON, brightness was 100%, a saved scene was selected and the saved-scene list was unchanged. Mirroring remained OFF; no mirror mutation was sent. |
+
+Actual lighting output is based on the tester's report; state readback is supporting evidence, not an optical measurement. The cold-start result covers **one scene-button trial**. New-build dial/touch/display checks, every action's cold start, rapid quit/relaunch, repeated or slow startup, cancellation under real delays, error recovery, clean installation and Windows beta.3 hardware acceptance remain unverified. Existing automated regressions are not substituted for these physical cases.
+
+This follow-up changes local validation/status documentation only. No source/runtime rebuild, installer replacement, commit/push, release/tag, mirror improvement or Marketplace submission was performed. The candidate files and public beta.2 release assets remain unchanged. The working Mac now uses beta.3; its settings and saved scenes are preserved.
+
 ## v0.6.0-beta.3 candidate preparation — 2026-10-26, not published
 
 The 2026-10-25 corrections below are assigned package `0.6.0-beta.3`, lockfile `0.6.0-beta.3` and manifest `0.6.0.3` for two-platform packaging and native CI on `release/v0.6.0-beta.3`. This preparation permits the source commit/push needed to run CI, but does not publish a GitHub release, create a release tag or update an installed plugin. The default branch, existing releases and working Mac beta.2 installation are preserved. This candidate is unrelated to the private v0.5.0-beta.3 mirror compensation.

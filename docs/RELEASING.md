@@ -2,9 +2,9 @@
 
 Build releases from the source checkout, not from an installed Stream Deck plugin. Publishing a GitHub release must not install the plugin, restart applications, change profiles, or modify existing helper scripts. Marketplace submission is a separate approval and workflow; see [Marketplace plan](MARKETPLACE-PLAN.md).
 
-**Current preparation scope (2026-10-26):** prepare **v0.6.0-beta.3 / manifest 0.6.0.3** on `release/v0.6.0-beta.3`, including source commits/pushes for exact-source native macOS/Windows CI and separate installer verification. New-version local tests (335/335), advisory checks and both 50-file installer builds have passed; native CI passed for source commit `40a4046` (security gate, 335 tests and packaging per OS). Record completed evidence in the [candidate record](releases/v0.6.0-beta.3.md) and [validation](VALIDATION.md). Do not create a GitHub release or tag, merge to `main`, install the candidate, or change profiles as part of this preparation. Mirror improvements and Marketplace submission remain on hold. A weekly workflow schedule becomes active only when present on the default branch; a candidate-branch push is not that activation.
+**Current publication scope (2026-10-28):** publish **v0.6.0-beta.3 / 0.6.0.3** as a **Mac beta / Windows 11 x64 experimental beta** after final-source and tag CI plus installer verification. Reflect the separately completed Mac installation/power/scene/brightness/single-scene automatic-launch checks. The current Mac beta.3 installation and settings must remain untouched. Mirror improvement and Marketplace submission remain on hold.
 
-**Current published release and installation:** v0.6.0-beta.2 remains the public **Mac beta / Windows 11 x64 experimental beta**, and the working Mac installation remains public beta.2. Its dated partial Mac physical checks and Windows button-section report are recorded in [status](STATUS.md) and [beta.2 release notes](releases/v0.6.0-beta.2.md); those are not beta.3 acceptance. The historical private v0.5.0-beta.3 mirror experiment is separate and is not included in the new candidate.
+Retain the exact Mac-produced candidate pair and checksums prepared on 2026-10-26; their payload matches the tested source. Documentation follow-ups do not require rebuilding these files. The Windows beta.2 physical-button report does not validate beta.3 hardware. Update `main` without force, create a new tag only after source CI passes, wait for tag CI, then publish the verified files as a prerelease. Record completion in the [release record](releases/v0.6.0-beta.3.md).
 
 Post-release evidence may update documentation and the existing GitHub release body without a version bump when no distributed payload changes. Date the follow-up, distinguish it from publication-time checks, and keep the release tag, installers and checksum files immutable. Do not rebuild or replace published assets to include documentation-only follow-ups; packaged notices remain the original release snapshot.
 
@@ -12,7 +12,7 @@ Post-release evidence may update documentation and the existing GitHub release b
 
 One `npm run pack` builds both `nanoleaf-mcp-v<version>-macos-apple-silicon.streamDeckPlugin` and `nanoleaf-mcp-v<version>-windows-x64.streamDeckPlugin` under the same version directory, plus a shared `SHA256SUMS.txt`. Each gets a separate staging folder and official validation. Runtime/UI bytes, UUIDs and all manifest fields other than the top-level OS declaration must match. Screen Mirror has `OS: ["mac"]` in both, plus a runtime guard on Windows. Architecture names identify intended test targets, not architecture-specific native code: the plugin uses Stream Deck's bundled Node.js runtime.
 
-For the v0.6.0-beta.3 candidate, retain both installers and their two-entry checksum file as local/CI verification artifacts only. They are not GitHub release downloads. If publication is later approved, attach the verified files to one new release with explicit OS labels and distinct beta/experimental-beta scopes. Preserve all existing release assets, including v0.6.0-beta.2, the Windows-only v0.6.0-beta.1 preview and Mac v0.5.0-beta.2. Never describe pending Windows MCP/native launch and hardware acceptance as validated support. Do not confuse GitHub's source ZIP with an installer.
+For v0.6.0-beta.3, publish the retained Mac/Windows candidate pair and its original two-entry checksum file. Preserve all earlier release tags/assets. Do not mix CI-producer packages or describe pending Windows hardware/native-launch acceptance as validated support. GitHub source ZIPs are not installers.
 
 ## Version ordering
 
@@ -31,7 +31,7 @@ For example, `0.4.0.3 < 0.4.0.4 < 0.4.0.65535 < 0.4.1.1`. A stable release must 
 
 ## Validate before publication
 
-The 2026-10-25 hardening phase retained beta.2 metadata and produced no installer. The separately approved 2026-10-26 preparation assigns beta.3 and runs source/CI/package gates without authorizing publication or installation. New version assignment and passing CI do not themselves authorize creating a release or replacing the working plugin.
+The 2026-10-25 hardening phase retained beta.2 metadata and produced no installer. The 2026-10-26 preparation assigned beta.3 for source/CI/package gates. Installation was subsequently approved and completed; publication was separately approved on 2026-10-28. New version assignment and passing CI do not themselves authorize creating a release or replacing the working plugin.
 
 1. Update `package.json`, both root lockfile version fields, the manifest, and release documentation together. Keep plugin/action UUIDs and settings compatible unless a separately reviewed migration is required.
 2. Compare with both the latest public release and any newer local preview that testers installed:
@@ -55,6 +55,8 @@ The pack command uses an explicit runtime-file allowlist in a fresh staging dire
 Legacy loose installers and their paired checksums should be moved together into a clearly named `dist/archive/` directory after reading their manifest version. They are historical evidence, not the current download. The authoritative public download is the matching GitHub release, and local installers always live in version-labelled folders.
 
 ## Separate installation and Marketplace work
+
+On 2026-10-26, the separately approved beta.3 Mac update completed through the normal Stream Deck installer. All 50 installed payload files matched the verified candidate and all 32 profile files remained unchanged. Existing power/scene/brightness keys and a single fully-quit-app scene-key launch passed. This local installation does not publish beta.3 or authorize Marketplace submission. See [Validation](VALIDATION.md) for scope and remaining physical checks.
 
 A GitHub publication does not upgrade the maintainer's current installation. Never uninstall/reinstall or replace an installed plugin as a side effect of packaging. The same plugin UUID can be used by several profiles, so replacing that installation is not isolated to a test profile. Any future isolated development installation requires an intentionally separate development UUID and explicit test setup.
 

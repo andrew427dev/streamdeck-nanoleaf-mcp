@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.6.0-beta.3 — 2026-10-28, Mac beta / Windows experimental beta
+
+- Publish the retained dual-platform candidate after final-source/tag CI and package verification, with separate installers and their original checksum file. The release record carries final CI and public-file readback evidence.
+- Include the common relaunch/shared-initialization fixes, timeout guidance, dependency updates and security CI gate documented below. Runtime and installer bytes are unchanged from the tested candidate.
+- Reflect the 2026-10-26 Mac beta.3 in-place installation/settings-preservation, power/scene/brightness and one fully-quit-app scene-key automatic-launch pass. Windows beta.3 hardware acceptance remains pending; the earlier Windows button-section report stays attributed to beta.2.
+- Preserve the current Mac installation, profiles, saved scenes and all previous release assets. Explicitly retain unresolved Mac mirror power/flash and output failures, Windows mirror exclusion and remaining hardware boundaries. Mirror improvements and Marketplace submission remain on hold.
+
 ## 0.6.0-beta.3 — candidate preparation, 2026-10-26 (not published)
 
 - Assign `0.6.0-beta.3` / manifest `0.6.0.3` to the common hardening work below, preserving plugin/action identifiers and saved settings. This candidate does not include the separate private v0.5.0-beta.3 mirror compensation experiment.

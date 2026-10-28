@@ -1,6 +1,6 @@
 # Nanoleaf MCP for Stream Deck
 
-**2026-10-26 후보판 안내:** 앱 재실행·공유 연결 초기화 결함, 오류 안내와 보안 의존성·CI 보완을 **v0.6.0-beta.3 / 0.6.0.3**으로 준비합니다. 별도 검증 브랜치에서 Mac·Windows CI와 설치 파일을 확인하며 [후보판 기록](releases/v0.6.0-beta.3.md)·[현재 상태](STATUS.md)·[검증 기록](VALIDATION.md)에 구분합니다. GitHub 릴리스·태그는 만들지 않으며 기존 공개 다운로드와 Mac 설치본은 beta.2 그대로입니다. 새 버전 실기기 검증, 미러링 개선과 Marketplace 제출은 완료되지 않았습니다.
+**v0.6.0-beta.3 — Mac 베타 / Windows 11 x64 실험적 베타 (2026-10-28).** 앱 재실행·공유 연결 초기화 결함, 오류 안내와 보안 의존성·CI를 보완했습니다. 최종 소스·태그 CI 통과 후 공개하며, 완료된 검사와 체크섬은 [릴리스 페이지](https://github.com/andrew427dev/streamdeck-nanoleaf-mcp/releases/tag/v0.6.0-beta.3)에 기록합니다. [릴리스 기록](releases/v0.6.0-beta.3.md)·[현재 상태](STATUS.md)·[검증 기록](VALIDATION.md)을 참고해 주세요.
 
 Stream Deck에서 **USB 연결형 Nanoleaf PC Screen Mirror Lightstrip(NL82K2)**의 전원·밝기·저장된 씬을 제어하는 비공식 오픈소스 플러그인입니다. macOS 버전과 실험적 Windows 시험판을 제공합니다. **Wi-Fi를 지원하지 않는 이 모델용**이며, Wi-Fi/LAN 제품이나 모든 USB 모델을 지원하는 범용 플러그인이 아닙니다. 화면 미러링은 알려진 제한이 있는 Mac 전용 기능입니다.
 
@@ -8,18 +8,18 @@ Stream Deck에서 **USB 연결형 Nanoleaf PC Screen Mirror Lightstrip(NL82K2)**
 
 [English](../README.md) · [릴리스](https://github.com/andrew427dev/streamdeck-nanoleaf-mcp/releases) · [현재 상태](STATUS.md) · [검증 기록](VALIDATION.md) · [개인정보 안내](../PRIVACY.md)
 
-**공개된 v0.6.0-beta.2: Mac 베타 / Windows 실험적 베타.** 두 OS에서 무효화된 전원·씬·밝기 입력과 씬 목록 로딩의 지연 앱 실행을 취소하도록 보완하고, 공통 소스의 전송 전 입력 취소 기능을 Mac 배포 계열에도 포함합니다. 두 설치 파일은 같은 버전·소스를 사용합니다. 정확한 배포 소스의 CI 통과 결과와 공개 설치 파일 체크섬은 [릴리스 페이지](https://github.com/andrew427dev/streamdeck-nanoleaf-mcp/releases/tag/v0.6.0-beta.2)에 기록했습니다. [버전·검증 상태표](STATUS.md)도 참고해 주세요.
+앱 자동 실행 직후 완전히 종료했다가 다시 제어할 때 재실행되지 않는 결함과, 대기 시간이 짧은 요청이 다른 요청의 공용 연결 초기화까지 중단하던 결함을 수정했습니다. 전송 전 취소와 기존 동시 요청을 유지하며, 결과가 불확실한 조명 명령은 재전송하지 않습니다. 두 OS 설치 파일은 같은 실행 코드와 기존 설정 형식을 사용합니다.
 
-**2026-10-23 배포 후 검증 반영:** 정확한 Mac v0.6.0-beta.2의 설치·설정 유지, 물리 전원·씬·밝기 버튼과 앱 완전 종료 후 기존 씬 버튼 1회의 자동 실행을 확인했습니다. Windows도 사용자가 **물리 버튼 섹션 통과**를 보고했습니다. 다만 Windows의 상세 환경·개별 동작별 근거는 전달되지 않았습니다. 이는 일부 실기기 검증이며 모든 기능·환경의 합격은 아닙니다. Windows는 설치 정보 탐색·실제 앱 자동 실행, 다이얼·터치·복구 등 나머지 항목이 미검증인 실험적 베타입니다. [검증 기록](VALIDATION.md)과 [Windows 검증 목록](WINDOWS.md)을 확인해 주세요. 이번 문서 갱신은 설치 파일과 기존 설정을 변경하지 않으며, 미러링 개선과 Marketplace 제출은 계속 보류합니다.
+**실기기 검증 범위:** 2026-10-26 Mac beta.3의 설치·설정 유지, 전원·씬·밝기 키와 앱 완전 종료 후 기존 씬 버튼 자동 실행 1회를 확인했습니다. **Windows beta.3는 새 실기기 검증을 하지 않았습니다.** 10월 23일 Windows 물리 버튼 섹션 통과 보고는 beta.2 후속 검증 이력이며, 정확한 환경·파일 식별·개별 동작 상세는 미확인입니다. Windows 설치 탐색·자동 실행·다이얼·터치·복구 등은 [미검증 목록](WINDOWS.md)에 남아 있습니다. 미러링 개선과 Marketplace 제출은 계속 보류합니다.
 
 | 다운로드 | 범위 |
 | --- | --- |
-| [Mac Apple Silicon 설치 파일 — v0.6.0-beta.2](https://github.com/andrew427dev/streamdeck-nanoleaf-mcp/releases/download/v0.6.0-beta.2/nanoleaf-mcp-v0.6.0-beta.2-macos-apple-silicon.streamDeckPlugin) | Mac 베타입니다. 설치·전원·씬·밝기 버튼과 씬 1회의 앱 자동 실행을 통과했습니다. 나머지 미검증·미러링 제한은 아래를 확인해 주세요. |
-| [Windows x64 설치 파일 — v0.6.0-beta.2](https://github.com/andrew427dev/streamdeck-nanoleaf-mcp/releases/download/v0.6.0-beta.2/nanoleaf-mcp-v0.6.0-beta.2-windows-x64.streamDeckPlugin) | Windows 11 실험적 베타입니다. 물리 버튼 섹션은 통과 보고를 받았으며 나머지 실기기 검증은 대기 중입니다. **화면 미러링은 지원하지 않습니다.** |
+| [Mac Apple Silicon 설치 파일 — v0.6.0-beta.3](https://github.com/andrew427dev/streamdeck-nanoleaf-mcp/releases/download/v0.6.0-beta.3/nanoleaf-mcp-v0.6.0-beta.3-macos-apple-silicon.streamDeckPlugin) | Mac 베타입니다. 설치·전원·씬·밝기 버튼과 씬 1회의 앱 자동 실행을 통과했습니다. 나머지 미검증·미러링 제한은 아래를 확인해 주세요. |
+| [Windows x64 설치 파일 — v0.6.0-beta.3](https://github.com/andrew427dev/streamdeck-nanoleaf-mcp/releases/download/v0.6.0-beta.3/nanoleaf-mcp-v0.6.0-beta.3-windows-x64.streamDeckPlugin) | Windows 11 실험적 베타입니다. beta.3 실기기 검증은 대기 중이며, 이전 물리 버튼 섹션 통과 보고는 beta.2에 해당합니다. **화면 미러링은 지원하지 않습니다.** |
 
-GitHub의 소스 ZIP이 아니라 운영체제에 맞는 `.streamDeckPlugin` 파일을 받으세요. 두 파일은 같은 릴리스의 [SHA256SUMS.txt](https://github.com/andrew427dev/streamdeck-nanoleaf-mcp/releases/download/v0.6.0-beta.2/SHA256SUMS.txt)를 공유합니다. 설치 파일 검사와 해당 소스의 Mac·Windows CI 통과가 공개 조건입니다. 이전 [Mac v0.5.0-beta.2](https://github.com/andrew427dev/streamdeck-nanoleaf-mcp/releases/tag/v0.5.0-beta.2)와 [Windows v0.6.0-beta.1](https://github.com/andrew427dev/streamdeck-nanoleaf-mcp/releases/tag/v0.6.0-beta.1) 파일은 덮어쓰지 않습니다.
+GitHub의 소스 ZIP이 아니라 운영체제에 맞는 `.streamDeckPlugin` 파일을 받으세요. 두 파일은 같은 릴리스의 [SHA256SUMS.txt](https://github.com/andrew427dev/streamdeck-nanoleaf-mcp/releases/download/v0.6.0-beta.3/SHA256SUMS.txt)를 공유합니다. 설치 파일 검사와 해당 소스의 Mac·Windows CI 통과가 공개 조건입니다. 이전 [Mac v0.5.0-beta.2](https://github.com/andrew427dev/streamdeck-nanoleaf-mcp/releases/tag/v0.5.0-beta.2)와 [Windows v0.6.0-beta.1](https://github.com/andrew427dev/streamdeck-nanoleaf-mcp/releases/tag/v0.6.0-beta.1) 파일은 덮어쓰지 않습니다.
 
-Mac 미러링 동작은 공개 v0.5.0-beta.2를 기준으로 하며, 미공개 v0.5.0-beta.3의 사후 전원 보정은 포함하지 않았습니다. **미러링 정지 시 전원 변화·깜빡임은 해결하지 않았습니다.** 공개 작업 당시에는 Mac의 비공개 v0.5.0-beta.3를 유지했으며, 이후 별도 승인된 업데이트로 기존 프로필 설정을 유지한 채 공개 v0.6.0-beta.2(설치 정보 0.6.0.2)를 설치했습니다. 현재 설치본에는 비공개판의 실험적 보정이 없으므로 미러링 개선판으로 보시면 안 됩니다. 아래 과거 검증 기록은 각각 명시된 이전 버전에 해당합니다.
+Mac 미러링 동작은 공개 v0.5.0-beta.2를 기준으로 하며, 비공개 v0.5.0-beta.3의 사후 전원 보정은 포함하지 않았습니다. **미러링 정지 시 전원 변화·깜빡임과, 앱에 실행 중으로 표시돼도 조명이 화면을 따르지 않는 문제는 해결되지 않았습니다.** 현재 Mac에는 별도 검증한 v0.6.0-beta.3가 설치돼 있으며 이번 배포는 설치본·프로필을 바꾸지 않습니다. 미러링 개선판으로 보시면 안 됩니다. 아래 과거 검증은 각각 명시된 버전에 해당합니다.
 
 **미러링 안정성 안내:** 이전 **v0.5.0-beta.2** 업데이트 후 Desktop은 실행 중으로 표시했지만 조명이 선택한 화면을 따르지 않는 사례가 있었습니다. 사용자가 Nanoleaf Desktop을 완전히 종료한 뒤 다시 열어 정상 작동으로 복구됐다고 보고했습니다. 이 과정에서 플러그인 코드나 프로필은 수정하지 않았으며, 정확한 원인은 미확정입니다. 엔진 실행 상태가 실제 조명 출력까지 보장하지는 않습니다. [설치·오류·복구 기록](VALIDATION.md)과 [안정성 보완 계획](SCREEN-MIRROR-RELIABILITY-PLAN.md)을 참고해 주세요. Marketplace 제출은 여전히 [계획만 작성](MARKETPLACE-PLAN.md)한 상태입니다.
 
@@ -69,12 +69,14 @@ Brightness Dial은 해 모양, Scene Browser는 목록·재생 모양을 사용�
 | --- | --- | --- |
 | macOS | 설치 정보의 최소 버전: 13 | 2026-10-13에 확인한 로컬 시험 호스트는 macOS 27.0.1, Apple Silicon(arm64)입니다. macOS 13·Intel Mac은 별도 검증하지 않았습니다. 과거 실물 확인 기록에는 macOS의 정확한 버전이 남아 있지 않습니다. |
 | Stream Deck 앱 | 설치 정보의 최소 버전: 7.1 | 검증 환경은 7.6.0이며, 7.1은 별도 검증하지 않았습니다. |
-| Nanoleaf Desktop | 로컬 MCP 서버 사용 가능·활성화 및 USB 장치 설정 완료 | 과거 실기기 검증에 기록된 버전은 3.0.1입니다. 2026-10-23 Mac v0.6.0-beta.2 설치·물리 버튼·씬 1회의 앱 자동 실행 검증은 3.0.2에서 진행했으며, 전체 실기기 회귀는 반복하지 않았습니다. 모든 3.x·이후 버전의 호환성을 보장하지 않습니다. |
+| Nanoleaf Desktop | 로컬 MCP 서버 사용 가능·활성화 및 USB 장치 설정 완료 | 과거 실기기 검증에 기록된 버전은 3.0.1입니다. 2026-10-26 Mac v0.6.0-beta.3 설치·물리 버튼·씬 1회의 앱 자동 실행 검증은 3.0.2에서 진행했으며, 전체 실기기 회귀는 반복하지 않았습니다. 모든 3.x·이후 버전의 호환성을 보장하지 않습니다. |
 | 조명 | USB PC Screen Mirror Lightstrip(NL82K2)만 지원 | 실제 시험한 모델입니다. Wi-Fi/LAN 제품과 다른 USB 모델은 지원하지 않습니다. |
 | Stream Deck 기기 | 키 제어 지원, 다이얼·터치는 Stream Deck + 필요 | 기록된 Mac 실물 시험은 Stream Deck +에서 진행했습니다. Windows 보고에는 기종이 명시되지 않았으며 다른 기종의 별도 검증 기록은 없습니다. |
 | Windows | Windows 11 x64 실험적 시험판 | Windows Server 2025 CI에서 자동 시험·빌드를 통과했습니다. 2026-10-23에 물리 버튼 섹션 통과 보고를 받았지만 정확한 Windows·앱·기기 버전과 세부 시험은 전달되지 않았고 독립 관찰도 하지 않았습니다. 자동 실행·다이얼·터치 등 나머지는 미검증이며 Windows 10·ARM64도 검증하지 않았습니다. |
 
 ### 실제 확인한 항목
+
+- **v0.6.0-beta.3 — 2026-10-26:** Mac 설치 파일 50개 일치와 프로필 32개 유지, 전원·씬·밝기 키 및 앱 완전 종료 후 씬 키 자동 실행 1회를 확인했습니다. 후보 소스의 양 OS CI는 각각 335개 시험·패키징을 통과했습니다. 최종 배포 CI·공개 파일 검증은 릴리스 기록을 따르며 Windows beta.3 실기기는 미검증입니다.
 
 - **이전 베타:** 실제 전원·씬 버튼, 밝기 버튼·회전, 목록 조회와 설정 화면을 확인했습니다. v0.3.0-beta.1에서 화면 터치 표시 전환, 다이얼 전원 누름, 씬 탐색과 터치·누름 실행을 추가 확인했습니다.
 - **v0.4.0-beta.2:** 2026-10-13에 테스터가 Stream Deck +에서 밝기 숫자 크기 3단계의 정상 동작을 확인했습니다. 디자인·제목과 모의 자동 테스트 범위는 위에 설명했습니다.
