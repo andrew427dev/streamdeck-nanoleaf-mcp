@@ -2,6 +2,8 @@
 
 ## Status — v0.6.0-beta.3, 2026-10-28
 
+**Hardware testing deferred by the maintainer on 2026-10-28:** Windows physical-device validation cannot currently be performed and is excluded from active work priorities until the maintainer indicates it can resume. The checklist below is retained for later use; no pending result becomes a pass. Automated Windows CI, package/security checks and the published experimental-beta download remain unchanged.
+
 **Windows 11 x64 experimental beta.** This release adds common startup/shared-initialization fixes, clearer timeout guidance and dependency/CI hardening. The [release record](https://github.com/andrew427dev/streamdeck-nanoleaf-mcp/releases/tag/v0.6.0-beta.3) carries final-source/tag CI and asset checksums. See [current status](STATUS.md) and [versioned validation](VALIDATION.md).
 
 **Windows beta.3 has no new physical-device acceptance.** The physical-button-section pass reported on 2026-10-23 belongs to the beta.2 follow-up. Exact Windows/app/controller versions, installed-file identity, per-action results and boundary behavior were not supplied. This historical report does not certify beta.3.
@@ -29,7 +31,7 @@ Windows Screen Mirror is hidden by OS metadata and guarded in runtime: imported 
 
 Brightness-only requests do not explicitly set power or scene, but Desktop may turn a light off at 0% or on at positive brightness. Windows boundary and power-side-effect behavior must be tested, not inferred from the physical-button section report. Run remaining Windows hardware checks with Desktop mirroring disabled; mixed-stream behavior is unverified, and the reported button test did not specify its mirror state.
 
-## Windows acceptance checklist — partial tester-reported hardware evidence
+## Windows acceptance checklist — hardware work deferred
 
 The physical-button section report below is historical beta.2-follow-up evidence recorded on 2026-10-23; no beta.3 hardware acceptance has been added. Other items remain pending; a section-level pass does not supply missing environment, per-action or boundary results.
 
@@ -48,6 +50,7 @@ Windows 11 x64, a Stream Deck + and NL82K2 are needed to complete this list. Mov
 
 ## 한국어 요약
 
+- **실기기 검증 보류:** 현재 사용자가 Windows 실기기 검증을 진행할 수 없어 당분간 작업 우선순위에서 제외합니다. 재개 가능하다고 알려주실 때까지 기존 목록과 미검증 상태를 유지합니다. 자동 CI·패키징·보안 검사 및 공개 다운로드는 그대로 유지합니다.
 - v0.6.0-beta.3는 Mac 베타·Windows 11 x64 실험적 베타로 구분합니다. 두 OS의 최종 소스·태그 CI 및 설치 파일 검사 후 공개했고, 공개 파일 재다운로드 대조까지 통과했습니다.
 - Windows beta.3 실기기 검증은 아직 없습니다. 2026-10-23 물리 버튼 섹션 통과 보고는 beta.2의 이력이며 상세 환경·파일 식별·개별 동작 결과는 미확인입니다.
 - Windows 설치 탐색·실제 자동 실행, 설치/재설치 및 설정 유지, 다이얼·터치·표시 배율, 밝기 경계값과 전원 부작용, 반복·지연·취소·절전·USB 복구 검증이 남아 있습니다.

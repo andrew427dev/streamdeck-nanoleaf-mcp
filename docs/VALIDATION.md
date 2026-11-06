@@ -2,6 +2,98 @@
 
 For the current public/downloaded/installed/development distinction, use [STATUS.md](STATUS.md). Sections below are dated evidence, not claims that the currently installed or edited build passed every historical test.
 
+## Documentation publication — 2026-11-06
+
+The maintainer authorized publishing the previously local Mac startup/relaunch/repeated-input/cancellation results, Windows hardware deferral and security/CI/package revalidation below to GitHub. This update changes only `docs/STATUS.md`, `docs/VALIDATION.md` and `docs/WINDOWS.md`; it adds no runtime, dependency, workflow, package-version or installer change. Earlier dated statements that a phase remained local or performed no push describe that phase, not this later documentation publication. The existing Mac installation and settings, beta.3 tag and public assets are preserved. New-version publication, Windows physical-device validation, mirror improvements and Marketplace submission remain on hold.
+
+## Security audit recovery and two-OS package revalidation — 2026-11-06
+
+The maintainer authorized resolving the failed security check, Mac/Windows CI and installer verification, with the existing Mac installation/settings preserved. New-version publication, Windows hardware acceptance, mirror improvements and Marketplace submission remain on hold.
+
+### Cause and resolution
+
+The [weekly run's first attempt](https://github.com/andrew427dev/streamdeck-nanoleaf-mcp/actions/runs/41536439483/attempts/1) failed on 2026-11-03 KST (`2026-11-02T22:20Z`) at `npm run audit:security`, reporting five moderate package entries through `@elgato/cli → ejs → jake → filelist → minimatch`. These entries represented one advisory plus its dependent-package chain, not five independently established vulnerabilities. The lockfile uses **minimatch 5.1.9**, solely as a development dependency.
+
+The original report used `<11.0.1`. The [official advisory GHSA-g3hv-75wg-m249 / CVE-2026-118764](https://github.com/advisories/GHSA-g3hv-75wg-m249), updated 2026-11-04, now lists **`>=7.0.0 <11.0.1`**, excluding 5.1.9. The issue concerns preprocessing introduced outside this locked version. The earlier failure is historical evidence of the then-published metadata, not proof that the locked 5.x implementation was affected.
+
+On 2026-11-06, both `npm audit --json` and an explicit official-registry `npm audit --package-lock-only --registry=https://registry.npmjs.org --json` returned exit 0 with zero advisories, before changing any files. A clean dependency installation and the same-commit CI retry confirmed the result. The correct resolution was to rerun the audit after the upstream metadata correction. No package/lockfile/runtime/workflow change, forced downgrade, exception, ignore list or reduced audit threshold was applied. The existing audit command remains the regression gate; an additional code regression test was not added for an externally corrected advisory range.
+
+### Verification results
+
+All code/package checks in this section used unchanged source **`cb4f1b1aa3acfa8e50afab64a27bbccac104dad8`**, package **0.6.0-beta.3**, manifest **0.6.0.3**. The later documentation-only publication does not change the source identity of those recorded checks.
+
+| Check | Evidence |
+| --- | --- |
+| Original failed security run | [Attempt 2](https://github.com/andrew427dev/streamdeck-nanoleaf-mcp/actions/runs/41536439483/attempts/2) succeeded at the same commit. The weekly run audits security only; its skipped test job is expected. The failed first attempt remains in history. |
+| Full native CI | [Manual run 42232845609](https://github.com/andrew427dev/streamdeck-nanoleaf-mcp/actions/runs/42232845609) passed its security gate and both macOS/Windows test/package jobs. **335/335 tests per OS**, zero failed/cancelled/skipped. macOS used `macos-26-arm64`; Windows used Windows Server 2025 (`windows-2025-vs2026`), with simulated Desktop/USB/app-launch paths. |
+| Clean local copy | An archive of the same commit was expanded into a separate validation directory. Clean `npm ci`, **335/335 tests** with Stream Deck's Node.js 24.22.1 runtime, and official validation/packaging passed. The initial restricted-network packaging attempt could not resolve the manifest's GitHub URL; rerunning unchanged with network access passed without bypassing that check. |
+| CI artifact download | Both downloaded outer ZIP files matched GitHub's reported SHA-256 artifact digests before inspecting their three contained files. Each archive contains the Mac installer, Windows installer and checksum file. |
+| All six installers | Local Mac, Mac CI and Windows CI each produced a pair. Every installer passed its producer's checksum file, strict ZIP/CRC/path/symlink/size checks, the exact **50-file** public allowlist, private-content guards, manifest/platform identity and embedded client-version validation. Within each producer, all **49 non-manifest files match** across the two targets; manifest differences are limited to the top-level OS declaration. |
+| Public and installed preservation | All **50 installed Mac payload files and 32 profile files** matched the pre-work hashes. The retained original release files and all three public release asset digests were unchanged. No app/USB control, install/reinstall, profile edit, new commit/push, release/tag or Marketplace submission occurred. |
+
+Producer comparison: both the local Mac and Mac CI rebuilt payloads match the original public payloads byte for byte. Windows CI differs from the public Mac payload in **9 text files solely by CRLF/LF** and **10 generated PNGs**, with equal image dimensions/channels and changed-pixel ratios of approximately **0.17–1.29%**. This reproduces the previously documented producer-specific text/glyph-image differences; it is not a claim of byte-identical cross-host archives. No substantive text/runtime differences were found. ZIP-file hashes can differ even where their unpacked payloads match, so none of these new verification checksums replace the published checksums.
+
+Verification-only installer SHA-256 values:
+
+| Producer | Target | SHA-256 |
+| --- | --- | --- |
+| Local Mac | macOS Apple Silicon | `da49a7fc9944c25b186431e40e6af355953a077bd8b330fbd53ab7e880b93677` |
+| Local Mac | Windows x64 | `1b83e9780f32ab4428643cd9be4988c095a71260131c3fae734f45217e6f162c` |
+| Mac CI | macOS Apple Silicon | `95d1668108bbb36f4bf5468ceb8eaa2d31bba2709b12e0febe93a3a7a734f380` |
+| Mac CI | Windows x64 | `916ad3904dd52020781eb7c490f8b20b6cb51cd5c6f37251dfa2ea33daf9484b` |
+| Windows CI | macOS Apple Silicon | `ad68bd49443719576bea627455b4dacc07ce1fe24a399b260eee68bea8d3b354` |
+| Windows CI | Windows x64 | `50d9b7de6f3b128822d72747324f00f1567cd1996c7cc82d14b8c2619ecb5c17` |
+
+The public release remains v0.6.0-beta.3 with its original 2026-10-28 files. Verification copies are isolated from the existing release directory and installed plugin. This revalidation adds no physical Mac/Windows acceptance and resolves neither the Desktop startup/quit anomaly nor the known mirroring problems. Actions/Node deprecation warnings remain maintenance items rather than failed gates. Zero advisories is a dated audit result, not a permanent security guarantee. These results were recorded locally first; their later GitHub documentation publication is recorded above.
+
+## Mac startup, repeated input and cancellation follow-up — 2026-10-28
+
+Scope: the existing **v0.6.0-beta.3 / 0.6.0.3** Mac installation, macOS 27.0.1 arm64, Stream Deck 7.6.0, its Node.js 24.22.1 runtime, Nanoleaf Desktop 3.0.2, Stream Deck + and USB NL82K2. No rebuild, installation, profile/action edits or GitHub publication is part of this follow-up. Windows hardware validation, mirror improvements and Marketplace submission remain deferred.
+
+### Completed observations
+
+| Check | Result and limits |
+| --- | --- |
+| Initial preservation | All **50 installed payload files** and **32 profile files** matched the interrupted task's baseline. The light initially reported OFF, Vaporwave, brightness 100%; mirroring was OFF. |
+| Fully quit app → scene key | **Passed, one physical trial.** Zero related processes and a closed MCP port were observed before the tester pressed the existing auto-launch-enabled Vaporwave key. The tester reported normal app startup and lighting output. Readback subsequently showed ON/Vaporwave/100%. |
+| Quit and use the same key again | **Passed for the observed sequence.** The tester reported both launches worked. The observer saw complete exit and a different main process **6.1 seconds** later, with state readback about 3.1 seconds after that process appeared. Only one main app process was observed at a time. This is not an exact key-to-light latency measurement. |
+| Strict early-startup timing boundary | **Automated coverage only.** The second process appeared about 24.7 seconds after the first, outside the controller's original 15-second startup window. The hardware sequence above must not be presented as reproduction of the earlier cached-startup defect inside that window. The existing deterministic quick-exit/relaunch regression passed. |
+| Warm repeated scene input | **Passed, tester-reported 5 presses at approximately 0.3-second intervals**, followed by a fresh Ocean press after a 5-second wait. The tester reported normal output and no warning triangle. Readback independently observed Ocean and an unchanged main app process. This does not establish exact mutation counts or certify repeated cold-start inputs/power toggles/dial bursts. |
+| Targeted automated regressions | **151/151 passed**, zero failed/cancelled/skipped, using the installed Stream Deck Node.js runtime. Files: `controller.test.mjs`, `cancellation.test.mjs`, `action-lifecycle.test.mjs`, `live-state.test.mjs`. These use fake transport/launch/timers, including simulated Windows cases; they add no Windows hardware evidence. |
+| Installed-bundle integration | **1/1 Mac-mode integration test passed** using a temporary copy of the actual installed bundle and the existing plugin test harness. All real Nanoleaf fetches and native launches were intercepted; only a synthetic Stream Deck loopback connection was used. The installed bundle and settings were not edited. |
+
+Cancellation regressions cover invalidation during discovery, before native launch and after dispatch, folder disappearance/reappearance, changed command/device settings, rejection of stale event settings, release of the command lock, and acceptance of a fresh input. The brightness queue additionally checks coalescing, ordering and removal of pending input. These deterministic checks distinguish **preventing unsent work** from rollback: an already dispatched app launch or lighting command cannot be undone by input cancellation.
+
+### Desktop quit anomaly during test preparation
+
+After the repeated-input trial, Desktop was already fully closed when the assistant selected it to prepare the next quit. Selecting the app started it again. A normal quit was then issued during initial startup, roughly four seconds after the process first appeared. The MCP port and renderer closed, but the main process and helpers remained; Activity Monitor displayed **Nanoleaf Desktop (Not Responding)**. After approximately 167 seconds, a targeted force quit through Activity Monitor completed the exit; zero related processes and a closed port were reconfirmed before any cancellation trial.
+
+This is a **single observed Desktop startup/quit hang**, not a demonstrated plugin regression or a successful normal-quit trial. The triggering launch in this preparation sequence was assistant-initiated, not a Stream Deck action. No app update, settings edit, USB reconnect, mirror request or source fix was performed. Repeatability and cause remain unverified; do not silently count forced termination as passing graceful exit/relaunch coverage.
+
+### Interruption and user-initiated Mac restart
+
+In the first physical cancellation attempt, the tester pressed Ocean then immediately left the folder, waited and reported that Ocean did not run. Readback briefly confirmed the original OFF/Vaporwave/100% state after Desktop started. Its connection then closed again, with residual processes observed. Whether this second close was manual or spontaneous was not established before the interruption. Therefore this attempt is supporting cancellation evidence, **not a completed cancellation-and-fresh-input recovery pass**.
+
+The maintainer reported an apparent error and restarted the Mac, then authorized resuming the same checks. After reboot, Desktop's MCP connection and the USB light were responsive: OFF/Vaporwave/100%, 16 saved scenes, mirroring OFF. All **50 installed payload files still matched the retained public Mac beta.3 installer**. The earlier temporary profile baseline/observer files no longer existed, so cross-reboot profile byte identity cannot be claimed. A new baseline of 50 payload and 32 profile files was captured for the resumed checks. No profile or action settings were edited.
+
+The ready Desktop app was then quit through its normal **Quit Nanoleaf Desktop** menu item, with zero related processes and a closed MCP port independently observed. The earlier keyboard shortcut attempt had left the window and connection unchanged; the menu action, not that attempted shortcut, establishes the completed graceful quit. No force quit was needed for this post-reboot preparation. A successful connection after restarting is recovery evidence, not proof that the earlier hang's cause has been fixed.
+
+### Resumed physical cancellation and fresh-input recovery — completed
+
+| Check | Result and evidence |
+| --- | --- |
+| Cancel a scene while Desktop starts | **Passed for one observed user sequence.** With Desktop fully closed, the tester pressed the existing Ocean key, immediately left the Nanoleaf folder with its back key, waited at least 20 seconds, and reported that the light remained OFF. They were instructed not to open or quit Desktop manually. Post-trial readback found Desktop responsive with **OFF/Vaporwave/100%** and the same 16 saved scenes; Ocean had not become the active scene. |
+| Accept a new input after cancellation | **Passed.** The tester re-entered the existing folder, pressed Ocean, then Vaporwave and power OFF with pauses between them, and reported that all worked. A single read-only observer independently recorded **OFF/Vaporwave → ON/Ocean → ON/Vaporwave → OFF/Vaporwave**, with the same main app process throughout. |
+| Final preservation | **50/50 installed payload files and 32/32 profile files** were byte-identical to the post-reboot baseline, with no added files. The installed payload also matches the public Mac beta.3 installer. Final state matched the resumed test's initial OFF/Vaporwave/100%; the saved-scene list was unchanged and mirroring remained OFF. Desktop was left running and responsive. |
+
+The bounded observer used to prepare the cancellation trial finished before the tester completed that step; the cancellation result therefore combines the tester's report with **post-trial readback**, not a continuous event trace or proof of exact transport ordering. A new observer captured the subsequent fresh-input recovery sequence continuously. The cancellation pass means an unsent scene did not apply after leaving its folder; it does **not** mean cancellation must prevent Desktop from opening or terminate an already launched app.
+
+This completes the requested limited Mac follow-up, with the earlier quit anomaly still unresolved. The strict first-15-second relaunch boundary, repeated/slow cold starts, other controls' physical cancellation boundaries, and wider recovery acceptance remain unverified. No code fix, plugin reinstall, settings modification, GitHub push/release, Windows hardware test, mirror improvement or Marketplace submission was performed. Only local validation/status documentation was updated; earlier Windows deferral edits are retained.
+
+## Windows physical validation deferred — 2026-10-28
+
+The maintainer reported that Windows physical-device validation cannot currently be performed and requested that it be recorded and excluded for now. Windows hardware checks are deferred and removed from the active work order until testing can resume at the maintainer's direction. The existing checklist, beta.2 historical report and beta.3 unverified status remain intact; this decision adds no new test evidence. Automated Windows CI, packaging/security checks and published artifacts are unaffected. Proposed next priorities are Mac validation and shared maintenance, as recorded in [Status](STATUS.md). No tests, installation/settings changes or GitHub updates were performed by this local documentation change. Mirror improvements and Marketplace submission remain on hold.
+
 ## v0.6.0-beta.3 publication — 2026-10-28
 
 Published as a **Mac beta / Windows 11 x64 experimental beta**, not a stable release. The [GitHub prerelease](https://github.com/andrew427dev/streamdeck-nanoleaf-mcp/releases/tag/v0.6.0-beta.3) uses source/tag commit [`10f1f485746276a6e9c50c7a9906a051386deea9`](https://github.com/andrew427dev/streamdeck-nanoleaf-mcp/commit/10f1f485746276a6e9c50c7a9906a051386deea9).
