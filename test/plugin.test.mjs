@@ -38,10 +38,16 @@ syncBuiltinESMExports();
 let holdNextPower = false;
 let releasePower;
 let failNextPower = false;
+let holdNextBrightness = false;
+let releaseBrightness;
+let loseNextPowerReply = false;
 process.on('message', message => {
   if (message.type === 'hold-next-power') holdNextPower = true;
   if (message.type === 'release-power') { releasePower?.(); releasePower = undefined; }
   if (message.type === 'fail-next-power') failNextPower = true;
+  if (message.type === 'hold-next-brightness') holdNextBrightness = true;
+  if (message.type === 'release-brightness') { releaseBrightness?.(); releaseBrightness = undefined; }
+  if (message.type === 'lose-next-power-reply') loseNextPowerReply = true;
   if (message.type === 'external-state') { power = message.power; brightness = message.brightness; }
   if (message.type === 'offline') offline = true;
   send({ type: 'control-ready', command: message.type });
@@ -89,7 +95,11 @@ globalThis.fetch = async (url, options) => {
         if (!['brightness,device', 'brightness,device,power'].includes(Object.keys(args.states[0]).sort().join(','))
           || 'power' in args.states[0] && (args.states[0].power !== true || args.states[0].brightness === 0)
           || !Number.isInteger(args.states[0].brightness) || args.states[0].brightness < 0 || args.states[0].brightness > 100) {
-          throw new Error('Brightness must not change scene or power');
+          throw new Error('Unsupported synthetic brightness fields or values');
+        }
+        if (holdNextBrightness) {
+          holdNextBrightness = false;
+          await new Promise(resolve => { releaseBrightness = resolve; send({ type: 'brightness-held' }); });
         }
         brightness = args.states[0].brightness;
         if (args.states[0].power === true) power = true;
@@ -105,6 +115,15 @@ globalThis.fetch = async (url, options) => {
         return reply({ isError: true, content: [{ type: 'text', text: 'PRIVATE-BACKEND-DETAILS TEST-DEVICE' }] });
       }
       power = args.states[0].power;
+      if (loseNextPowerReply) {
+        loseNextPowerReply = false;
+        send({ type: 'power-applied-without-reply', power });
+        // Leave the response unreadable until the real client's deadline. The
+        // light has changed, so retrying this write would be unsafe.
+        return new Response(new ReadableStream({
+          cancel() { send({ type: 'lost-power-reply-cancelled' }); },
+        }), { headers: { 'content-type': 'application/json' } });
+      }
       return result(device({}));
     case 'play_scene':
       if (args.scenes?.length !== 1 || args.scenes[0].device !== 'TEST-DEVICE'
@@ -125,7 +144,7 @@ function mailbox() {
       messages.push(message);
       for (const listener of listeners) listener();
     },
-    wait(predicate, description, from = 0) {
+    wait(predicate, description, from = 0, timeoutMs = 2500) {
       return new Promise((resolve, reject) => {
         let timer;
         const check = () => {
@@ -139,7 +158,7 @@ function mailbox() {
         timer = setTimeout(() => {
           listeners.delete(check);
           reject(new Error(`Timed out waiting for ${description}`));
-        }, 2500);
+        }, timeoutMs);
         listeners.add(check);
         check();
       });
@@ -173,6 +192,13 @@ function touchEvent(kind, context, settings, hold = false) {
   event.payload.tapPos = [40, 30];
   event.payload.hold = hold;
   return event;
+}
+
+function multiActionEvent(event, kind, context, settings) {
+  const message = actionEvent(event, kind, context, settings);
+  message.payload.isInMultiAction = true;
+  delete message.payload.coordinates;
+  return message;
 }
 
 function titleEvent(kind, context, title, titleParameters = {}, settings = {}) {
@@ -227,7 +253,7 @@ function hasSceneDisplay(message, context, status, selectedIndex) {
 }
 
 for (const simulatedPlatform of ['darwin', 'win32']) test('built plugin handles commands and dials (simulated ' + simulatedPlatform + ')',
-  { timeout: 30_000 }, async t => {
+  { timeout: 45_000 }, async t => {
     try {
       await access(join(SOURCE, 'bin', 'plugin.js'));
     } catch (error) {
@@ -886,6 +912,152 @@ for (const simulatedPlatform of ['darwin', 'win32']) test('built plugin handles 
     assert.deepEqual(ipc.messages.slice(beforePreset).filter(message => message.request?.params?.name === 'set_light_state')
       .map(message => message.request.params.arguments), [{ states: [{ device: DEVICE, brightness: 75, power: true }] }]);
     send(actionEvent('willDisappear', 'brightness-preset', presetContext, applyPreset));
+
+    let inspectorSequence = 0;
+    const selectCommandInspector = async (kind, context) => {
+      const requestId = `input-coverage-${++inspectorSequence}`;
+      send({ event: 'propertyInspectorDidAppear', action: `${PLUGIN}.${kind}`, context, device: STREAM_DECK });
+      send({ event: 'sendToPlugin', action: `${PLUGIN}.${kind}`, context,
+        payload: { event: 'commandStatus', requestId } });
+      return await webSocketMessages.wait(message => message.event === 'sendToPropertyInspector'
+        && message.context === context && message.payload?.requestId === requestId, 'selected command inspector');
+    };
+
+    // Multi Action children have their own contexts and no key coordinates.
+    // Overlapping steps must not bypass the same-light lock or inherit results.
+    const multiPower = 'TEST-MULTI-POWER';
+    const multiScene = 'TEST-MULTI-SCENE';
+    const multiPowerSettings = { deviceId: DEVICE, powerMode: 'on', autoLaunch: false };
+    send(multiActionEvent('willAppear', 'power', multiPower, multiPowerSettings));
+    send(multiActionEvent('willAppear', 'scene', multiScene, sceneSettings));
+    await selectCommandInspector('power', multiPower);
+    child.send({ type: 'hold-next-power' });
+    await syncIPC();
+    const beforeMulti = ipc.messages.length;
+    const multiFeedback = webSocketMessages.messages.length;
+    send(multiActionEvent('keyDown', 'power', multiPower, multiPowerSettings));
+    send(multiActionEvent('keyUp', 'power', multiPower, multiPowerSettings));
+    await ipc.wait(message => message.type === 'power-held', 'held Multi Action power step', beforeMulti);
+    await selectCommandInspector('scene', multiScene);
+    from = webSocketMessages.messages.length;
+    send(multiActionEvent('keyDown', 'scene', multiScene, sceneSettings));
+    send(multiActionEvent('keyUp', 'scene', multiScene, sceneSettings));
+    const multiBusy = await webSocketMessages.wait(message => message.context === multiScene
+      && message.payload?.errorCode === 'BUSY', 'overlapping Multi Action scene is rejected', from);
+    assert.equal(multiBusy.payload.state, 'error');
+    await selectCommandInspector('power', multiPower);
+    from = webSocketMessages.messages.length;
+    child.send({ type: 'release-power' });
+    await webSocketMessages.wait(message => message.context === multiPower
+      && message.payload?.state === 'success', 'Multi Action first step completes', from);
+    await syncIPC();
+    assert.deepEqual(ipc.messages.slice(beforeMulti).filter(message =>
+      ['set_light_state', 'play_scene'].includes(message.request?.params?.name))
+      .map(message => message.request.params.arguments), [{ states: [{ device: DEVICE, power: true }] }]);
+    assert.equal(webSocketMessages.messages.slice(multiFeedback).some(message =>
+      message.context === multiScene && message.payload?.state === 'success'), false,
+    'the rejected child cannot inherit the preceding child completion');
+    assert.equal((await selectCommandInspector('scene', multiScene)).payload.errorCode, 'BUSY');
+    from = webSocketMessages.messages.length;
+    send(multiActionEvent('keyDown', 'scene', multiScene, sceneSettings));
+    send(multiActionEvent('keyUp', 'scene', multiScene, sceneSettings));
+    await webSocketMessages.wait(message => message.context === multiScene
+      && message.payload?.state === 'success', 'a new Multi Action step succeeds after lock release', from);
+    await syncIPC();
+    assert.deepEqual(ipc.messages.slice(beforeMulti).filter(message => message.request?.params?.name === 'play_scene')
+      .map(message => message.request.params.arguments), [{ scenes: [{ device: DEVICE, name: 'Ocean' }] }]);
+    const beforeDetachedMulti = ipc.messages.length;
+    send(multiActionEvent('willDisappear', 'power', multiPower, multiPowerSettings));
+    send(multiActionEvent('willDisappear', 'scene', multiScene, sceneSettings));
+    send(multiActionEvent('keyDown', 'power', multiPower, multiPowerSettings));
+    send(multiActionEvent('keyDown', 'scene', multiScene, sceneSettings));
+    await selectCommandInspector('power', powerContext);
+    await syncIPC();
+    assert.equal(ipc.messages.slice(beforeDetachedMulti).some(message =>
+      ['set_light_state', 'play_scene'].includes(message.request?.params?.name)), false,
+    'detached Multi Action children cannot execute a late input');
+
+    // Cover both a separate physical key and dial holding the device lock while
+    // a preset is pressed; a rejected preset must not replay after that lock ends.
+    const mixedPreset = 'TEST-MIXED-PRESET';
+    send(actionEvent('willAppear', 'brightness-preset', mixedPreset, presetSettings));
+    for (const sourceKind of ['brightness-up', 'brightness-dial']) {
+      const sourceContext = `TEST-MIXED-${sourceKind}`;
+      const sourceSettings = { deviceId: DEVICE, brightnessStep: 2, autoLaunch: false };
+      send(actionEvent('willAppear', sourceKind, sourceContext, sourceSettings));
+      child.send({ type: 'external-state', power: true, brightness: 40 });
+      child.send({ type: 'hold-next-brightness' });
+      await syncIPC();
+      await selectCommandInspector('brightness-preset', mixedPreset);
+      const beforeMixed = ipc.messages.length;
+      const input = actionEvent(sourceKind.endsWith('-dial') ? 'dialRotate' : 'keyDown',
+        sourceKind, sourceContext, sourceSettings);
+      if (sourceKind.endsWith('-dial')) input.payload.ticks = 1;
+      send(input);
+      await ipc.wait(message => message.type === 'brightness-held', 'held mixed brightness input', beforeMixed);
+      from = webSocketMessages.messages.length;
+      send(actionEvent('keyDown', 'brightness-preset', mixedPreset, presetSettings));
+      await webSocketMessages.wait(message => message.context === mixedPreset
+        && message.payload?.errorCode === 'BUSY', 'preset rejects overlapping brightness input', from);
+      await selectCommandInspector(sourceKind, sourceContext);
+      from = webSocketMessages.messages.length;
+      child.send({ type: 'release-brightness' });
+      await webSocketMessages.wait(message => message.context === sourceContext
+        && message.payload?.state === 'success', 'mixed brightness input completes', from);
+      await syncIPC();
+      assert.deepEqual(ipc.messages.slice(beforeMixed).filter(message => message.request?.params?.name === 'set_light_state')
+        .map(message => message.request.params.arguments), [{ states: [{ device: DEVICE, brightness: 42 }] }],
+      'the rejected preset is not queued behind the earlier brightness input');
+      assert.equal((await selectCommandInspector('brightness-preset', mixedPreset)).payload.errorCode, 'BUSY');
+      from = webSocketMessages.messages.length;
+      send(actionEvent('keyDown', 'brightness-preset', mixedPreset, presetSettings));
+      await webSocketMessages.wait(message => message.context === mixedPreset
+        && message.payload?.state === 'success', 'a fresh preset works after mixed input', from);
+      await syncIPC();
+      assert.deepEqual(ipc.messages.slice(beforeMixed).filter(message => message.request?.params?.name === 'set_light_state')
+        .map(message => message.request.params.arguments), [
+        { states: [{ device: DEVICE, brightness: 42 }] }, { states: [{ device: DEVICE, brightness: 75 }] },
+      ]);
+      assert.equal(ipc.messages.slice(beforeMixed).some(message => message.request?.params?.name === 'play_scene'), false);
+      send(actionEvent('willDisappear', sourceKind, sourceContext, sourceSettings));
+    }
+    send(actionEvent('willDisappear', 'brightness-preset', mixedPreset, presetSettings));
+
+    // The synthetic light changes, but its response stream never returns data.
+    // Use the real 8-second client deadline rather than altering runtime timers.
+    const uncertainContext = 'TEST-UNCERTAIN-POWER';
+    const uncertainSettings = { deviceId: DEVICE, powerMode: 'off', autoLaunch: true };
+    send(actionEvent('willAppear', 'power', uncertainContext, uncertainSettings));
+    await selectCommandInspector('power', uncertainContext);
+    child.send({ type: 'lose-next-power-reply' });
+    await syncIPC();
+    const beforeUncertain = ipc.messages.length;
+    from = webSocketMessages.messages.length;
+    send(actionEvent('keyDown', 'power', uncertainContext, uncertainSettings));
+    await webSocketMessages.wait(message => message.context === uncertainContext
+      && message.payload?.state === 'running', 'uncertain write initially reports running', from);
+    const applied = await ipc.wait(message => message.type === 'power-applied-without-reply',
+      'synthetic light changes before its reply is lost', beforeUncertain);
+    assert.equal(applied.power, false);
+    const timedOut = await webSocketMessages.wait(message => message.context === uncertainContext
+      && message.payload?.state === 'error', 'real mutation deadline reports uncertain outcome', from, 12_000);
+    assert.equal(timedOut.payload.errorCode, 'APP_TIMEOUT',
+      'the inspector receives the timeout code mapped to check-the-light-before-retrying guidance');
+    await ipc.wait(message => message.type === 'lost-power-reply-cancelled', 'timed-out response is cancelled', beforeUncertain);
+    await webSocketMessages.wait(message => hasPowerImage(message, uncertainContext, 'off'),
+      'state readback independently confirms the light did change', from);
+    assert.equal((await selectCommandInspector('power', uncertainContext)).payload.errorCode, 'APP_TIMEOUT',
+      'successful state readback must not erase the uncertain command result');
+    await syncIPC();
+    assert.deepEqual(ipc.messages.slice(beforeUncertain).filter(message =>
+      ['set_light_state', 'play_scene'].includes(message.request?.params?.name))
+      .map(message => message.request.params.arguments), [{ states: [{ device: DEVICE, power: false }] }],
+    'an already-applied command is not replayed, even with app launch enabled');
+    assert.equal(webSocketMessages.messages.slice(from).some(message => message.context === uncertainContext
+      && (message.payload?.state === 'success' || message.event === 'showOk')), false);
+    assert.equal(webSocketMessages.messages.slice(from).filter(message => message.context === uncertainContext
+      && message.event === 'showAlert').length, 1);
+    send(actionEvent('willDisappear', 'power', uncertainContext, uncertainSettings));
 
     from = webSocketMessages.messages.length;
     const mirrorContext = 'TEST-MIRROR-CONTEXT';
