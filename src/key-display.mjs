@@ -6,18 +6,22 @@ const symbols = {
   scene: '<path d="m14 3 2.5 6.5L23 12l-6.5 2.5L14 21l-2.5-6.5L5 12l6.5-2.5Z"/><path d="m4 2 .9 2.1L7 5l-2.1.9L4 8l-.9-2.1L1 5l2.1-.9Z"/>',
   'brightness-up': '<path d="M5 12h14M12 5v14"/>',
   'brightness-down': '<path d="M5 12h14"/>',
+  'brightness-preset': '<circle cx="12" cy="12" r="5"/><path d="M12 1v3m0 16v3M1 12h3m16 0h3M4.2 4.2l2.1 2.1m11.4 11.4 2.1 2.1M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/>',
   'screen-mirror': '<rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8m-4-4v4M5 12l4-5 4 6 3-4 3 3"/>',
 };
 export function renderKeyDisplay(kind, state, presentation = {}) {
   kind = Object.hasOwn(symbols, kind) ? kind : 'power';
   const mirror = kind === 'screen-mirror';
+  const preset = kind === 'brightness-preset';
   const status = mirror ? (['running', 'stopped', 'starting', 'stopping'].includes(state?.status) ? state.status : 'unknown')
     : typeof state?.power !== 'boolean' ? 'unknown' : state.power ? 'on' : 'off';
   const colour = kind === 'power' ? { on: '#83e8ce', off: '#a2aaad', unknown: '#ffc378' }[status]
     : mirror ? { running: '#83e8ce', stopped: '#a2aaad', starting: '#ffc378', stopping: '#ffc378', unknown: '#ffc378' }[status]
     : kind === 'scene' ? '#cbb8fc' : '#e8eded';
-  const label = { on: 'ON', off: 'OFF', running: 'SYNC ON', stopped: 'SYNC OFF', starting: 'START…', stopping: 'STOP…', unknown: '—' }[status];
-  const showStatus = kind === 'power' || mirror;
+  const value = state?.brightnessPreset;
+  const label = preset ? (Number.isInteger(value) && value >= 0 && value <= 100 ? `${value}%` : '—')
+    : { on: 'ON', off: 'OFF', running: 'SYNC ON', stopped: 'SYNC OFF', starting: 'START…', stopping: 'STOP…', unknown: '—' }[status];
+  const showStatus = kind === 'power' || mirror || preset;
   const box = keyContentRect(presentation);
   const expanded = presentation.visible === false;
   let graphic;

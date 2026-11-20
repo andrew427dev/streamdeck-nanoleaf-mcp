@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises';
 import metadata from '../package.json' with { type: 'json' };
 import lock from '../package-lock.json' with { type: 'json' };
 import manifest from '../io.github.andrew427dev.nanoleaf-mcp.sdPlugin/manifest.json' with { type: 'json' };
-import { assertVersionIncrease, validateVersions } from '../scripts/version.mjs';
+import { assertTaggedVersion, assertVersionIncrease, validateVersions } from '../scripts/version.mjs';
 
 test('package, lockfile, and manifest describe the same release', () => {
   assert.equal(validateVersions(metadata, lock, manifest), manifest.Version);
@@ -58,4 +58,18 @@ test('installed package includes current privacy and security guidance', async (
     const packaged = await readFile(new URL(`../io.github.andrew427dev.nanoleaf-mcp.sdPlugin/${name}`, import.meta.url), 'utf8');
     assert.equal(packaged, source);
   }
+});
+
+test('tag guard allows new versions and documentation-only changes to an existing version', () => {
+  assert.doesNotThrow(() => assertTaggedVersion('0.7.0-beta.1', ['v0.6.0-beta.3', 'v0.5.0-beta.2']));
+  assert.doesNotThrow(() => assertTaggedVersion('0.6.0-beta.3', ['v0.6.0-beta.3'], false));
+  assert.doesNotThrow(() => assertTaggedVersion('0.7.0-beta.1', ['unrelated', 'preview'], true));
+  assert.doesNotThrow(() => assertTaggedVersion('0.7.0-beta.1', []));
+});
+
+test('tag guard rejects changed released payloads, downgrades, and malformed version baselines', () => {
+  assert.throws(() => assertTaggedVersion('0.6.0-beta.3', ['v0.6.0-beta.3'], true), /payload changed/);
+  assert.throws(() => assertTaggedVersion('0.6.0-beta.3', ['v0.7.0-beta.1']), /must be newer/);
+  assert.throws(() => assertTaggedVersion('0.7.0-beta.1', ['v0.7.0']), /must be newer/);
+  assert.throws(() => assertTaggedVersion('0.7.0-beta.1', ['v0.7.0-beta.65535']), /Beta number/);
 });

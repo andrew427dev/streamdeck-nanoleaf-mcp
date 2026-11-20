@@ -9,6 +9,9 @@ import { sceneDisplayFeedback } from './scene-display.mjs';
 import { titlePresentation } from './title-presentation.mjs';
 import { keyDisplayImage } from './key-display.mjs';
 import { ScreenMirror } from './screen-mirror.mjs';
+import { randomUUID } from 'node:crypto';
+import metadata from '../package.json' with { type: 'json' };
+import { connectionDiagnostics } from './diagnostics.mjs';
 
 // Keep SDK wire-level settings/device payloads out of normal log output.
 streamDeck.logger.setLevel('error');
@@ -21,7 +24,7 @@ const mirror = new ScreenMirror({ client, controller });
 const live = new LiveState({ read: deviceId => controller.inspectState(deviceId) });
 async function execute(kind, settings, options) {
   live.begin(settings?.deviceId);
-  try { await controller.execute(kind, settings, options); }
+  try { return await controller.execute(kind, settings, options); }
   finally { live.end(settings?.deviceId); }
 }
 const brightness = new BrightnessQueue({ execute: (settings, options) => execute('brightness', settings, options) });
@@ -37,6 +40,7 @@ class LightAction extends SingletonAction {
   // Keep only safe, recent outcomes in memory, never in Stream Deck profile settings.
   #results = new Map();
   #sequence = 0;
+  #session = randomUUID();
   #visible = new Map();
   // Bounded, display-only metadata. No title text, device identifiers or profile writes.
   #titles = new Map();
@@ -46,8 +50,8 @@ class LightAction extends SingletonAction {
     // A previous command may finish after a newer press was rejected as BUSY.
     // Preserve the latest press's result instead of showing an unrelated completion.
     if (expectedSequence !== undefined && this.#results.get(context)?.sequence !== expectedSequence) return;
-    const result = { event: 'commandStatus', actionContext: context, sequence: ++this.#sequence, state };
-    if (state === 'error') result.errorCode = errorCode;
+    const result = { event: 'commandStatus', actionContext: context, session: this.#session, sequence: ++this.#sequence, state };
+    if (state === 'error' || state === 'skipped') result.errorCode = errorCode;
     this.#results.delete(context);
     this.#results.set(context, result);
     if (this.#results.size > 256) this.#results.delete(this.#results.keys().next().value);
@@ -55,11 +59,11 @@ class LightAction extends SingletonAction {
     return result.sequence;
   }
 
-  async #sendStatus(context) {
+  async #sendStatus(context, requestId) {
     if (streamDeck.ui.action?.id !== context) return;
     const result = this.#results.get(context)
-      ?? { event: 'commandStatus', actionContext: context, sequence: 0, state: 'idle' };
-    await streamDeck.ui.sendToPropertyInspector(result).catch(() => {});
+      ?? { event: 'commandStatus', actionContext: context, session: this.#session, sequence: 0, state: 'idle' };
+    await streamDeck.ui.sendToPropertyInspector(requestId ? { ...result, requestId } : result).catch(() => {});
   }
 
   onWillAppear(ev) { this.#watch(ev); }
@@ -163,7 +167,9 @@ class LightAction extends SingletonAction {
   async #render(action, view) {
     if (this.#visible.get(action.id) !== view) return;
     if (action.isDial()) return this.#renderDial(action, view);
-    if (action.isKey()) await action.setImage(keyDisplayImage(this.kind, view.state, view.presentation));
+    if (action.isKey()) await action.setImage(keyDisplayImage(this.kind,
+      this.kind === 'brightness-preset' ? { brightnessPreset: view.settings?.brightnessPreset ?? 50 } : view.state,
+      view.presentation));
   }
 
   async #renderDial(action, view) {
@@ -181,8 +187,9 @@ class LightAction extends SingletonAction {
   async #dispatch(ev, task) {
     const token = this.#visible.get(ev.action.id);
     const attempt = this.#status(ev.action.id, 'running');
+    let result;
     try {
-      await task();
+      result = await task();
     } catch (error) {
       if (this.#visible.get(ev.action.id) !== token) return;
       // Log only an allowlisted code: no backend strings, settings, or device identifiers.
@@ -193,7 +200,7 @@ class LightAction extends SingletonAction {
       return;
     }
     if (this.#visible.get(ev.action.id) !== token) return;
-    this.#status(ev.action.id, 'success', undefined, attempt);
+    this.#status(ev.action.id, result?.skipped === 'LIGHT_OFF' ? 'skipped' : 'success', result?.skipped, attempt);
   }
 
   #inputView(ev) {
@@ -206,7 +213,10 @@ class LightAction extends SingletonAction {
     if (input.deviceId !== saved.deviceId || (input.autoLaunch === true) !== (saved.autoLaunch === true)) return;
     if (this.kind === 'power' && input.powerMode !== saved.powerMode) return;
     if (this.kind === 'scene' && input.sceneName !== saved.sceneName) return;
-    if (this.kind.startsWith('brightness-')) {
+    if (this.kind === 'brightness-preset') {
+      if (!Object.is(input.brightnessPreset ?? 50, saved.brightnessPreset ?? 50)
+        || (input.presetWhenOff ?? 'keep-off') !== (saved.presetWhenOff ?? 'keep-off')) return;
+    } else if (this.kind.startsWith('brightness-')) {
       const fallback = this.kind === 'brightness-dial' ? 2 : 5;
       if (!Object.is(input.brightnessStep ?? fallback, saved.brightnessStep ?? fallback)) return;
     }
@@ -224,16 +234,16 @@ class LightAction extends SingletonAction {
       { isCurrent: () => this.#visible.get(ev.action.id) === view }));
   }
   async onTouchTap(ev) {
-    // Ignore long touches; each normal tap has exactly one clearly assigned action.
-    if (!ev.action.isDial() || ev.payload.hold === true) return;
-    if (this.kind === 'scene-dial') return this.#sceneConfirm(ev);
-    if (this.kind !== 'brightness-dial') return;
+    if (!ev.action.isDial()) return;
+    // A long scene touch reads a new list; it can never confirm the selection.
+    if (this.kind === 'scene-dial') return this.#sceneConfirm(ev, ev.payload.hold === true);
+    if (this.kind !== 'brightness-dial' || ev.payload.hold === true) return;
     await this.#cycleDisplay(ev);
   }
-  async #sceneConfirm(ev) {
+  async #sceneConfirm(ev, refresh = false) {
     const view = this.#inputView(ev);
     if (!view?.browser || ['loading', 'applying'].includes(view.browser.state.status)) return;
-    await this.#dispatch(ev, () => view.browser.press());
+    await this.#dispatch(ev, () => refresh ? view.browser.refresh() : view.browser.press());
   }
   async #cycleDisplay(ev) {
     const view = this.#visible.get(ev.action.id);
@@ -272,7 +282,9 @@ class LightAction extends SingletonAction {
         return brightness.enqueue(ev.action.id, view.settings, delta);
       }
       // The matching snapshot and lifecycle token travel together through discovery.
-      return execute(this.kind, view.settings, { isCurrent: () => this.#visible.get(ev.action.id) === view });
+      const settings = this.kind === 'brightness-preset'
+        ? { ...view.settings, brightnessPreset: view.settings?.brightnessPreset ?? 50 } : view.settings;
+      return execute(this.kind, settings, { isCurrent: () => this.#visible.get(ev.action.id) === view });
     });
   }
   async onDialRotate(ev) {
@@ -290,7 +302,21 @@ class LightAction extends SingletonAction {
   }
   async onSendToPlugin(ev) {
     if (ev.payload?.event === 'commandStatus') {
-      await this.#sendStatus(ev.action.id);
+      const requestId = ev.payload.requestId;
+      if (requestId !== undefined && (typeof requestId !== 'string' || !requestId || requestId.length > 2048)) return;
+      await this.#sendStatus(ev.action.id, requestId);
+      return;
+    }
+    if (ev.payload?.event === 'diagnostics') {
+      const requestId = ev.payload.requestId;
+      if (typeof requestId !== 'string' || !requestId || requestId.length > 2048
+        || streamDeck.ui.action?.id !== ev.action.id) return;
+      const diagnostics = await connectionDiagnostics(client, {
+        pluginVersion: metadata.version, platform: process.platform,
+      });
+      if (streamDeck.ui.action?.id === ev.action.id) {
+        await streamDeck.ui.sendToPropertyInspector({ event: 'diagnostics', requestId, diagnostics }).catch(() => {});
+      }
       return;
     }
     if (this.kind === 'screen-mirror') {
@@ -317,7 +343,7 @@ const SceneAction = action({ UUID: 'io.github.andrew427dev.nanoleaf-mcp.scene' }
 });
 streamDeck.actions.registerAction(new PowerAction());
 streamDeck.actions.registerAction(new SceneAction());
-for (const kind of ['brightness-up', 'brightness-down', 'brightness-dial', 'scene-dial', 'screen-mirror']) {
+for (const kind of ['brightness-up', 'brightness-down', 'brightness-dial', 'brightness-preset', 'scene-dial', 'screen-mirror']) {
   const BrightnessAction = action({ UUID: `io.github.andrew427dev.nanoleaf-mcp.${kind}` })(class extends LightAction {
     constructor() { super(kind); }
   });

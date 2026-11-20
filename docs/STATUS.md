@@ -1,6 +1,20 @@
 # Release, installation and development status
 
-Last reconciled: **2026-11-06**. Dated evidence in [Validation](VALIDATION.md), [Changelog](../CHANGELOG.md) and earlier release notes retains its original scope.
+Last reconciled: **2026-11-20**. This is the authoritative current status; [Validation](VALIDATION.md) keeps dated evidence and release notes describe their exact published build. Historical counts and pass reports below retain their original scope.
+
+## Current development — v0.7.0-beta.1, not released or installed
+
+The maintainer authorized the non-deferred review follow-up on 2026-11-20. The next development line is **v0.7.0-beta.1 / 0.7.0.1**. The integrated source includes command-status recovery across plugin restart, read-only connection diagnostics with user-initiated summary copying, Scene Browser refresh controls, brightness presets, accurate help/security/verification wording, dependency compatibility, CI and interrupted-package cleanup. The final local suite passed **376/376**, with zero failures/cancelled/skipped, and the new lockfile security audit returned **zero known advisories**. Bundled Mac/Windows event paths passed with synthetic app/MCP transport. Exact-source native CI and final installer readback remain to be recorded in the [candidate record](releases/v0.7.0-beta.1.md); these local results are not hardware acceptance or a release announcement.
+
+The latest public download and the working Mac installation remain **v0.6.0-beta.3 / 0.6.0.3**. The 2026-11-20 read-only audit confirmed that 48 of its 50 payload files match the public Mac installer. Only the two category-icon images differ, following the maintainer's 2026-11-09 local customization. Public installers retain the original project icon. The audit's 50 installed payload files, 43 profile files and three retained release files were unchanged during that audit; older 32-profile-file baselines are separate historical observations.
+
+The unchanged beta.3 source at `eb46dd9` passed a fresh **335/335** automated run, security audit with zero known advisories, and Mac/Windows package validation on the Mac review host. Re-downloaded public installers each matched the corresponding rebuilt 50-file payload. Existing [2026-11-06 full CI](https://github.com/andrew427dev/streamdeck-nanoleaf-mcp/actions/runs/42238686788) and [2026-11-17 KST advisory-only CI](https://github.com/andrew427dev/streamdeck-nanoleaf-mcp/actions/runs/43974398638) also passed. These are **beta.3 baseline results**, not v0.7.0 candidate verification or a new native Windows run.
+
+Known Mac mirror cancellation gaps remain on hold: an old settings payload can be dispatched with newer mirror settings, and a cancelled mirror input can still open Desktop before the later cancellation check. Stop-time power changes/flashes and engine-ON-without-output also remain unresolved. The non-mirror improvements do not certify those paths.
+
+No new release, installation, Windows hardware acceptance or Marketplace submission is included. Existing Mac profiles and button/dial settings remain in place. The current source work does not change what the already installed beta.3 does.
+
+**2026-11-20 Mac follow-up:** the maintainer reported that the retained beta.3 successfully launched Desktop and applied a scene, then did so again after an immediate Command-Q/repress sequence. Exact timing was not measured, so the strict original 15-second startup-window case remains unverified on hardware. Separately, the development diagnostic read the current local MCP service successfully: protocol 2025-03-26, one supported USB device and available control tools. Its reported server version 0.1.0 is the MCP server version, not the Desktop product version. Neither observation is candidate hardware acceptance; see the [dated scope](VALIDATION.md#mac-follow-up-and-read-only-diagnostic-check--2026-11-20).
 
 ## Security audit recovery — 2026-11-06, no new release
 
@@ -20,7 +34,7 @@ This release fixes quick Desktop exit/relaunch after automatic startup and share
 | --- | --- | --- |
 | Mac release | v0.6.0-beta.3 | Installation and power/scene/brightness checks passed on 2026-10-26. The 2026-10-28 follow-up adds scene-key automatic launch, an observed exit/relaunch sequence and five warm repeated scene presses. Timing limits and a Desktop quit anomaly are recorded below; wider physical acceptance remains incomplete. |
 | Windows release | v0.6.0-beta.3 | Experimental beta. Native mocked CI and packaging are verified; no Windows beta.3 hardware acceptance. The earlier physical-button-section report belongs to the beta.2 follow-up and lacks exact environment/package and per-action detail. |
-| Working Mac installation | v0.6.0-beta.3 / 0.6.0.3 | Existing installation retained. The 2026-10-28 resumed checks ended with all 50 payload and 32 profile files unchanged from the post-reboot baseline; the payload also matches the public Mac installer. The earlier publication/install hash comparisons remain separate historical baselines. |
+| Working Mac installation | v0.6.0-beta.3 / 0.6.0.3 | Retained. On 2026-11-20, 48/50 payload files matched the public Mac installer; only the two approved local category icons differ. The earlier all-50-file matches and 32-file profile counts are dated historical baselines, not the current logo state. |
 | Earlier public Mac/Windows release | v0.6.0-beta.2 | Retained historical downloads and checksums. Partial Mac acceptance and Windows button-section report remain attributed to beta.2. |
 | Earlier public Windows release | v0.6.0-beta.1 | Historical Windows-only experimental release; paired Mac candidate was never published or installed. |
 | Earlier public Mac release | v0.5.0-beta.2 | Historical installation and mirror incident evidence retained. |
@@ -44,7 +58,7 @@ After reboot, all **50 payload files still matched the public Mac installer**, D
 
 The maintainer cannot currently perform Windows physical-device validation and has explicitly deferred it. Exclude all Windows hardware acceptance tasks from the active work order until the maintainer indicates testing can resume. Keep the checklist and existing evidence; beta.3 remains hardware-unverified and the Windows release remains an experimental beta. This does not disable Windows automated CI, packaging or security checks, or remove its published download.
 
-The proposed next work order is now:
+The following was the proposed work order on 2026-10-28; the current authorized development scope is at the top of this page:
 
 1. Reproduce and diagnose the Mac Desktop startup/quit anomaly; separately verify the strict early startup window, repeated cold starts, slow-start boundaries and other controls' cancellation paths. The limited scene cancellation/fresh-input recovery trial is complete.
 2. Mac brightness boundaries (0%/100%) and power behavior when adjusting brightness while OFF.
@@ -64,9 +78,15 @@ The current Mac startup/repeated-input/cancellation work was separately authoriz
 
 ## Preserved scope
 
-The earlier approved beta.3 release publication is complete. The maintainer separately authorized this documentation-only GitHub update for the later Mac physical follow-up, Windows hardware deferral and 2026-11-06 security/CI/package revalidation. Rebuilds and packaging ran only in isolated validation copies and CI; this update does not install a plugin or replace release assets. Historical local-only/no-push statements in dated validation sections describe the scope of those earlier phases. New-version publication, Windows hardware validation, mirror improvements, no-flash experiments, private compensation changes and Marketplace submission remain **on hold**. Existing profile/action settings and historical release tags/assets are preserved. The installed plugin is shared by all profiles using its UUID; no claim of profile-isolated installation is made.
+The earlier beta.3 publication and documentation-only GitHub follow-up are complete. On 2026-11-20 the maintainer authorized non-deferred source improvements and verification; their development state is separate from the working installation and public downloads. Historical local-only/no-push statements describe their dated phases. New-version publication, Windows hardware validation, mirror improvements, no-flash experiments, private compensation changes and Marketplace submission remain **on hold**. Existing profile/action settings and historical release tags/assets are preserved. The installed plugin is shared by all profiles using its UUID; no claim of profile-isolated installation is made.
 
 ## 한국어 요약
+
+**2026-11-20 현재 상태:** 최신 공개판과 Mac 설치본은 `v0.6.0-beta.3 / 0.6.0.3`이며, 다음 개발판은 `v0.7.0-beta.1 / 0.7.0.1`입니다. 공통 상태 표시, 읽기 전용 진단·요약 복사, 씬 목록 새로고침, 밝기 프리셋, 문서·의존성·CI·패키징 보완을 통합했고 로컬 전체 시험 **376/376**, 실패·취소·건너뜀 0, 새 잠금 파일 보안 검사 **알려진 취약점 0건**을 확인했습니다. 번들 시험의 Mac·Windows 경로는 모의 앱/MCP를 사용합니다. 정확한 소스의 원격 CI와 최종 설치 파일 대조는 후보 기록에 이어서 적으며, 기존 실기기 통과를 새 개발판에 소급하지 않습니다. 미러링 개선·Windows 실기기·새 배포·Marketplace는 보류합니다.
+
+**로컬 로고 예외:** 11월 9일 사용자 요청으로 Mac 설치본의 카테고리 아이콘 2개만 바뀌었습니다. 11월 20일 조회에서는 나머지 48개가 공개판과 일치했고, 검토 전후 설치 파일 50개·프로필 파일 43개·보관 릴리스 파일 3개가 같았습니다. 아래 50개 전체 일치·프로필 32개 기록은 해당 날짜의 검증 이력입니다. 공개판의 자체 제작 아이콘은 유지됩니다.
+
+**11월 20일 추가 확인:** 기존 beta.3에서 완전 종료 후 씬 버튼 실행, 작동 직후 Command-Q로 종료하고 재누르기까지 두 번 모두 정상이라는 사용자 보고를 받았습니다. 정확한 시간을 계측하지 않아 초기 15초 창의 실기기 통과로 확대하지 않습니다. 새 진단 소스의 읽기 전용 조회도 현재 Mac MCP에서 연결 준비·프로토콜 2025-03-26·지원 USB 1개·제어 도구 제공을 확인했습니다. 보고된 0.1.0은 Desktop 제품 버전이 아닌 MCP 서버 버전이며 표시를 정정했습니다. 새 후보를 설치하거나 물리 기능을 검증한 결과는 아닙니다.
 
 **2026-11-06 보안 검사 실패 해소:** 공식 공지의 영향 범위가 정정돼 사용 중인 `minimatch 5.1.9`가 대상에서 제외됐습니다. 의존성·코드·검사 정책 변경 없이 기존 실패 검사 재실행과 새 Mac·Windows CI가 통과했습니다. 로컬과 각 OS CI는 각각 335개 시험을 통과했고, 세 환경이 만든 설치 파일 총 6개도 검증했습니다. Mac 설치 파일 50개·프로필 32개와 기존 공개 배포 파일은 유지했습니다. 이번 GitHub 문서 갱신에 결과를 반영하며 새 버전 배포·Windows 실기기·미러링 개선·Marketplace 제출은 계속 보류합니다.
 
@@ -76,6 +96,6 @@ The earlier approved beta.3 release publication is complete. The maintainer sepa
 
 v0.6.0-beta.3를 **Mac 베타 / Windows 11 x64 실험적 베타**로 2026-10-28 공개했습니다. 최종 소스·기본 브랜치·태그 CI가 각 OS 335개 시험과 패키징을 통과했고 알려진 의존성 취약점은 0건입니다. 공개 파일 3개를 다시 내려받아 원본과 일치함을 확인했습니다. 준비된 설치 파일을 그대로 사용하며 이전 버전의 태그·다운로드 파일을 덮어쓰지 않습니다.
 
-현재 Mac에는 이미 beta.3가 설치돼 있습니다. 설치 파일 50개 일치, 프로필 32개 유지, 전원·씬·밝기 키와 앱 완전 종료 후 씬 버튼 자동 실행 1회가 확인됐습니다. 이번 배포는 설치본과 설정을 유지합니다. Windows beta.3는 실기기 미검증이며 이전 버튼 섹션 통과 보고는 beta.2 이력입니다.
+10월 26일 Mac beta.3 설치 당시에는 설치 파일 50개 일치, 프로필 32개 유지, 전원·씬·밝기 키와 앱 완전 종료 후 씬 버튼 자동 실행 1회를 확인했습니다. 현재 로고 예외는 위의 11월 20일 기록을 따릅니다. Windows beta.3는 실기기 미검증이며 이전 버튼 섹션 통과 보고는 beta.2 이력입니다.
 
 Mac의 나머지 다이얼·터치·반복/지연 자동 실행·다른 제어의 취소·복구 경로와 Windows의 남은 실기기 항목을 통과로 간주하지 않습니다. 미러링 중지 시 전원 변화·깜빡임 및 실제 화면 싱크 실패는 미해결이며 Windows 미러링은 지원하지 않습니다. 미러링 개선과 Marketplace 제출은 계속 보류합니다.

@@ -10,6 +10,7 @@ import {
 } from './artifacts.mjs';
 import { validateVersions } from './version.mjs';
 import { TARGETS, platformManifest, installerName } from './platforms.mjs';
+import { writeReleaseOutput } from './release-output.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const readJSON = async name => JSON.parse(await readFile(path.join(root, name), 'utf8'));
@@ -69,13 +70,9 @@ try {
   }
 
   await mkdir(dist, { recursive: true });
-  // Exclusive directory/file creation also protects against concurrent packs.
-  await mkdir(release);
-  for (const output of outputs) {
-    await copyFile(output.installer, path.join(release, output.name), constants.COPYFILE_EXCL);
-    console.log('Prepared locally (not published): ' + output.name);
-  }
-  await writeFile(path.join(release, 'SHA256SUMS.txt'), outputs.map(output => output.checksum).join(''), { flag: 'wx' });
+  await writeReleaseOutput(release, outputs);
+  // Report success only after both installers and the checksum list exist.
+  for (const output of outputs) console.log('Prepared locally (not published): ' + output.name);
   if ((await readdir(dist)).some(name => name.endsWith('.streamDeckPlugin'))) {
     console.warn('Legacy installers remain directly under dist/; they were preserved and are NOT this release. Use only the versioned directory printed above.');
   }

@@ -14,6 +14,7 @@ const imageNames = [
   'brightness-down-action', 'brightness-dial-action', 'scene-dial-action',
   'brightness-up-key', 'brightness-down-key', 'brightness-dial-key', 'scene-dial-key',
   'screen-mirror-action', 'screen-mirror-key',
+  'brightness-preset-action', 'brightness-preset-key',
 ];
 
 // Explicit public payload: runtime logs, profiles, private artwork, caches,

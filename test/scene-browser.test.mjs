@@ -4,6 +4,44 @@ import { SceneBrowser } from '../src/scene-browser.mjs';
 
 const choices = ['Ocean', 'Warm White', 'Vaporwave'];
 const settings = { deviceId: 'TEST-DEVICE', autoLaunch: true };
+
+test('explicit refresh updates the scene list without applying a scene and retains selection by name', async () => {
+  let scenes = [...choices];
+  let writes = 0;
+  const browser = new SceneBrowser({ settings, readScenes: async () => scenes,
+    playScene: async () => { writes++; }, onChange: () => {} });
+  await browser.press();
+  browser.rotate(1);
+  scenes = ['New Scene', 'Vaporwave', 'Warm White'];
+  await browser.refresh();
+  assert.equal(browser.state.scenes[browser.state.index], 'Warm White');
+  assert.deepEqual(browser.state.scenes, scenes);
+  assert.equal(writes, 0);
+  scenes = ['New Scene'];
+  await browser.refresh();
+  assert.equal(browser.state.index, 0);
+  assert.equal(writes, 0);
+});
+
+test('refresh cannot race scene application, revive a disposed chooser or replay an ambiguous write', async () => {
+  let reads = 0, writes = 0, finish;
+  const browser = new SceneBrowser({ settings,
+    readScenes: async () => { reads++; return choices; },
+    playScene: async () => { writes++; await new Promise(resolve => { finish = resolve; });
+      throw Object.assign(new Error('private'), { code: 'APP_TIMEOUT' }); }, onChange: () => {} });
+  await browser.press();
+  const applying = browser.press();
+  await browser.refresh();
+  assert.equal(reads, 1);
+  finish();
+  await assert.rejects(applying, { code: 'APP_TIMEOUT' });
+  await browser.refresh();
+  assert.equal(reads, 2);
+  assert.equal(writes, 1);
+  browser.dispose();
+  await browser.refresh();
+  assert.equal(reads, 2);
+});
 const failure = code => Object.assign(new Error('private backend details'), { code });
 function deferred() {
   let resolve;

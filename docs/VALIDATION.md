@@ -2,6 +2,42 @@
 
 For the current public/downloaded/installed/development distinction, use [STATUS.md](STATUS.md). Sections below are dated evidence, not claims that the currently installed or edited build passed every historical test.
 
+## v0.7.0-beta.1 integrated local verification — 2026-11-20
+
+The integrated development source uses package **0.7.0-beta.1**, manifest **0.7.0.1**. The final local run passed **376/376 tests**, with **zero failures, cancelled or skipped tests**. The new locked production/development dependency tree returned **zero known advisories**. The bundle's Mac and Windows event paths passed using synthetic transport and app-launch boundaries; these are not native Windows hardware results.
+
+The regressions cover process-session-aware command feedback, late old-session messages, bounded read-only diagnostics and privacy filtering, optional copying/manual-copy fallback, preset OFF-state policy and single-request application, scene refresh without playback, existing-input compatibility and cancellation, transitive license notices, interrupted output cleanup and tagged-version guards. Independent review caught a missing packaging-script path in the same-version guard; the final correction includes those payload-producing scripts and a real Git CLI regression. The earlier guard success despite a changed public-file list is not left as an accepted limitation.
+
+Implementation verification also corrected a naming mistake found with the real local server: diagnostic `serverVersion` describes the MCP server rather than the Desktop product. One interim suite run failed an outdated help-text expectation during integration; the final **376/376** run includes the corrected expectation. Neither an intermediate count nor a subsystem pass is substituted for the final local suite.
+
+Final-source native CI, final installer readback/checksums and completion-time preservation results will be recorded as a documentation follow-up in the [candidate record](releases/v0.7.0-beta.1.md). No candidate installation, new release/tag or Marketplace submission is asserted by this local gate. The existing Mac beta.3 observations below remain a separate build's evidence, and candidate hardware acceptance is still pending.
+
+## Mac follow-up and read-only diagnostic check — 2026-11-20
+
+### Existing beta.3 startup/relaunch report
+
+The retained Mac installation was **v0.6.0-beta.3 / 0.6.0.3**, not the v0.7.0 development candidate. With Desktop fully closed, the maintainer was asked to press an existing scene key, quit Desktop using Command-Q as soon as the scene worked, and immediately press that key again. The instruction requested completing the sequence within about five seconds of the first successful action where possible. The maintainer reported **both launches and scene operations worked**.
+
+This is a tester-reported successful cold start and prompt exit/relaunch on the existing installation. The exact interval was not instrumented, so it **does not establish that the second input occurred inside the original 15-second startup window**. It is not a new candidate installation, exhaustive per-action cold-start check or proof that the earlier startup/quit anomaly is resolved. Existing profile and button settings were retained.
+
+### Development diagnostic against the current local MCP server
+
+The new read-only diagnostic path was exercised against the Mac's local MCP service without installing the candidate. It reported connection ready, protocol **2025-03-26**, **one supported USB device**, and available control tools. The server-reported version was **0.1.0**. This is the **MCP server version**, not Nanoleaf Desktop's product version; diagnostic fields/help were corrected to use `serverVersion` and “MCP server version” rather than implying Desktop app-version discovery.
+
+The diagnostic performed only initialization, tool discovery and device-list reads. It did not launch the app, change a light or modify profiles. This establishes current-service response compatibility for that source path; it does not validate the candidate's installed Stream Deck settings UI, clipboard integration, actual lighting output or new key/dial hardware gestures. Candidate automated, package and native-CI results are recorded separately in the [development record](releases/v0.7.0-beta.1.md).
+
+## Read-only baseline review — 2026-11-20
+
+The review used unchanged public source **`eb46dd99eb889e3aba6c2bbc964947828dd7d82e`**, package **0.6.0-beta.3**, manifest **0.6.0.3**. A fresh isolated Mac copy passed **335/335 tests** with Node.js 24.22.1, zero failures/cancelled/skipped, a security audit with zero known advisories and official Mac/Windows packaging. The first restricted test run could not bind the loopback ports used by two synthetic integration tests; rerunning the unchanged suite with that local access permitted passed. No real app launch or light control occurred.
+
+The three beta.3 public assets were downloaded again and matched GitHub's asset digests, the retained files and the published checksum list. Each 50-file installer payload matched its corresponding fresh local rebuild byte for byte; the Mac/Windows pair differs only in the manifest's top-level OS declaration. This checks the current public beta.3, not a subsequent development version.
+
+Read-only installed-file comparison found **48/50 files identical to the public Mac installer**. Only `imgs/category.png` and `imgs/category@2x.png` differ following the maintainer's 2026-11-09 local icon customization. The 50 installed payload files, 43 profile files and three retained release files were unchanged across the review. Prior all-50-public-payload matches and 32-profile-file baselines remain correct for their dated checks; they are not the current icon provenance or profile count.
+
+GitHub still had a successful [full current-main CI run on 2026-11-06](https://github.com/andrew427dev/streamdeck-nanoleaf-mcp/actions/runs/42238686788): 335 tests plus packaging on each OS. The [2026-11-17 KST scheduled run](https://github.com/andrew427dev/streamdeck-nanoleaf-mcp/actions/runs/43974398638) passed advisory checks only and intentionally skipped the test job. No new native CI or hardware result was claimed by the review.
+
+Three inert probes reproduced: (1) a late mirror key payload was executed using newer mirror settings; (2) cancellation during mirror app preparation prevented the mirror mutation but still launched the app once; and (3) a persistent inspector ignored new-process command status after its sequence reset, retaining a previous success. The third probe used the actual inspector code with a simulated persistent connection; real Stream Deck inspector persistence across plugin-only restart was not operated. The two mirror paths remain on hold. A following, separately authorized development phase addresses the common status path and other non-deferred improvements; its results belong to the [v0.7.0 candidate record](releases/v0.7.0-beta.1.md), not this 335-test baseline.
+
 ## Documentation publication — 2026-11-06
 
 The maintainer authorized publishing the previously local Mac startup/relaunch/repeated-input/cancellation results, Windows hardware deferral and security/CI/package revalidation below to GitHub. This update changes only `docs/STATUS.md`, `docs/VALIDATION.md` and `docs/WINDOWS.md`; it adds no runtime, dependency, workflow, package-version or installer change. Earlier dated statements that a phase remained local or performed no push describe that phase, not this later documentation publication. The existing Mac installation and settings, beta.3 tag and public assets are preserved. New-version publication, Windows physical-device validation, mirror improvements and Marketplace submission remain on hold.

@@ -1,11 +1,12 @@
 import { build } from 'esbuild';
 import sharp from 'sharp';
-import { mkdir, readFile, writeFile, readdir, copyFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile, copyFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { renderKeyDisplay } from '../src/key-display.mjs';
 import { renderDialIcon, renderCategoryIcon } from './dial-icons.mjs';
 import { validateVersions } from './version.mjs';
+import { runtimeLicenseNotices } from './licenses.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const plugin = path.join(root, 'io.github.andrew427dev.nanoleaf-mcp.sdPlugin');
@@ -14,9 +15,9 @@ validateVersions(await readJSON(path.join(root, 'package.json')),
   await readJSON(path.join(root, 'package-lock.json')), await readJSON(path.join(plugin, 'manifest.json')));
 await mkdir(path.join(plugin, 'bin'), { recursive: true });
 await mkdir(path.join(plugin, 'imgs'), { recursive: true });
-await build({
+const bundle = await build({
   absWorkingDir: root, entryPoints: ['src/plugin.mjs'], outfile: path.join(plugin, 'bin/plugin.js'),
-  bundle: true, platform: 'node', format: 'esm', target: 'node24', sourcemap: false,
+  bundle: true, platform: 'node', format: 'esm', target: 'node24', sourcemap: false, metafile: true,
   banner: { js: 'import { createRequire } from "node:module"; const require = createRequire(import.meta.url);' },
   external: ['bufferutil', 'utf-8-validate'], legalComments: 'inline',
 });
@@ -42,10 +43,12 @@ for (const [name, size, data] of [
   ['power-unknown-key', 72, key('power')],
   ['brightness-up-action', 20, icon(brightnessUp, '#ffffff')],
   ['brightness-down-action', 20, icon(brightnessDown, '#ffffff')],
+  ['brightness-preset-action', 20, icon(`<g transform="translate(10 8)">${sun}</g>`, '#ffffff')],
   ['brightness-dial-action', 20, dial('brightness', true)],
   ['scene-dial-action', 20, dial('scenes', true)],
   ['brightness-up-key', 72, key('brightness-up')],
   ['brightness-down-key', 72, key('brightness-down')],
+  ['brightness-preset-key', 72, key('brightness-preset', { brightnessPreset: 50 })],
   ['brightness-dial-key', 72, dial('brightness')],
   ['scene-dial-key', 72, dial('scenes')],
 ]) {
@@ -53,16 +56,7 @@ for (const [name, size, data] of [
     .png().toFile(path.join(plugin, 'imgs', `${name}${scale === 2 ? '@2x' : ''}.png`));
 }
 
-let notices = 'Third-party packages bundled with this plugin. Each retains its own license.\n';
-notices += '\nAll control and category icons are original geometric artwork. No Nanoleaf logo artwork is bundled.\n';
-for (const dependency of ['@elgato/streamdeck', '@elgato/utils', '@elgato/schemas', 'ws', 'zod']) {
-  const folder = path.join(root, 'node_modules', dependency);
-  const pkg = JSON.parse(await readFile(path.join(folder, 'package.json'), 'utf8'));
-  const licenses = (await readdir(folder)).filter(name => /^licen[sc]e(?:\.|$)/i.test(name));
-  if (!licenses.length) throw new Error(`Missing license for ${dependency}`);
-  notices += `\n${'='.repeat(72)}\n${dependency} ${pkg.version} (${pkg.license})\n`;
-  for (const filename of licenses) notices += `\n${await readFile(path.join(folder, filename), 'utf8')}\n`;
-}
+const notices = await runtimeLicenseNotices(root, bundle.metafile.inputs);
 await writeFile(path.join(plugin, 'THIRD-PARTY-NOTICES.txt'), notices);
 await copyFile(path.join(root, 'LICENSE'), path.join(plugin, 'LICENSE'));
 await copyFile(path.join(root, 'PRIVACY.md'), path.join(plugin, 'PRIVACY.md'));

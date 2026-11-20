@@ -33,41 +33,46 @@ export class SceneBrowser {
 
   async press() {
     if (!this.#active || ['loading', 'applying'].includes(this.#state.status)) return this.#state;
+    if (this.#state.status !== 'browsing') return this.refresh();
     const epoch = ++this.#epoch;
     const isCurrent = () => this.#active && this.#epoch === epoch;
-    if (this.#state.status !== 'browsing') {
-      const selected = this.#state.scenes[this.#state.index] ?? this.#initialScene;
-      this.#publish({ ...this.#state, status: 'loading', errorCode: undefined });
-      if (!isCurrent()) return this.#state;
-      try {
-        // Discovery can optionally open Desktop; cancellation must reach that
-        // boundary as well as the later scene mutation.
-        const scenes = await this.#readScenes(this.#settings, { isCurrent });
-        if (!isCurrent()) return this.#state;
-        if (!Array.isArray(scenes) || !scenes.every(validScene)) throw failure('PROTOCOL_ERROR');
-        if (!scenes.length) throw failure('SCENE_NOT_READY');
-        this.#publish({ status: 'browsing', scenes, index: Math.max(0, scenes.indexOf(selected)),
-          ...(this.#state.lastApplied ? { lastApplied: this.#state.lastApplied } : {}) });
-      } catch (error) {
-        if (isCurrent()) {
-          this.#publish({ ...this.#state, status: 'error', errorCode: safeError(error).code });
-          throw error;
-        }
+    const sceneName = this.#state.scenes[this.#state.index];
+    this.#publish({ ...this.#state, status: 'applying', errorCode: undefined });
+    if (!isCurrent()) return this.#state;
+    try {
+      // The caller can also check this guard immediately before its network mutation.
+      await this.#playScene({ ...this.#settings, sceneName }, { isCurrent });
+      if (isCurrent()) this.#publish({ ...this.#state, status: 'browsing', lastApplied: sceneName });
+    } catch (error) {
+      // An ambiguous failure requires a fresh list request, never automatic replay.
+      if (isCurrent()) {
+        this.#publish({ ...this.#state, status: 'error', errorCode: safeError(error).code });
+        throw error;
       }
-    } else {
-      const sceneName = this.#state.scenes[this.#state.index];
-      this.#publish({ ...this.#state, status: 'applying', errorCode: undefined });
+    }
+    return this.#state;
+  }
+
+  /** Explicit refresh is list-only and preserves selection by scene name. */
+  async refresh() {
+    if (!this.#active || ['loading', 'applying'].includes(this.#state.status)) return this.#state;
+    const epoch = ++this.#epoch;
+    const isCurrent = () => this.#active && this.#epoch === epoch;
+    const selected = this.#state.scenes[this.#state.index] ?? this.#initialScene;
+    this.#publish({ ...this.#state, status: 'loading', errorCode: undefined });
+    if (!isCurrent()) return this.#state;
+    try {
+      // An explicit gesture can opt into app startup; invalidated input cannot.
+      const scenes = await this.#readScenes(this.#settings, { isCurrent });
       if (!isCurrent()) return this.#state;
-      try {
-        // The caller can also check this guard immediately before its network mutation.
-        await this.#playScene({ ...this.#settings, sceneName }, { isCurrent });
-        if (isCurrent()) this.#publish({ ...this.#state, status: 'browsing', lastApplied: sceneName });
-      } catch (error) {
-        // An ambiguous failure requires a fresh list request, never automatic replay.
-        if (isCurrent()) {
-          this.#publish({ ...this.#state, status: 'error', errorCode: safeError(error).code });
-          throw error;
-        }
+      if (!Array.isArray(scenes) || !scenes.every(validScene)) throw failure('PROTOCOL_ERROR');
+      if (!scenes.length) throw failure('SCENE_NOT_READY');
+      this.#publish({ status: 'browsing', scenes, index: Math.max(0, scenes.indexOf(selected)),
+        ...(this.#state.lastApplied ? { lastApplied: this.#state.lastApplied } : {}) });
+    } catch (error) {
+      if (isCurrent()) {
+        this.#publish({ ...this.#state, status: 'error', errorCode: safeError(error).code });
+        throw error;
       }
     }
     return this.#state;

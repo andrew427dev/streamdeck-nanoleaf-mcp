@@ -1,5 +1,7 @@
 # Marketplace submission preparation plan
 
+**Historical plan; submission still deferred (2026-11-20).** This document preserves the 2026-10-18 plan and its 2026-10-23 clarification. The versions and policy summaries in those dated sections describe that time, not the latest release or a current approval. Use [Status](STATUS.md) for the published/installed/development versions. Recheck Elgato's submission requirements when this work resumes; the v0.7.0 development work does not create or upload a Marketplace product.
+
 **2026-10-23 status clarification:** submission remains on hold. The plan below was drafted on 2026-10-18 for a Mac listing, before the experimental Windows GitHub release. Current public v0.6.0-beta.2 has post-release Mac installation/key/one cold-start scene checks and a tester-reported Windows physical-button-section pass; neither expands the proposed Marketplace scope nor establishes full hardware or DRM acceptance. No submission version/platform scope has been selected; use [current status](STATUS.md) and [validation](VALIDATION.md) when this plan is separately resumed. The historical `v0.4.0-beta.3` full physical pass below is not a full pass of current v0.6.0-beta.2 or the earlier private v0.5.0-beta.3 mirror experiment.
 
 Status on **2026-10-18: plan only**. No product has been created, uploaded, submitted for review or published in Maker Console as part of this work. GitHub beta releases remain separate. The project will keep its original icon and MIT license; this plan does not request use of the Nanoleaf logo.

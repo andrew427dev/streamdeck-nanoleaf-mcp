@@ -178,6 +178,7 @@ export class NanoleafClient {
   #protocol;
   #sessionId;
   #sessionEpoch = 0;
+  #serverVersion;
 
   constructor({ fetchImpl = globalThis.fetch, timeoutMs = 8000,
     sleep = ms => new Promise(resolve => setTimeout(resolve, ms)), now = () => performance.now() } = {}) {
@@ -269,6 +270,7 @@ export class NanoleafClient {
     this.#initializing = undefined;
     this.#protocol = undefined;
     this.#sessionId = undefined;
+    this.#serverVersion = undefined;
   }
 
   async #initialize() {
@@ -294,6 +296,9 @@ export class NanoleafClient {
           throw fail('PROTOCOL_ERROR');
         }
         this.#protocol = result.protocolVersion;
+        // Diagnostics retain a numeric version only, never arbitrary server metadata.
+        this.#serverVersion = typeof result.serverInfo?.version === 'string'
+          && /^\d{1,5}(?:\.\d{1,5}){0,3}$/.test(result.serverInfo.version) ? result.serverInfo.version : undefined;
         await this.#post('notifications/initialized', undefined, { notification: true, timeoutMs: remaining() });
       })().catch(error => {
         if (epoch === this.#sessionEpoch) this.#resetSession();
@@ -333,6 +338,41 @@ export class NanoleafClient {
           || !(method === 'tools/list' || READ_ONLY_TOOLS.has(name)) || attempt > 0) throw error;
       }
     }
+  }
+
+  async inspectConnection() {
+    const deadline = this.#now() + this.#timeoutMs;
+    const remaining = () => {
+      const ms = deadline - this.#now();
+      if (ms <= 0) throw fail('APP_TIMEOUT');
+      return ms;
+    };
+    const names = new Set(), cursors = new Set();
+    let cursor;
+    for (let page = 0; page < 8; page++) {
+      const result = await this.#call(undefined, cursor ? { cursor } : {}, remaining(),
+        { method: 'tools/list', parse: value => value });
+      if (!Array.isArray(result.tools) || !result.tools.every(tool => typeof tool?.name === 'string')) {
+        throw fail('PROTOCOL_ERROR');
+      }
+      for (const tool of result.tools) names.add(tool.name);
+      if (result.nextCursor === undefined) {
+        let supportedDevices = null;
+        if (names.has('list_devices')) {
+          const devices = await this.listDevices({ timeoutMs: remaining() });
+          supportedDevices = devices.filter(device => device.model === 'NL82K2').length;
+        }
+        return {
+          serverVersion: this.#serverVersion, protocolVersion: this.#protocol, supportedDevices,
+          lightTools: ['list_devices', 'get_light_state', 'list_scenes', 'set_light_state', 'play_scene'].every(name => names.has(name)),
+          mirrorTools: ['get_screen_mirror_status', 'start_screen_mirror', 'stop_screen_mirror'].every(name => names.has(name)),
+        };
+      }
+      cursor = checkedText(result.nextCursor);
+      if (cursors.has(cursor)) throw fail('PROTOCOL_ERROR');
+      cursors.add(cursor);
+    }
+    throw fail('PROTOCOL_ERROR');
   }
 
   async requireScreenMirrorSupport({ isCurrent } = {}) {
@@ -427,9 +467,18 @@ export class NanoleafClient {
   async setBrightness(deviceId, brightness, options) {
     checkedText(deviceId);
     if (!Number.isInteger(brightness) || brightness < 0 || brightness > 100) throw fail('INVALID_ARGUMENT');
-    // Omit power and colour so changing brightness preserves the current power and scene.
+    // Do not explicitly request power/colour changes. Desktop can still change power at brightness boundaries.
     deviceResult(await this.#call('set_light_state', { states: [{ device: deviceId, brightness }] },
       this.#timeoutMs, options), deviceId);
+  }
+
+  async setBrightnessPreset(deviceId, brightness, turnOn, options) {
+    checkedText(deviceId);
+    if (!Number.isInteger(brightness) || brightness < 0 || brightness > 100
+      || typeof turnOn !== 'boolean' || brightness === 0 && turnOn) throw fail('INVALID_ARGUMENT');
+    deviceResult(await this.#call('set_light_state', {
+      states: [{ device: deviceId, brightness, ...(turnOn ? { power: true } : {}) }],
+    }, this.#timeoutMs, options), deviceId);
   }
 
   async playScene(deviceId, scene, { isCurrent } = {}) {

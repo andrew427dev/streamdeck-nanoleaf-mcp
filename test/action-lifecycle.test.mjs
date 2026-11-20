@@ -4,6 +4,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import vm from 'node:vm';
+import { randomUUID } from 'node:crypto';
 import { LightController, safeError } from '../src/controller.mjs';
 import { BrightnessQueue } from '../src/live-state.mjs';
 import { SceneBrowser } from '../src/scene-browser.mjs';
@@ -36,6 +37,7 @@ function fixture(input, { platform = 'darwin', autoLaunch = false } = {}) {
     playScene: async (deviceId, sceneName) => writes.push({ deviceId, sceneName }),
     setPower: async (deviceId, power) => writes.push({ deviceId, power }),
     setBrightness: async (deviceId, brightness) => writes.push({ deviceId, brightness }),
+    setBrightnessPreset: async (deviceId, brightness, turnOn) => writes.push({ deviceId, brightness, turnOn }),
   };
   const controller = new LightController({ client, launchApp: async () => { launches++; } });
   const execute = (kind, settings, options) => controller.execute(kind, settings, options);
@@ -43,7 +45,7 @@ function fixture(input, { platform = 'darwin', autoLaunch = false } = {}) {
     schedule: fn => { const id = ++nextTimer; scheduled.set(id, fn); return id; },
     cancel: id => scheduled.delete(id) });
   const LightAction = vm.runInNewContext(actionClass + '\nLightAction', {
-    SingletonAction: class {}, streamDeck: { ui: {}, logger: { error() {} } },
+    SingletonAction: class {}, randomUUID, streamDeck: { ui: {}, logger: { error() {} } },
     mirror: { forget() {} }, live: { forget() {}, watch() {} },
     brightness, controller, execute, safeError, SceneBrowser, process: { platform },
     keyDisplayImage: () => '', titlePresentation: () => ({}),
@@ -57,7 +59,7 @@ function fixture(input, { platform = 'darwin', autoLaunch = false } = {}) {
     setImage: async () => {}, showAlert: async () => { alerts.push(true); }, setFeedback: async () => {},
     setFeedbackLayout: async () => {}, setTitle: async () => {} };
   let settings = { deviceId: 'TEST-DEVICE', sceneName: 'Example Scene', powerMode: 'off',
-    brightnessStep: 5, autoLaunch };
+    brightnessStep: 5, brightnessPreset: 50, presetWhenOff: 'keep-off', autoLaunch };
   const event = (value = settings) => ({ action, payload: { settings: value, ticks: 1 } });
   function appear() { control.onWillAppear(event()); }
   function change(next) { settings = next; control.onDidReceiveSettings(event()); }
@@ -68,6 +70,7 @@ function fixture(input, { platform = 'darwin', autoLaunch = false } = {}) {
   return { discovery, writes, alerts, devices, appear, change,
     get settings() { return settings; }, get launches() { return launches; },
     disappear: () => control.onWillDisappear(event()),
+    refresh: () => control.onTouchTap({ ...event(), payload: { ...event().payload, hold: true } }),
     press(value = settings) {
       const ev = event(value);
       const pending = input === 'brightness-dial-press' || kind === 'scene-dial'
@@ -86,7 +89,7 @@ function invalidate(f, lifecycle) {
     const original = f.settings;
     f.change({ ...original, deviceId: 'OTHER-DEVICE' });
     f.change(original);
-  } else f.change({ ...f.settings, powerMode: 'on', sceneName: 'Another Scene', brightnessStep: 2 });
+  } else f.change({ ...f.settings, powerMode: 'on', sceneName: 'Another Scene', brightnessStep: 2, brightnessPreset: 75 });
 }
 
 for (const kind of ['power', 'scene', 'brightness-up', 'brightness-down', 'brightness-dial']) {
@@ -106,7 +109,7 @@ for (const kind of ['power', 'scene', 'brightness-up', 'brightness-down', 'brigh
       const brightness = new BrightnessQueue({ execute: (settings, options) => execute('brightness', settings, options),
         schedule: fn => { startTimer = fn; return 1; }, cancel: () => {} });
       const LightAction = vm.runInNewContext(actionClass + '\nLightAction', {
-        SingletonAction: class {}, streamDeck: { ui: {}, logger: { error() {} } },
+        SingletonAction: class {}, randomUUID, streamDeck: { ui: {}, logger: { error() {} } },
         mirror: { forget() {} }, live: { forget() {}, watch() {} },
         brightness, controller, execute, safeError,
         keyDisplayImage: () => '', titlePresentation: () => ({}), dialDisplayFeedback: () => ({}),
@@ -132,7 +135,7 @@ for (const kind of ['power', 'scene', 'brightness-up', 'brightness-down', 'brigh
   }
 }
 
-for (const kind of ['power', 'scene', 'brightness-up', 'brightness-down', 'brightness-dial', 'brightness-dial-press']) {
+for (const kind of ['power', 'scene', 'brightness-up', 'brightness-down', 'brightness-dial', 'brightness-dial-press', 'brightness-preset']) {
   for (const lifecycle of ['reappear', 'device-round-trip', 'command-settings-change']) {
     test(kind + ' never revives stale input after ' + lifecycle + ' and accepts a fresh press', async () => {
       const f = fixture(kind);
@@ -150,7 +153,7 @@ for (const kind of ['power', 'scene', 'brightness-up', 'brightness-down', 'brigh
   }
 }
 
-for (const kind of ['power', 'scene', 'brightness-up', 'brightness-down', 'brightness-dial', 'brightness-dial-press', 'scene-dial']) {
+for (const kind of ['power', 'scene', 'brightness-up', 'brightness-down', 'brightness-dial', 'brightness-dial-press', 'scene-dial', 'brightness-preset']) {
   for (const change of ['device', 'consent', ...(kind === 'scene-dial' ? [] : ['command'])]) {
     test(kind + ' discards an old ' + change + ' payload without retargeting it, then accepts fresh input', async () => {
       const f = fixture(kind);
@@ -158,7 +161,7 @@ for (const kind of ['power', 'scene', 'brightness-up', 'brightness-down', 'brigh
       const old = f.settings;
       f.change(change === 'device' ? { ...old, deviceId: 'OTHER-DEVICE' }
         : change === 'consent' ? { ...old, autoLaunch: true }
-        : { ...old, powerMode: 'on', sceneName: 'Another Scene', brightnessStep: 2 });
+        : { ...old, powerMode: 'on', sceneName: 'Another Scene', brightnessStep: 2, brightnessPreset: 75 });
       const pending = f.press(old);
       f.discovery.resolve(f.devices);
       await pending;
@@ -192,7 +195,7 @@ for (const autoLaunch of [false, true]) {
 }
 
 for (const platform of ['darwin', 'win32']) {
-  for (const kind of ['power', 'scene', 'brightness-up', 'brightness-down', 'brightness-dial', 'brightness-dial-press', 'scene-dial']) {
+  for (const kind of ['power', 'scene', 'brightness-up', 'brightness-down', 'brightness-dial', 'brightness-dial-press', 'scene-dial', 'brightness-preset']) {
     for (const lifecycle of ['disappear', 'device-change']) {
       test(kind + ' cancels delayed app launch on ' + lifecycle + ' (simulated ' + platform + ')', async () => {
         const f = fixture(kind, { platform, autoLaunch: true });
@@ -208,3 +211,15 @@ for (const platform of ['darwin', 'win32']) {
     }
   }
 }
+
+test('long scene touch refreshes without playing and normal input still confirms', async () => {
+  const f = fixture('scene-dial');
+  f.appear();
+  f.discovery.resolve(f.devices);
+  await f.press();
+  await f.refresh();
+  assert.deepEqual(f.writes, []);
+  await f.press();
+  assert.equal(f.writes.length, 1);
+  assert.deepEqual(f.alerts, []);
+});

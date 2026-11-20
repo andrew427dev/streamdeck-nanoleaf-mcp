@@ -2,9 +2,9 @@
   "$schema": "https://schemas.elgato.com/streamdeck/plugins/manifest.json",
   "Name": "Nanoleaf MCP",
   "UUID": "io.github.andrew427dev.nanoleaf-mcp",
-  "Version": "0.6.0.3",
+  "Version": "0.7.0.1",
   "Author": "andrew427dev",
-  "Description": "USB-only PC Screen Mirror Lightstrip (NL82K2) control via Nanoleaf Desktop local MCP. Power, brightness and saved scenes. macOS beta and experimental Windows preview; hardware validation of this build is pending. Screen Mirror is Mac-only with known power/restore limitations. Not for Wi-Fi/LAN models.",
+  "Description": "USB-only PC Screen Mirror Lightstrip (NL82K2) control via Nanoleaf Desktop local MCP. Mac beta / Windows 11 x64 experimental beta. Earlier Mac beta.3 has partial hardware validation; this new build and Windows hardware validation remain pending. Mac Screen Mirror has known power/restore limitations. Not for Wi-Fi/LAN models.",
   "URL": "https://github.com/andrew427dev/streamdeck-nanoleaf-mcp",
   "Category": "Nanoleaf MCP",
   "CategoryIcon": "imgs/category",
@@ -25,6 +25,14 @@
   },
   "PropertyInspectorPath": "ui/index.html",
   "Actions": [
+    {
+      "UUID": "io.github.andrew427dev.nanoleaf-mcp.brightness-preset",
+      "Name": "Brightness Preset",
+      "Tooltip": "Set a saved brightness percentage. By default, an OFF light stays off.",
+      "Icon": "imgs/brightness-preset-action",
+      "Controllers": ["Keypad"],
+      "States": [{ "Image": "imgs/brightness-preset-key", "TitleAlignment": "bottom", "FontSize": 12 }]
+    },
     {
       "UUID": "io.github.andrew427dev.nanoleaf-mcp.screen-mirror",
       "Name": "Screen Mirror",

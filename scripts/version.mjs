@@ -24,6 +24,20 @@ export function assertVersionIncrease(previous, next) {
   }
 }
 
+/** Existing tags are immutable: an equal version permits documentation-only work. */
+export function assertTaggedVersion(version, tags, sameVersionPayloadChanged = false) {
+  toManifestVersion(version);
+  for (const tag of tags) {
+    if (typeof tag !== 'string' || !/^v\d+\.\d+\.\d+(?:-beta\.[1-9]\d*)?$/.test(tag)) continue;
+    const previous = tag.slice(1);
+    // Reject malformed project-version tags rather than accepting an ambiguous baseline.
+    toManifestVersion(previous);
+    if (previous === version) {
+      if (sameVersionPayloadChanged) throw new Error('Tagged release payload changed; increase the version before preparing new installers.');
+    } else assertVersionIncrease(previous, version);
+  }
+}
+
 export function validateVersions(metadata, lock, manifest) {
   const expected = toManifestVersion(metadata.version);
   if (manifest.Version !== expected) throw new Error(`Manifest version must be ${expected}`);

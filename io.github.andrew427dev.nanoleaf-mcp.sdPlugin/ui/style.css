@@ -39,3 +39,11 @@ select:disabled, button:disabled, input:disabled { opacity: .55; cursor: default
   .field { grid-template-columns: 62px minmax(0, 1fr); gap: 8px; }
   .hint { margin-left: 70px; }
 }
+
+.diagnostics { border-top: 1px solid #45454b; margin-top: 12px; padding-top: 12px; }
+#diagnostics-heading { font-weight: 600; margin-bottom: 5px; }
+.diagnostics-help, #diagnostics-status { color: #b1b1ba; font-size: 11px; }
+#diagnostics-status { margin: 8px 0; overflow-wrap: anywhere; }
+.diagnostics .button-row { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+#diagnostics-summary { width: 100%; resize: vertical; border: 1px solid #55555b; border-radius: 5px; background: #252528; color: #e4e4e7; font: inherit; line-height: 1.6; padding: 8px; }
+#diagnostics-summary:focus-visible { outline: 2px solid #8fb6ff; outline-offset: 2px; }

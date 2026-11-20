@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.7.0-beta.1 — development preparation, 2026-11-20 (not published)
+
+- Prepare the next Mac beta / Windows 11 x64 experimental beta while retaining the installed/public v0.6.0-beta.3 and all existing profile/action settings. Verification-branch CI is separate from release publication; final results are recorded in the [candidate record](docs/releases/v0.7.0-beta.1.md).
+- Add process-session-aware command feedback so a retained settings view can recover after a plugin restart without accepting older-session results. Keep skipped preset input, ordinary progress and safe errors distinct.
+- Add an explicitly requested read-only connection check and limited diagnostic summary copying, excluding personal identifiers and raw backend information. Neither action launches Desktop or changes a light.
+- Add a separate Brightness Preset key with a saved 0–100% value and an OFF-state policy. Keep OFF unchanged by default; optionally apply a positive value with power ON and brightness in one request. Preserve all existing brightness controls.
+- Add Scene Browser long-touch refresh without playback, retaining the selected name when available. Refresh follows the dial's existing app-launch option; short touch and dial press retain their open/confirm gestures.
+- Update SDK to 3.0.5, CLI to 1.10.5, zip.js to 2.25.0 and ws to 8.23.0; retain the scoped Zod 4.6.7 compatibility exception. Discover required license notices from the actual bundle, including newly introduced SDK transitive packages.
+- Pin reviewed GitHub Action commits, bound CI job runtime, provide one `Required checks` result for security plus both OS jobs, and check release version ordering against Git tags. Clean up this invocation's incomplete package output on caught write failure without overwriting earlier releases.
+- Correct stale beta.3 publication wording, separate current status from dated evidence and document the local-only category-icon exception. Clarify known mirror/brightness power effects without changing the held mirror control paths.
+- Keep Windows hardware acceptance, mirror improvement/compensation, new release publication and Marketplace submission on hold. Prior build hardware passes are not candidate verification.
+
 ## 0.6.0-beta.3 — 2026-10-28, Mac beta / Windows experimental beta
 
 - Publish the retained dual-platform candidate after final-source/tag CI and package verification, with separate installers and their original checksum file. The release record carries final CI and public-file readback evidence.

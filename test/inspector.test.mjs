@@ -10,6 +10,46 @@ const ACTION = "io.github.andrew427dev.nanoleaf-mcp.scene";
 const DEVICE_A = { id: "TEST-DEVICE-A", name: "Test light A", model: "TEST-MODEL" };
 const DEVICE_B = { id: "TEST-DEVICE-B", name: "Test light B", model: "TEST-MODEL" };
 
+test("preset inspector defaults to keeping OFF and only saves explicit valid changes", () => {
+  for (const language of ["ko", "en"]) {
+    const ui = inspector({ action: ACTION.replace(/scene$/, "brightness-preset"), language,
+      settings: { deviceId: DEVICE_A.id, autoLaunch: true } });
+    assert.equal(ui.elements.get("preset-field").hidden, false);
+    assert.equal(ui.elements.get("preset-off-field").hidden, false);
+    assert.equal(ui.elements.get("brightness-field").hidden, true);
+    assert.equal(ui.elements.get("power-field").hidden, true);
+    assert.equal(ui.elements.get("brightness-preset").value, "50");
+    assert.equal(ui.elements.get("preset-when-off").value, "keep-off");
+    assert.equal(ui.commands("setSettings").length, 0);
+    for (const value of ["", "-1", "101", "1.5", "1e2", "private"]) {
+      ui.change("brightness-preset", value);
+      assert.equal(ui.commands("setSettings").length, 0);
+      assert.equal(ui.elements.get("brightness-preset").value, "50");
+    }
+    for (const value of ["0", "25", "100"]) {
+      ui.change("brightness-preset", value);
+      assert.equal(ui.commands("setSettings").at(-1).payload.brightnessPreset, Number(value));
+      assert.equal(ui.commands("setSettings").at(-1).payload.presetWhenOff, "keep-off");
+      assert.equal(ui.commands("setSettings").at(-1).payload.deviceId, DEVICE_A.id);
+      assert.equal(ui.commands("setSettings").at(-1).payload.autoLaunch, true);
+    }
+    ui.change("preset-when-off", "apply");
+    assert.equal(ui.commands("setSettings").at(-1).payload.presetWhenOff, "apply");
+    assert.equal(ui.commands("sendToPlugin").some(m => !["commandStatus", "devices"].includes(m.payload.event)), false);
+  }
+});
+
+test("preset controls stay hidden and cannot modify another existing action", () => {
+  for (const suffix of ["power", "scene", "brightness-up", "brightness-down", "brightness-dial", "scene-dial", "screen-mirror"]) {
+    const ui = inspector({ action: ACTION.replace(/scene$/, suffix) });
+    assert.equal(ui.elements.get("preset-field").hidden, true);
+    assert.equal(ui.elements.get("preset-off-field").hidden, true);
+    ui.change("brightness-preset", "25");
+    ui.change("preset-when-off", "apply");
+    assert.equal(ui.commands("setSettings").length, 0);
+  }
+});
+
 test("mirror inspector has global scope and reads only status without settings writes", () => {
   for (const language of ["ko", "en"]) {
     const ui = inspector({ action: ACTION.replace(/scene$/, "screen-mirror"), language });
@@ -57,10 +97,10 @@ class Element {
   }
   addEventListener(type, callback) { this.listeners.set(type, callback); }
   replaceChildren(...children) { this.children = children; }
-  dispatch(type) { this.listeners.get(type)?.({ target: this }); }
+  dispatch(type) { return this.listeners.get(type)?.({ target: this }); }
 }
 
-function inspector({ settings = {}, action = ACTION, language = "en" } = {}) {
+function inspector({ settings = {}, action = ACTION, language = "en", clipboard } = {}) {
   const elements = new Map([...html.matchAll(/\bid="([^"]+)"/g)].map((match) => [match[1], new Element()]));
   const translated = [...html.matchAll(/data-i18n="([^"]+)"/g)].map((match) => {
     const node = new Element();
@@ -82,11 +122,14 @@ function inspector({ settings = {}, action = ACTION, language = "en" } = {}) {
     send(value) { this.sent.push(JSON.parse(value)); }
     open() { this.readyState = 1; this.onopen?.(); }
     close() { this.readyState = 3; this.onclose?.(); }
-    receive(message) { this.onmessage?.({ data: typeof message === "string" ? message : JSON.stringify(message) }); }
+    receive(message) {
+      if (message?.payload?.event === "commandStatus" && !("session" in message.payload)) message.payload.session = "synthetic-plugin-session";
+      this.onmessage?.({ data: typeof message === "string" ? message : JSON.stringify(message) });
+    }
   }
   const window = {};
   vm.runInNewContext(script, {
-    window, document, WebSocket: Socket,
+    window, document, WebSocket: Socket, navigator: { clipboard },
     setTimeout(callback, delay) { const id = ++nextTimer; timers.set(id, { callback, delay }); return id; },
     clearTimeout(id) { timers.delete(id); },
   });
@@ -101,6 +144,7 @@ function inspector({ settings = {}, action = ACTION, language = "en" } = {}) {
     event: "sendToPropertyInspector", action, context: "TEST-ACTION-CONTEXT",
     payload: { event, requestId: request.payload.requestId, ...body },
   });
+  respond("commandStatus", { actionContext: "TEST-ACTION-CONTEXT", session: "synthetic-plugin-session", sequence: 0, state: "idle" });
   return {
     elements, document, translated, socket, timers, commands, requests, respond,
     change(id, value) {
@@ -109,7 +153,7 @@ function inspector({ settings = {}, action = ACTION, language = "en" } = {}) {
       else node.value = value;
       node.dispatch("change");
     },
-    click(id) { elements.get(id).dispatch("click"); },
+    click(id) { return elements.get(id).dispatch("click"); },
     flushTimers() {
       for (const [id, timer] of [...timers]) { timers.delete(id); timer.callback(); }
     },
@@ -681,16 +725,101 @@ test("scene browser instructions distinguish opening, selection, and play in bot
   for (const language of ["en", "ko"]) {
     const ui = inspector({ action: ACTION.replace(/scene$/, "scene-dial"), language });
     const translated = key => ui.translated.find(node => node.dataset.i18n === key).textContent;
-    assert.match(translated("sceneBrowserHelp"), language === "ko" ? /다이얼을 누르거나 해당 터치 화면을 누르면 저장된 씬 목록이 열립니다/ : /Press the dial or tap its touch-strip section to open the saved scene list/);
-    assert.match(translated("sceneBrowserHelp"), language === "ko" ? /돌려 씬을 선택하고 다시 누르거나 터치하면 재생/ : /Turn to select a scene, then press or tap again to play/);
-    assert.match(translated("sceneBrowserHelp"), language === "ko" ? /프로필에 저장되지 않습니다/ : /not saved in your profile/);
+    assert.match(translated("sceneBrowserHelp"), language === "ko" ? /다이얼을 누르거나 해당 터치 화면을 누르면 씬 목록이 열립니다/ : /Press the dial or tap its touch-strip section to open the saved scene list/);
+    assert.match(translated("sceneBrowserHelp"), language === "ko" ? /돌려 선택하고 다시 누르거나 터치하면 재생/ : /Turn to select, then press or tap again to play/);
+    assert.match(translated("sceneBrowserHelp"), language === "ko" ? /선택 위치는 임시/ : /Selection is temporary/);
+    assert.match(translated("sceneBrowserHelp"), language === "ko" ? /길게 누르면 씬을 재생하지 않고/ : /Hold the touch strip to refresh the list without playing/);
     assert.match(translated("launchHelp"), language === "ko" ? /다이얼을 누르거나 해당 터치 화면을 누를 때/ : /press this dial or tap its touch-strip section/);
     assert.match(translated("launchHelp"), language === "ko" ? /돌리기는 선택만 바꾸며/ : /Turning only changes the selection/);
-    assert.match(translated("launchHelp"), language === "ko" ? /설정 화면을 열거나 목록을 새로고침해도 앱은 열리지 않습니다/ : /opening these settings or refreshing never opens the app/);
+    assert.match(translated("launchHelp"), language === "ko" ? /이 설정 화면을 열거나 여기서 새로고침해도 앱은 열리지 않습니다/ : /Opening or refreshing this settings screen never opens the app/);
     assert.match(translated("commandHeading"), language === "ko" ? /다이얼/ : /dial/);
   }
   for (const suffix of ["power", "scene", "brightness-up", "brightness-down", "brightness-dial"]) {
     const ui = inspector({ action: ACTION.replace(/scene$/, suffix) });
     assert.equal(ui.elements.get("scene-browser-help").hidden, true);
   }
+});
+
+test("an open inspector accepts a restarted plugin only after a fresh status handshake", () => {
+  const ui = inspector();
+  const deliver = (session, sequence, state, extra = {}) => ui.socket.receive({
+    event: "sendToPropertyInspector", context: "TEST-ACTION-CONTEXT",
+    payload: { event: "commandStatus", actionContext: "TEST-ACTION-CONTEXT", session, sequence, state, ...extra },
+  });
+  deliver("synthetic-plugin-session", 40, "success");
+  const initialRequest = ui.requests("commandStatus").at(-1);
+  deliver("new-plugin-session", 1, "running");
+  const restartRequest = ui.requests("commandStatus").at(-1);
+  assert.notEqual(restartRequest.payload.requestId, initialRequest.payload.requestId);
+  deliver("new-plugin-session", 2, "error", { requestId: restartRequest.payload.requestId, errorCode: "APP_CONNECTION" });
+  assert.match(ui.elements.get("command-status").textContent, /enable its MCP server/);
+  // A delayed previous generation must not overwrite a newer error with success.
+  deliver("synthetic-plugin-session", 99, "success");
+  const recheck = ui.requests("commandStatus").at(-1);
+  deliver("new-plugin-session", 2, "error", { requestId: recheck.payload.requestId, errorCode: "APP_CONNECTION" });
+  deliver("synthetic-plugin-session", 100, "success", { requestId: restartRequest.payload.requestId });
+  assert.equal(ui.elements.get("command-status").dataset.kind, "error");
+  assert.equal(ui.commands("setSettings").length, 0);
+});
+
+test("diagnostics are opt-in, redacted, copyable and independent of saved settings", async () => {
+  for (const language of ["en", "ko"]) {
+    const copied = [];
+    const ui = inspector({ language, clipboard: { writeText: async text => copied.push(text) } });
+    assert.equal(ui.requests("diagnostics").length, 0, "opening settings must not request diagnostics");
+    ui.click("diagnostics-run");
+    assert.equal(ui.requests("diagnostics").length, 1);
+    assert.equal(ui.elements.get("diagnostics-run").disabled, true);
+    ui.respond("diagnostics", { diagnostics: {
+      pluginVersion: "0.7.0-beta.1", platform: "macOS", connection: "ready", serverVersion: "3.0.2",
+      protocolVersion: "2025-03-26", lightTools: true, mirrorTools: true, supportedDevices: 1,
+      deviceId: "PRIVATE-DEVICE", extra: "/Users/private/path", scene: "PRIVATE-SCENE",
+    } });
+    const summary = ui.elements.get("diagnostics-summary").value;
+    assert.match(summary, /0.7.0-beta.1/);
+    assert.match(summary, /3.0.2/);
+    assert.doesNotMatch(summary, /PRIVATE|Users|private/);
+    await ui.click("diagnostics-copy");
+    assert.deepEqual(copied, [summary]);
+    assert.match(ui.elements.get("diagnostics-status").textContent, language === "ko" ? /복사했습니다/ : /copied/);
+    assert.equal(ui.commands("setSettings").length, 0);
+  }
+});
+
+test("diagnostic copy failures leave a selectable summary and safe error guidance", async () => {
+  for (const clipboard of [undefined, { writeText: async () => { throw Error("PRIVATE CLIPBOARD ERROR"); } }]) {
+    const ui = inspector({ clipboard });
+    ui.click("diagnostics-run");
+    ui.respond("diagnostics", { diagnostics: {
+      platform: "Windows", connection: "unavailable", pluginVersion: "PRIVATE-VERSION", errorCode: "APP_CONNECTION",
+      serverVersion: "/Users/PRIVATE/file", protocolVersion: "PRIVATE", supportedDevices: "PRIVATE", error: "PRIVATE",
+    } });
+    await ui.click("diagnostics-copy");
+    assert.equal(ui.elements.get("diagnostics-summary").hidden, false);
+    assert.match(ui.elements.get("diagnostics-status").textContent, /copy it manually/);
+    assert.doesNotMatch(ui.elements.get("diagnostics-summary").value, /PRIVATE|Users/);
+    assert.match(ui.elements.get("diagnostics-summary").value, /APP_CONNECTION/);
+  }
+});
+
+test("diagnostic replies are request-bound and timeouts allow another check", () => {
+  const ui = inspector();
+  ui.click("diagnostics-run");
+  const first = ui.requests("diagnostics").at(-1);
+  ui.flushTimers();
+  assert.equal(ui.elements.get("diagnostics-run").disabled, false);
+  ui.click("diagnostics-run");
+  ui.respond("diagnostics", { diagnostics: { platform: "macOS", connection: "ready" } }, first);
+  assert.equal(ui.elements.get("diagnostics-summary").value, "");
+  ui.respond("diagnostics", { diagnostics: { platform: "PRIVATE", connection: "ready" } });
+  assert.match(ui.elements.get("diagnostics-status").textContent, /could not be read/);
+});
+
+test("a skipped OFF-state brightness preset is informative without a success or error display", () => {
+  const ui = inspector({ language: "ko" });
+  ui.socket.receive({ event: "sendToPropertyInspector", context: "TEST-ACTION-CONTEXT",
+    payload: { event: "commandStatus", actionContext: "TEST-ACTION-CONTEXT", sequence: 1,
+      state: "skipped", errorCode: "LIGHT_OFF" } });
+  assert.match(ui.elements.get("command-status").textContent, /밝기를 적용하지 않았습니다/);
+  assert.equal(ui.elements.get("command-status").dataset.kind, "info");
 });

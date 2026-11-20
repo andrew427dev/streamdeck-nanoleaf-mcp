@@ -167,7 +167,7 @@ test('public package identifies original artwork, excludes vendor logo assets, a
   const entries = await readdir(packaged, { recursive: true });
   assert.ok(entries.every(name => !/nanoleaf[-_]core[-_]logo|BRAND-NOTICE/i.test(name)),
     'the public package excludes the original vendor mark and its preview-only notice');
-  for (const dependency of ['@elgato/streamdeck', '@elgato/utils', '@elgato/schemas', 'ws', 'zod']) {
+  for (const dependency of ['@elgato/streamdeck', '@elgato/utils', '@streamdeck/core', '@elgato/schemas', 'ws', 'zod']) {
     const folder = new URL(`node_modules/${dependency}/`, root);
     const pkg = JSON.parse(await readFile(new URL('package.json', folder), 'utf8'));
     assert.ok(notices.includes(`${dependency} ${pkg.version} (${pkg.license})`), `Missing runtime notice: ${dependency}`);

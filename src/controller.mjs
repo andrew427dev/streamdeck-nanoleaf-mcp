@@ -12,6 +12,7 @@ export const ERROR_MESSAGES = Object.freeze({
   DEVICE_ERROR: 'The light did not respond. Check its USB connection in Nanoleaf Desktop.',
   SCENE_NOT_READY: 'The selected scene is not ready. Refresh the scene list and try again.',
   BRIGHTNESS_UNAVAILABLE: 'Brightness is unavailable for this light. Check its state in Nanoleaf Desktop.',
+  LIGHT_OFF: 'The light is off; the brightness preset was not applied.',
   INVALID_ARGUMENT: 'Select a device and the required action settings.',
   DEVICE_MISSING: 'The selected device is unavailable. Refresh the device list.',
   DEVICE_UNSUPPORTED: 'This beta supports the NL82K2 PC Screen Mirror Lightstrip only.',
@@ -245,13 +246,16 @@ export class LightController {
   }
 
   async execute(kind, settings = {}, { isCurrent } = {}) {
-    const { deviceId, sceneName, powerMode, brightnessDelta, autoLaunch } = settings ?? {};
-    if (!text(deviceId) || !['scene', 'power', 'brightness'].includes(kind)
+    const { deviceId, sceneName, powerMode, brightnessDelta, brightnessPreset,
+      presetWhenOff = 'keep-off', autoLaunch } = settings ?? {};
+    if (!text(deviceId) || !['scene', 'power', 'brightness', 'brightness-preset'].includes(kind)
       || isCurrent !== undefined && typeof isCurrent !== 'function'
       || kind === 'scene' && !text(sceneName)
       || kind === 'power' && !['on', 'off', 'toggle'].includes(powerMode)
       || kind === 'brightness' && (!Number.isInteger(brightnessDelta)
-        || brightnessDelta === 0 || brightnessDelta < -100 || brightnessDelta > 100)) {
+        || brightnessDelta === 0 || brightnessDelta < -100 || brightnessDelta > 100)
+      || kind === 'brightness-preset' && (!Number.isInteger(brightnessPreset)
+        || brightnessPreset < 0 || brightnessPreset > 100 || !['keep-off', 'apply'].includes(presetWhenOff))) {
       throw fail('INVALID_ARGUMENT');
     }
     const checkCurrent = () => { if (isCurrent && !isCurrent()) throw fail('BUSY'); };
@@ -268,7 +272,15 @@ export class LightController {
       } else {
         const state = await this.#readyState(deviceId, isCurrent);
         checkCurrent();
-        if (kind === 'brightness') {
+        if (kind === 'brightness-preset') {
+          if (typeof state.power !== 'boolean') throw fail('PROTOCOL_ERROR');
+          // Respect the latest observed OFF state by default. Applying while OFF
+          // requires this new key's explicit policy; existing controls are unchanged.
+          if (!state.power && presetWhenOff === 'keep-off') return { skipped: 'LIGHT_OFF' };
+          const turnOn = !state.power && presetWhenOff === 'apply' && brightnessPreset > 0;
+          await this.client.setBrightnessPreset(deviceId, brightnessPreset, turnOn,
+            isCurrent ? { isCurrent } : undefined);
+        } else if (kind === 'brightness') {
           if (state.brightness === undefined || state.brightness === null) throw fail('BRIGHTNESS_UNAVAILABLE');
           if (!Number.isFinite(state.brightness) || state.brightness < 0 || state.brightness > 100) {
             throw fail('PROTOCOL_ERROR');

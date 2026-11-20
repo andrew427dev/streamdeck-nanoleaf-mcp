@@ -7,18 +7,32 @@
   const REQUEST_TIMEOUT_MS = 15_000;
   const translations = {
     en: {
+      diagnosticsHeading: "Connection check", diagnosticsRun: "Check connection", diagnosticsCopy: "Copy summary",
+      diagnosticsHelp: "Read-only check. It never launches Desktop or changes the light. The summary excludes device identifiers, scene names and personal paths.",
+      diagnosticsLoading: "Checking the local connection…", diagnosticsReady: "Connection check complete.",
+      diagnosticsCopied: "Summary copied.", diagnosticsCopyManual: "Automatic copy is unavailable. Select the summary below and copy it manually.",
+      diagnosticsInvalid: "The connection summary could not be read. Run the check again.",
+      diagnosticsNotChecked: "Not checked", diagnosticsAvailable: "Available", diagnosticsMissing: "Missing",
+      diagnosticsPlatform: "Platform", diagnosticsServer: "MCP server version", diagnosticsConnection: "Connection",
+      diagnosticsProtocol: "MCP protocol", diagnosticsLightTools: "Light commands", diagnosticsMirrorTools: "Mac mirror commands",
+      diagnosticsDevices: "Supported USB devices", diagnosticsConnected: "Ready", diagnosticsUnavailable: "Unavailable",
       intro: "For the USB-only PC Screen Mirror Lightstrip (NL82K2), controlled through Nanoleaf Desktop. This beta does not support Wi-Fi/LAN models. Open the app and connect your light by USB before refreshing.",
       device: "Device", scene: "Scene", powerMode: "Power mode",
       mirrorMode: "Screen mirror action", mirrorToggle: "Toggle screen mirror", mirrorStart: "Start screen mirror", mirrorStop: "Stop screen mirror",
-      mirrorHelp: "Uses all mirror targets and the current mode, display and layout selected in Nanoleaf Desktop. Set screen-recording permission in Desktop first. Starting can stop other streaming. Stopping is not power off; Desktop attempts to restore the previous light state. Status describes the capture engine, not successful output from every light.",
+      mirrorHelp: "Uses all mirror targets and the current mode, display and layout selected in Nanoleaf Desktop. Set screen-recording permission in Desktop first. Starting can stop other streaming. Desktop restores previous light settings when stopping; this can change power or cause a brief flash. This known limitation is unresolved. Status describes the capture engine, not successful output from every light.",
       mirrorRunning: "Screen mirror engine is running", mirrorStopped: "Screen mirror engine is stopped",
       brightnessStep: "Step (%p)",
+      brightnessPreset: "Brightness (%)", presetWhenOff: "When the light is off",
+      presetKeepOff: "Keep off; skip the preset", presetApply: "Apply preset; turn on above 0%",
+      presetHelp: "Set a fixed brightness from 0 to 100%. Default: 50%. By default an OFF light stays off. Applying 0% may turn the light off. This policy applies only to this preset key.",
+      presetInvalid: "Enter a whole brightness percentage from 0 to 100.",
+      diagnosticsTimeout: "Desktop did not respond in time. Check the app, then run the connection check again.",
       displayMode: "Display", displayBar: "Bar", displayRing: "Ring", displayNumber: "Number",
       displayHelp: "Turn: adjust brightness · Press the dial: toggle power · Tap the touch strip: switch display. Bar → Ring → Number. Display changes never change the light or open the app.",
       brightnessTextSize: "Brightness text size", brightnessTextSmall: "Small", brightnessTextMedium: "Medium", brightnessTextLarge: "Large (original size)",
       brightnessTextSizeHelp: "Size of the brightness percentage on the touch strip in all three display styles. Large keeps the original size. This changes only the display, not the light.",
-      sceneBrowserHelp: "Press the dial or tap its touch-strip section to open the saved scene list. Turn to select a scene, then press or tap again to play it. Up to three scene names appear at a time. Selection is temporary and is not saved in your profile.",
-      brightnessHelp: "Change per key press, in percentage points (1–100). Default: 5.",
+      sceneBrowserHelp: "Press the dial or tap its touch-strip section to open the saved scene list. Turn to select, then press or tap again to play. Hold the touch strip to refresh the list without playing a scene, keeping the selected name when available. Refresh follows this dial’s app-launch setting. Selection is temporary.",
+      brightnessHelp: "Change per key press, in percentage points (1–100). Default: 5. Desktop may switch the light off at 0% or on when increasing brightness from OFF.",
       brightnessStepInvalid: "Enter a whole number from 1 to 100 for the brightness step.",
       brightnessArgumentError: "Check the selected device and brightness step, then try again.",
       toggle: "Toggle on / off", on: "On", off: "Off", refresh: "Refresh lists",
@@ -39,9 +53,11 @@
       setupError: "Unable to open these settings. Select this key again in Stream Deck.",
       commandHeading: "Last key press",
       commandIdle: "No result for this key in this plugin session.",
+      commandUnavailable: "Last result is unavailable. Select this key again to reconnect.",
       commandRunning: "Running this key’s command…",
       commandSuccess: "This key’s last command completed.",
       errors: {
+        LIGHT_OFF: "Light is off; brightness was not applied.",
         APP_BUSY: "Another light or screen-mirror command is running. Wait before pressing again.",
         MIRROR_UNSUPPORTED: "This Desktop version does not provide all screen-mirror commands.",
         MIRROR_UNKNOWN: "Screen-mirror status is uncertain. Check Desktop permissions, display, devices and layout. Do not repeatedly press the key.",
@@ -65,18 +81,32 @@
       },
     },
     ko: {
+      diagnosticsHeading: "연결 진단", diagnosticsRun: "연결 확인", diagnosticsCopy: "요약 복사",
+      diagnosticsHelp: "앱을 실행하거나 조명을 바꾸지 않는 조회입니다. 요약에는 장치 식별자·씬 이름·개인 경로를 포함하지 않습니다.",
+      diagnosticsLoading: "로컬 연결을 확인하는 중입니다…", diagnosticsReady: "연결 진단을 마쳤습니다.",
+      diagnosticsCopied: "요약을 복사했습니다.", diagnosticsCopyManual: "자동 복사를 사용할 수 없습니다. 아래 요약을 선택해 직접 복사해 주세요.",
+      diagnosticsInvalid: "진단 요약을 읽지 못했습니다. 다시 확인해 주세요.",
+      diagnosticsNotChecked: "미확인", diagnosticsAvailable: "사용 가능", diagnosticsMissing: "지원 도구 누락",
+      diagnosticsPlatform: "운영체제", diagnosticsServer: "MCP 서버 버전", diagnosticsConnection: "연결",
+      diagnosticsProtocol: "MCP 프로토콜", diagnosticsLightTools: "조명 제어 도구", diagnosticsMirrorTools: "Mac 미러링 도구",
+      diagnosticsDevices: "지원 USB 장치 수", diagnosticsConnected: "준비됨", diagnosticsUnavailable: "사용 불가",
       intro: "Wi-Fi 없이 USB로 연결하는 PC Screen Mirror Lightstrip(NL82K2)을 Nanoleaf Desktop을 통해 제어합니다. 이번 베타는 Wi-Fi/LAN 모델을 지원하지 않습니다. 앱을 열고 조명을 USB로 연결한 뒤 새로고침해 주세요.",
       device: "장치", scene: "씬", powerMode: "전원 동작",
       mirrorMode: "화면 미러링 동작", mirrorToggle: "미러링 시작 / 정지 전환", mirrorStart: "미러링 시작", mirrorStop: "미러링 정지",
-      mirrorHelp: "Nanoleaf Desktop에서 선택한 미러링 장치 전체와 현재 모드·화면·배치를 사용합니다. 화면 기록 권한은 Desktop에서 먼저 설정해 주세요. 시작하면 다른 스트리밍이 중지될 수 있습니다. 정지는 전원 끄기가 아니며 Desktop이 이전 조명 상태로 복원을 시도합니다. 실행 중 표시는 캡처 엔진 상태이며 모든 조명의 출력 성공을 뜻하지 않습니다.",
+      mirrorHelp: "Nanoleaf Desktop에서 선택한 미러링 장치 전체와 현재 모드·화면·배치를 사용합니다. 화면 기록 권한은 Desktop에서 먼저 설정해 주세요. 시작하면 다른 스트리밍이 중지될 수 있습니다. 정지하면 Desktop이 이전 조명 상태를 복원하면서 전원이 바뀌거나 잠깐 깜빡일 수 있습니다. 아직 해결되지 않은 한계입니다. 실행 중 표시는 캡처 엔진 상태이며 모든 조명의 출력 성공을 뜻하지 않습니다.",
       mirrorRunning: "화면 미러링 엔진 실행 중", mirrorStopped: "화면 미러링 엔진 정지 상태",
       brightnessStep: "조절 폭 (%p)",
+      brightnessPreset: "지정 밝기 (%)", presetWhenOff: "조명이 꺼져 있을 때",
+      presetKeepOff: "꺼짐 유지 · 밝기 적용하지 않기", presetApply: "밝기 적용 · 0%보다 크면 켜기",
+      presetHelp: "0–100% 중 지정한 밝기로 바로 맞춥니다. 기본값은 50%이며 꺼진 조명은 기본적으로 유지합니다. 0%를 적용하면 조명이 꺼질 수 있습니다. 이 정책은 이 프리셋 버튼에만 적용됩니다.",
+      presetInvalid: "밝기는 0부터 100까지의 정수로 입력해 주세요.",
+      diagnosticsTimeout: "Desktop이 응답하지 않았습니다. 앱을 확인한 뒤 연결 진단을 다시 실행해 주세요.",
       displayMode: "표시 방식", displayBar: "막대", displayRing: "원형", displayNumber: "숫자",
       displayHelp: "돌리기: 밝기 조절 · 다이얼 누르기: 전원 전환 · 터치 화면 누르기: 표시 방식 전환. 막대 → 원형 → 숫자 순서입니다. 표시 전환은 조명을 바꾸거나 앱을 실행하지 않습니다.",
       brightnessTextSize: "밝기 숫자 크기", brightnessTextSmall: "작게", brightnessTextMedium: "중간", brightnessTextLarge: "크게 (기존 크기)",
       brightnessTextSizeHelp: "터치 화면의 밝기 % 숫자 크기이며, 세 가지 표시 방식에 모두 적용됩니다. ‘크게’는 기존 크기입니다. 화면 표시만 바뀌며 실제 밝기는 바뀌지 않습니다.",
-      sceneBrowserHelp: "다이얼을 누르거나 해당 터치 화면을 누르면 저장된 씬 목록이 열립니다. 다이얼을 돌려 씬을 선택하고 다시 누르거나 터치하면 재생합니다. 화면에는 씬 이름이 최대 세 개씩 표시됩니다. 선택 위치는 임시이며 프로필에 저장되지 않습니다.",
-      brightnessHelp: "키를 한 번 누를 때 바뀌는 밝기입니다. 1–100%p 사이의 정수이며, 기본값은 5%p입니다.",
+      sceneBrowserHelp: "다이얼을 누르거나 해당 터치 화면을 누르면 씬 목록이 열립니다. 돌려 선택하고 다시 누르거나 터치하면 재생합니다. 터치 화면을 길게 누르면 씬을 재생하지 않고 목록을 새로 읽으며, 같은 이름이 있으면 선택을 유지합니다. 새로고침은 이 다이얼의 앱 실행 옵션을 따릅니다. 선택 위치는 임시입니다.",
+      brightnessHelp: "키를 한 번 누를 때 바뀌는 밝기입니다. 1–100%p 사이의 정수이며, 기본값은 5%p입니다. Desktop이 0%에서 조명을 끄거나 꺼진 조명의 밝기를 올릴 때 켤 수 있습니다.",
       brightnessStepInvalid: "밝기 조절 폭은 1부터 100까지의 정수로 입력해 주세요.",
       brightnessArgumentError: "선택한 장치와 밝기 조절 폭을 확인한 뒤 다시 시도해 주세요.",
       toggle: "켜기 / 끄기 전환", on: "켜기", off: "끄기", refresh: "목록 새로고침",
@@ -96,10 +126,12 @@
       invalid: "목록을 불러오지 못했습니다. Nanoleaf Desktop을 확인한 뒤 새로고침해 주세요.",
       setupError: "설정을 열지 못했습니다. Stream Deck에서 이 키를 다시 선택해 주세요.",
       commandHeading: "이 키의 마지막 실행",
+      commandUnavailable: "마지막 결과를 확인할 수 없습니다. 이 버튼을 다시 선택해 연결해 주세요.",
       commandIdle: "플러그인 실행 이후 이 키의 기록이 없습니다.",
       commandRunning: "이 키의 명령을 처리 중입니다…",
       commandSuccess: "이 키의 마지막 명령을 완료했습니다.",
       errors: {
+        LIGHT_OFF: "조명이 꺼져 있어 밝기를 적용하지 않았습니다.",
         APP_BUSY: "조명 또는 화면 미러링 명령을 처리 중입니다. 잠시 기다린 뒤 다시 눌러 주세요.",
         MIRROR_UNSUPPORTED: "현재 Desktop 버전은 필요한 화면 미러링 명령을 모두 제공하지 않습니다.",
         MIRROR_UNKNOWN: "화면 미러링 결과를 확인하지 못했습니다. 반복해서 누르지 말고 Desktop의 권한·화면·장치·배치를 확인해 주세요.",
@@ -150,11 +182,11 @@
   const sceneDialTranslations = {
     en: {
       autoLaunch: "Launch the app if closed, then control the light",
-      launchHelp: "When you press this dial or tap its touch-strip section, launch Nanoleaf Desktop if it is closed, then load scenes or play your selection. Applies only to this dial; off by default. If this option is off and the app is closed, light control is unavailable. Turning only changes the selection; opening these settings or refreshing never opens the app.",
+      launchHelp: "When you press this dial or tap its touch-strip section, launch Nanoleaf Desktop if it is closed, then load scenes or play your selection. Holding the touch strip refreshes the list with the same launch setting. Applies only to this dial; off by default. If this option is off and the app is closed, light control is unavailable. Turning only changes the selection. Opening or refreshing this settings screen never opens the app.",
     },
     ko: {
       autoLaunch: "앱이 꺼져 있으면 실행 후 제어",
-      launchHelp: "다이얼을 누르거나 해당 터치 화면을 누를 때 Nanoleaf Desktop이 꺼져 있으면 앱을 실행한 뒤 씬 목록을 읽거나 선택한 씬을 재생합니다. 이 다이얼에만 적용되며 기본값은 꺼짐입니다. 이 옵션을 끈 상태에서 앱도 종료되어 있으면 제어할 수 없습니다. 돌리기는 선택만 바꾸며, 설정 화면을 열거나 목록을 새로고침해도 앱은 열리지 않습니다.",
+      launchHelp: "다이얼을 누르거나 해당 터치 화면을 누를 때 Nanoleaf Desktop이 꺼져 있으면 앱을 실행한 뒤 씬 목록을 읽거나 선택한 씬을 재생합니다. 길게 터치해 목록을 새로 읽을 때도 이 실행 옵션을 따릅니다. 이 다이얼에만 적용되며 기본값은 꺼짐입니다. 이 옵션을 끈 상태에서 앱도 종료되어 있으면 제어할 수 없습니다. 돌리기는 선택만 바꾸며, 이 설정 화면을 열거나 여기서 새로고침해도 앱은 열리지 않습니다.",
     },
   };
   const mirrorTranslations = {
@@ -178,12 +210,16 @@
     device: element("device"), scene: element("scene"), mode: element("power-mode"),
     sceneField: element("scene-field"), powerField: element("power-field"),
     brightnessField: element("brightness-field"), brightnessStep: element("brightness-step"), brightnessHelp: element("brightness-help"),
+    presetField: element("preset-field"), brightnessPreset: element("brightness-preset"),
+    presetOffField: element("preset-off-field"), presetWhenOff: element("preset-when-off"), presetHelp: element("preset-help"),
     displayField: element("display-field"), displayMode: element("display-mode"), displayHelp: element("display-help"),
     brightnessTextSizeField: element("brightness-text-size-field"), brightnessTextSize: element("brightness-text-size"), brightnessTextSizeHelp: element("brightness-text-size-help"),
     sceneBrowserHelp: element("scene-browser-help"),
     deviceHint: element("device-hint"), sceneHint: element("scene-hint"),
     refresh: element("refresh"), autoLaunch: element("auto-launch"), status: element("status"),
     commandStatus: element("command-status"),
+    diagnosticsRun: element("diagnostics-run"), diagnosticsCopy: element("diagnostics-copy"),
+    diagnosticsSummary: element("diagnostics-summary"), diagnosticsStatus: element("diagnostics-status"),
     deviceField: element("device-field"), mirrorField: element("mirror-field"),
     mirrorMode: element("mirror-mode"), mirrorHelp: element("mirror-help"),
   };
@@ -196,8 +232,11 @@
   let sessionId = "";
   let sequence = 0;
   let commandSequence = -1;
+  let commandSession = "";
+  let commandHandshake;
   let isScene = false;
   let isBrightness = false;
+  let isPreset = false;
   let isDial = false;
   let isBrightnessDial = false;
   let isSceneDial = false;
@@ -225,6 +264,11 @@
     }
     if (isBrightness) normalized.brightnessStep = Number.isInteger(data.brightnessStep)
       && data.brightnessStep >= 1 && data.brightnessStep <= 100 ? data.brightnessStep : isDial ? 2 : 5;
+    if (isPreset) {
+      normalized.brightnessPreset = Number.isInteger(data.brightnessPreset)
+        && data.brightnessPreset >= 0 && data.brightnessPreset <= 100 ? data.brightnessPreset : 50;
+      normalized.presetWhenOff = data.presetWhenOff === "apply" ? "apply" : "keep-off";
+    }
     if (isBrightnessDial) {
       normalized.displayMode = ["bar", "ring", "number"].includes(data.displayMode) ? data.displayMode : "bar";
       normalized.brightnessTextSize = ["small", "medium", "large"].includes(data.brightnessTextSize) ? data.brightnessTextSize : "large";
@@ -237,14 +281,48 @@
     ui.status.dataset.kind = error ? "error" : "info";
   }
 
+  function requestCommandStatus(observedSession) {
+    if (commandHandshake?.session === observedSession) return;
+    if (commandHandshake) clearTimeout(commandHandshake.timer);
+    const requestId = `${sessionId}:status:${++sequence}`;
+    const timer = setTimeout(() => {
+      if (commandHandshake?.requestId !== requestId) return;
+      commandHandshake = undefined;
+      ui.commandStatus.textContent = words.commandUnavailable;
+      ui.commandStatus.dataset.kind = "info";
+    }, REQUEST_TIMEOUT_MS);
+    commandHandshake = { requestId, session: observedSession, timer };
+    if (!send("sendToPlugin", { event: "commandStatus", requestId })) {
+      clearTimeout(timer);
+      commandHandshake = undefined;
+    }
+  }
+
   function receiveCommandStatus(payload) {
     if (!payload || payload.event !== "commandStatus" || payload.actionContext !== actionContext
-      || !Number.isSafeInteger(payload.sequence) || payload.sequence < 0 || payload.sequence < commandSequence
-      || !["idle", "running", "success", "error"].includes(payload.state)) return;
+      || typeof payload.session !== "string" || !/^[A-Za-z0-9:_-]{1,128}$/.test(payload.session)
+      || !Number.isSafeInteger(payload.sequence) || payload.sequence < 0
+      || !["idle", "running", "success", "error", "skipped"].includes(payload.state)) return;
+    if (payload.requestId !== undefined) {
+      // Only a current, correlated read can confirm a changed plugin process.
+      if (payload.requestId !== commandHandshake?.requestId) return;
+      clearTimeout(commandHandshake.timer);
+      commandHandshake = undefined;
+      if (payload.session !== commandSession) commandSequence = -1;
+      commandSession = payload.session;
+    } else if (!commandSession) {
+      commandSession = payload.session;
+      if (commandHandshake) clearTimeout(commandHandshake.timer);
+      commandHandshake = undefined;
+    } else if (payload.session !== commandSession) {
+      requestCommandStatus(payload.session);
+      return;
+    }
+    if (payload.sequence < commandSequence) return;
     commandSequence = payload.sequence;
     const messages = { idle: words.commandIdle, running: words.commandRunning, success: words.commandSuccess };
     const knownCode = Object.prototype.hasOwnProperty.call(words.errors, payload.errorCode);
-    ui.commandStatus.textContent = payload.state === "error"
+    ui.commandStatus.textContent = payload.state === "error" || payload.state === "skipped"
       ? words.errors[knownCode ? payload.errorCode : "INTERNAL_ERROR"] : messages[payload.state];
     ui.commandStatus.dataset.kind = payload.state === "error" ? "error" : payload.state === "success" ? "success" : "info";
   }
@@ -257,11 +335,15 @@
     ui.scene.disabled = !ready || !settings.deviceId || pending.has("scenes") || pending.has("devices");
     ui.mode.disabled = !ready;
     ui.brightnessStep.disabled = !ready;
+    ui.brightnessPreset.disabled = !ready;
+    ui.presetWhenOff.disabled = !ready;
     ui.displayMode.disabled = !ready;
     ui.brightnessTextSize.disabled = !ready;
     ui.autoLaunch.disabled = !ready || isMirror && settings.mirrorMode === "stop";
     ui.mirrorMode.disabled = !ready;
     ui.refresh.disabled = !ready || pending.size > 0;
+    ui.diagnosticsRun.disabled = !ready || pending.has("diagnostics");
+    ui.diagnosticsCopy.disabled = !ui.diagnosticsSummary.value;
   }
 
   function option(value, label) {
@@ -300,7 +382,12 @@
     ui.mode.value = settings.powerMode;
     ui.autoLaunch.checked = settings.autoLaunch;
     ui.sceneField.hidden = !isScene;
-    ui.powerField.hidden = isScene || isBrightness || isSceneDial || isMirror;
+    ui.powerField.hidden = isScene || isBrightness || isSceneDial || isMirror || isPreset;
+    ui.presetField.hidden = !isPreset;
+    ui.presetOffField.hidden = !isPreset;
+    ui.presetHelp.hidden = !isPreset;
+    ui.brightnessPreset.value = String(settings.brightnessPreset ?? "");
+    ui.presetWhenOff.value = settings.presetWhenOff ?? "keep-off";
     ui.brightnessField.hidden = !isBrightness;
     ui.brightnessHelp.hidden = !isBrightness;
     ui.brightnessStep.value = String(settings.brightnessStep ?? "");
@@ -348,12 +435,14 @@
       if (pending.get(event)?.requestId !== requestId) return;
       pending.delete(event);
       controls();
-      status(words.timeout, true);
+      if (event === "diagnostics") ui.diagnosticsStatus.textContent = words.timeout;
+      else status(words.timeout, true);
     }, REQUEST_TIMEOUT_MS);
     pending.set(event, { requestId, deviceId, timer });
     const payload = { event, requestId };
     if (deviceId) payload.deviceId = deviceId;
     if (!send("sendToPlugin", payload)) cancel(event);
+    else if (event === "diagnostics") ui.diagnosticsStatus.textContent = words.diagnosticsLoading;
     else status(words.loading);
     controls();
   }
@@ -371,6 +460,7 @@
     const requestState = pending.get(payload.event);
     if (!requestState || payload.requestId !== requestState.requestId) return;
     cancel(payload.event);
+    if (payload.event === "diagnostics") { receiveDiagnostics(payload.diagnostics); return; }
     if (payload.event === "scenes" && requestState.deviceId !== settings.deviceId) {
       controls();
       return;
@@ -408,6 +498,58 @@
     }
   }
 
+  function receiveDiagnostics(value) {
+    const version = text => typeof text === "string" && /^\d{1,5}(?:\.\d{1,5}){0,3}(?:-beta\.\d{1,5})?$/.test(text)
+      ? text : words.diagnosticsNotChecked;
+    if (!value || !["ready", "unavailable"].includes(value.connection)
+      || !["macOS", "Windows", "Other"].includes(value.platform)) {
+      ui.diagnosticsStatus.textContent = words.diagnosticsInvalid;
+      controls();
+      return;
+    }
+    const availability = value => value === true ? words.diagnosticsAvailable
+      : value === false ? words.diagnosticsMissing : words.diagnosticsNotChecked;
+    const rows = [
+      `Plugin: ${version(value.pluginVersion)}`,
+      `${words.diagnosticsPlatform}: ${value.platform}`,
+      `${words.diagnosticsServer}: ${version(value.serverVersion)}`,
+      `${words.diagnosticsConnection}: ${value.connection === "ready" ? words.diagnosticsConnected : words.diagnosticsUnavailable}`,
+      `${words.diagnosticsProtocol}: ${["2025-03-26", "2025-06-18", "2025-11-25"].includes(value.protocolVersion) ? value.protocolVersion : words.diagnosticsNotChecked}`,
+      `${words.diagnosticsLightTools}: ${availability(value.lightTools)}`,
+      `${words.diagnosticsMirrorTools}: ${availability(value.mirrorTools)}`,
+      `${words.diagnosticsDevices}: ${Number.isSafeInteger(value.supportedDevices) && value.supportedDevices >= 0 && value.supportedDevices <= 10000 ? value.supportedDevices : words.diagnosticsNotChecked}`,
+    ];
+    if (value.connection === "unavailable") {
+      const code = Object.prototype.hasOwnProperty.call(words.errors, value.errorCode) ? value.errorCode : "INTERNAL_ERROR";
+      rows.push(`${code}: ${code === "APP_TIMEOUT" ? words.diagnosticsTimeout : words.errors[code]}`);
+    }
+    ui.diagnosticsSummary.value = rows.join("\n");
+    ui.diagnosticsSummary.hidden = false;
+    ui.diagnosticsStatus.textContent = words.diagnosticsReady;
+    controls();
+  }
+
+  ui.diagnosticsRun.addEventListener("click", () => {
+    if (ui.diagnosticsRun.disabled) return;
+    ui.diagnosticsSummary.value = "";
+    ui.diagnosticsSummary.hidden = true;
+    request("diagnostics");
+  });
+  ui.diagnosticsCopy.addEventListener("click", async () => {
+    const summary = ui.diagnosticsSummary.value;
+    if (!summary) return;
+    try {
+      if (!globalThis.navigator?.clipboard?.writeText) throw new Error("Clipboard unavailable");
+      await globalThis.navigator.clipboard.writeText(summary);
+      if (ui.diagnosticsSummary.value === summary) ui.diagnosticsStatus.textContent = words.diagnosticsCopied;
+    } catch {
+      if (ui.diagnosticsSummary.value !== summary) return;
+      ui.diagnosticsSummary.focus?.();
+      ui.diagnosticsSummary.select?.();
+      ui.diagnosticsStatus.textContent = words.diagnosticsCopyManual;
+    }
+  });
+
   function receiveSettings(value) {
     const next = normalizeSettings(value);
     const deviceChanged = settings.deviceId !== next.deviceId;
@@ -437,7 +579,25 @@
     else status(words.ready);
   });
   ui.scene.addEventListener("change", () => { if (isScene) { settings.sceneName = ui.scene.value; save(); render(); } });
-  ui.mode.addEventListener("change", () => { if (!isScene && !isBrightness && !isSceneDial && !isMirror) { settings.powerMode = ui.mode.value; save(); } });
+  ui.mode.addEventListener("change", () => { if (!isScene && !isBrightness && !isSceneDial && !isMirror && !isPreset) { settings.powerMode = ui.mode.value; save(); } });
+  ui.brightnessPreset.addEventListener("change", () => {
+    if (!isPreset) return;
+    const value = ui.brightnessPreset.value;
+    const next = Number(value);
+    if (!/^\d{1,3}$/.test(value) || !Number.isInteger(next) || next < 0 || next > 100) {
+      ui.brightnessPreset.value = String(settings.brightnessPreset);
+      status(words.presetInvalid, true);
+      return;
+    }
+    settings.brightnessPreset = next;
+    save();
+    status(words.ready);
+  });
+  ui.presetWhenOff.addEventListener("change", () => {
+    if (!isPreset || !["keep-off", "apply"].includes(ui.presetWhenOff.value)) return;
+    settings.presetWhenOff = ui.presetWhenOff.value;
+    save();
+  });
   ui.mirrorMode.addEventListener("change", () => {
     if (!isMirror || !["start", "stop", "toggle"].includes(ui.mirrorMode.value)) return;
     settings.mirrorMode = ui.mirrorMode.value;
@@ -500,10 +660,17 @@
       actionContext = actionData.context;
       sessionId = `${uuid}:${Date.now().toString(36)}:${Math.random().toString(36).slice(2)}`;
       sequence = 0;
+      ui.diagnosticsSummary.value = "";
+      ui.diagnosticsSummary.hidden = true;
+      ui.diagnosticsStatus.textContent = "";
       commandSequence = -1;
+      commandSession = "";
+      if (commandHandshake) clearTimeout(commandHandshake.timer);
+      commandHandshake = undefined;
       ui.commandStatus.textContent = words.commandIdle;
       ui.commandStatus.dataset.kind = "info";
       isScene = action.endsWith(".scene");
+      isPreset = action.endsWith(".brightness-preset");
       isBrightness = ["brightness-up", "brightness-down", "brightness-dial"].some((suffix) => action.endsWith(`.${suffix}`));
       if (isBrightness) words.errors = { ...words.errors, INVALID_ARGUMENT: words.brightnessArgumentError };
       settings = normalizeSettings(actionData.payload?.settings);
@@ -517,7 +684,7 @@
         try {
           socket.send(JSON.stringify({ event: registerEvent, uuid }));
           registered = true;
-          send("sendToPlugin", { event: "commandStatus" });
+          requestCommandStatus("");
           refresh();
         } catch {
           registered = false;
@@ -537,7 +704,12 @@
         }
         if (message.event === "didReceiveSettings") receiveSettings(message.payload?.settings);
       };
-      socket.onclose = socket.onerror = () => { registered = false; cancelAll(); status(words.disconnected, true); controls(); };
+      socket.onclose = socket.onerror = () => {
+        registered = false;
+        if (commandHandshake) clearTimeout(commandHandshake.timer);
+        commandHandshake = undefined;
+        cancelAll(); status(words.disconnected, true); controls();
+      };
       render();
     } catch {
       status(words.setupError, true);

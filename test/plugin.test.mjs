@@ -63,7 +63,7 @@ globalThis.fetch = async (url, options) => {
       serverInfo: { name: 'synthetic-nanoleaf', version: '1' } });
   }
   if (request.method === 'notifications/initialized') return new Response(null, { status: 202 });
-  if (request.method === 'tools/list') return reply({ tools: ['get_screen_mirror_status', 'start_screen_mirror', 'stop_screen_mirror'].map(name => ({ name })) });
+  if (request.method === 'tools/list') return reply({ tools: ['list_devices', 'get_light_state', 'list_scenes', 'set_light_state', 'play_scene', 'get_screen_mirror_status', 'start_screen_mirror', 'stop_screen_mirror'].map(name => ({ name })) });
   if (request.method !== 'tools/call') throw new Error('Unexpected synthetic MCP method');
   const args = request.params.arguments;
   switch (request.params.name) {
@@ -86,11 +86,13 @@ globalThis.fetch = async (url, options) => {
     case 'set_light_state':
       if (args.states?.length !== 1 || args.states[0].device !== 'TEST-DEVICE') throw new Error('Invalid synthetic command');
       if ('brightness' in args.states[0]) {
-        if (Object.keys(args.states[0]).sort().join(',') !== 'brightness,device'
+        if (!['brightness,device', 'brightness,device,power'].includes(Object.keys(args.states[0]).sort().join(','))
+          || 'power' in args.states[0] && (args.states[0].power !== true || args.states[0].brightness === 0)
           || !Number.isInteger(args.states[0].brightness) || args.states[0].brightness < 0 || args.states[0].brightness > 100) {
           throw new Error('Brightness must not change scene or power');
         }
         brightness = args.states[0].brightness;
+        if (args.states[0].power === true) power = true;
         return result(device({}));
       }
       if (typeof args.states[0].power !== 'boolean') throw new Error('Invalid synthetic power command');
@@ -322,7 +324,7 @@ for (const simulatedPlatform of ['darwin', 'win32']) test('built plugin handles 
       && message.context === powerContext && message.payload?.event === 'commandStatus'
       && message.payload.state === 'error', 'safe validation result in the inspector');
     assert.equal(invalidResult.payload.errorCode, 'INVALID_ARGUMENT');
-    assert.deepEqual(Object.keys(invalidResult.payload).sort(), ['actionContext', 'errorCode', 'event', 'sequence', 'state']);
+    assert.deepEqual(Object.keys(invalidResult.payload).sort(), ['actionContext', 'errorCode', 'event', 'sequence', 'session', 'state']);
     assert.equal(invalidResult.payload.actionContext, powerContext);
     assert.equal(ipc.messages.length, 0, 'invalid settings must not contact the MCP client');
 
@@ -454,6 +456,31 @@ for (const simulatedPlatform of ['darwin', 'win32']) test('built plugin handles 
     assert.equal(webSocketMessages.messages.some(message => message.payload?.requestId === 'ignored-request'), false);
     assert.equal(webSocketMessages.messages.some(message => message.context === 'TEST-UNKNOWN-CONTEXT'), false);
     assert.equal(webSocketMessages.messages.some(message => message.event === 'invalid-json'), false);
+
+    // The inspector confirms a process generation using a correlated, read-only request.
+    from = webSocketMessages.messages.length;
+    send({ event: 'sendToPlugin', action: `${PLUGIN}.power`, context: powerContext,
+      payload: { event: 'commandStatus', requestId: 'TEST-SESSION-CHECK' } });
+    const sessionCheck = await webSocketMessages.wait(message => message.payload?.requestId === 'TEST-SESSION-CHECK',
+      'correlated plugin generation', from);
+    assert.equal(sessionCheck.payload.session, recovered.payload.session);
+    assert.match(sessionCheck.payload.session, /^[a-f0-9-]{36}$/);
+
+    const beforeDiagnostic = ipc.messages.length;
+    from = webSocketMessages.messages.length;
+    send({ event: 'sendToPlugin', action: `${PLUGIN}.power`, context: powerContext,
+      payload: { event: 'diagnostics', requestId: 'TEST-DIAGNOSTICS' } });
+    const diagnostic = await webSocketMessages.wait(message => message.payload?.requestId === 'TEST-DIAGNOSTICS',
+      'safe read-only connection summary', from);
+    assert.equal(diagnostic.payload.diagnostics.pluginVersion, metadata.version);
+    assert.equal(diagnostic.payload.diagnostics.connection, 'ready');
+    assert.equal(diagnostic.payload.diagnostics.supportedDevices, 1);
+    assert.equal(diagnostic.payload.diagnostics.mirrorTools, simulatedPlatform === 'darwin' ? true : null);
+    assert.doesNotMatch(JSON.stringify(diagnostic.payload.diagnostics), /TEST-DEVICE|Example|Ocean|synthetic-nanoleaf|session|path/);
+    await syncIPC();
+    assert.equal(ipc.messages.slice(beforeDiagnostic).some(message =>
+      ['set_light_state', 'play_scene', 'start_screen_mirror', 'stop_screen_mirror'].includes(message.request?.params?.name)), false);
+    assert.equal(webSocketMessages.messages.slice(from).some(message => message.event === 'setSettings'), false);
 
     // The power icon reflects measured state, including changes made outside the plugin.
     from = webSocketMessages.messages.length;
@@ -645,11 +672,10 @@ for (const simulatedPlatform of ['darwin', 'win32']) test('built plugin handles 
     unopenedSceneRotation.payload.ticks = 1;
     send(unopenedSceneRotation);
     send(actionEvent('dialUp', 'scene-dial', sceneDialContext, sceneDialSettings));
-    send(touchEvent('scene-dial', sceneDialContext, sceneDialSettings, true));
     await new Promise(resolve => setTimeout(resolve, 100));
     assert.equal(ipc.messages.slice(beforeSceneDial).some(message =>
       ['list_scenes', 'set_light_state', 'play_scene'].includes(message.request?.params?.name)), false,
-    'appearance, idle rotation, release, and hold do not load scenes or mutate the light even with auto-launch enabled');
+    'appearance, idle rotation and release do not load scenes or mutate the light even with auto-launch enabled');
 
     from = webSocketMessages.messages.length;
     send(actionEvent('dialDown', 'scene-dial', sceneDialContext, sceneDialSettings));
@@ -669,6 +695,13 @@ for (const simulatedPlatform of ['darwin', 'win32']) test('built plugin handles 
     const oceanSelection = await webSocketMessages.wait(message => hasSceneDisplay(message, sceneDialContext, 'browsing', 1),
       'rotation selects the next scene', from);
     assert.match(dialCanvas(oceanSelection, sceneDialContext), /Ocean/);
+    const beforeRefresh = ipc.messages.length;
+    from = webSocketMessages.messages.length;
+    send(touchEvent('scene-dial', sceneDialContext, sceneDialSettings, true));
+    await webSocketMessages.wait(message => hasSceneDisplay(message, sceneDialContext, 'browsing', 1),
+      'long touch refreshes the list while retaining the selected scene', from);
+    await syncIPC();
+    assert.equal(ipc.messages.slice(beforeRefresh).filter(message => message.request?.params?.name === 'list_scenes').length, 1);
     assert.equal(ipc.messages.slice(beforeSceneDial).some(message =>
       ['set_light_state', 'play_scene'].includes(message.request?.params?.name)), false,
     'opening and rotating only browse names, without changing the light');
@@ -824,6 +857,36 @@ for (const simulatedPlatform of ['darwin', 'win32']) test('built plugin handles 
     send(actionEvent('willDisappear', 'scene-dial', sceneDialContext, sceneDialSettings));
     send(actionEvent('willDisappear', 'scene-dial', touchSceneContext, sceneDialSettings));
 
+    // A preset keeps OFF by default, exposes its non-error result, and applies
+    // one combined change only after the user enables the OFF-state option.
+    const presetContext = 'TEST-PRESET-CONTEXT';
+    const presetSettings = { deviceId: DEVICE, brightnessPreset: 75, presetWhenOff: 'keep-off', autoLaunch: false };
+    send(actionEvent('willAppear', 'brightness-preset', presetContext, presetSettings));
+    send({ event: 'propertyInspectorDidAppear', action: `${PLUGIN}.brightness-preset`, context: presetContext, device: STREAM_DECK });
+    await webSocketMessages.wait(message => keyCanvas(message, presetContext).includes('75%'), 'preset key shows configured percentage');
+    child.send({ type: 'external-state', power: false, brightness: 40 });
+    await syncIPC();
+    const beforePreset = ipc.messages.length;
+    from = webSocketMessages.messages.length;
+    send(actionEvent('keyDown', 'brightness-preset', presetContext, presetSettings));
+    const skippedPreset = await webSocketMessages.wait(message => message.event === 'sendToPropertyInspector'
+      && message.context === presetContext && message.payload?.state === 'skipped', 'preset keeps OFF without an alert', from);
+    assert.equal(skippedPreset.payload.errorCode, 'LIGHT_OFF');
+    await syncIPC();
+    assert.equal(ipc.messages.slice(beforePreset).some(message => ['set_light_state', 'play_scene'].includes(message.request?.params?.name)), false);
+    assert.equal(webSocketMessages.messages.slice(from).some(message => message.context === presetContext
+      && ['showAlert', 'showOk'].includes(message.event)), false);
+    const applyPreset = { ...presetSettings, presetWhenOff: 'apply' };
+    send(actionEvent('didReceiveSettings', 'brightness-preset', presetContext, applyPreset));
+    from = webSocketMessages.messages.length;
+    send(actionEvent('keyDown', 'brightness-preset', presetContext, applyPreset));
+    await webSocketMessages.wait(message => message.event === 'sendToPropertyInspector'
+      && message.context === presetContext && message.payload?.state === 'success', 'explicit preset power policy', from);
+    await syncIPC();
+    assert.deepEqual(ipc.messages.slice(beforePreset).filter(message => message.request?.params?.name === 'set_light_state')
+      .map(message => message.request.params.arguments), [{ states: [{ device: DEVICE, brightness: 75, power: true }] }]);
+    send(actionEvent('willDisappear', 'brightness-preset', presetContext, applyPreset));
+
     from = webSocketMessages.messages.length;
     const mirrorContext = 'TEST-MIRROR-CONTEXT';
     const mirrorImage = (message, status) => keyCanvas(message, mirrorContext).includes(`data-mirror-status="${status}"`);
@@ -873,6 +936,7 @@ for (const simulatedPlatform of ['darwin', 'win32']) test('built plugin handles 
     }
 
     from = webSocketMessages.messages.length;
+    const writesBeforeOffline = ipc.messages.filter(message => message.request?.params?.name === 'set_light_state').length;
     child.send({ type: 'offline' });
     await webSocketMessages.wait(message => hasPowerImage(message, powerContext, 'unknown')
       && hasTitleLayout(message, powerContext, 'expanded'),
@@ -885,7 +949,7 @@ for (const simulatedPlatform of ['darwin', 'win32']) test('built plugin handles 
     'unknown brightness when disconnected retains selected display and title layout', from);
     assert.deepEqual(offlineHiddenDial.payload.title, { enabled: false },
       'background polling cannot re-enable the hidden native title overlay');
-    assert.equal(ipc.messages.filter(message => message.request?.params?.name === 'set_light_state').length, 9,
+    assert.equal(ipc.messages.filter(message => message.request?.params?.name === 'set_light_state').length, writesBeforeOffline,
       'background polling must not mutate the light');
     const settingsWrites = webSocketMessages.messages.filter(message => message.event === 'setSettings');
     assert.equal(settingsWrites.length, 5, 'only explicit touchscreen taps save display preferences');

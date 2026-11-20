@@ -31,7 +31,7 @@
           <option value="stop" data-i18n="mirrorStop">Stop screen mirror</option>
         </select>
       </div>
-      <p id="mirror-help" class="help" data-i18n="mirrorHelp" hidden>Uses all mirror targets and the current mode, display and layout selected in Nanoleaf Desktop. Set screen-recording permission in Desktop first. Starting can stop other streaming. Stopping is not power off; Desktop attempts to restore the previous light state. Status describes the capture engine, not successful output from every light.</p>
+      <p id="mirror-help" class="help" data-i18n="mirrorHelp" hidden>Uses all mirror targets and the current mode, display and layout selected in Nanoleaf Desktop. Set screen-recording permission in Desktop first. Starting can stop other streaming. Desktop restores previous light settings when stopping; this can change power or cause a brief flash. This known limitation is unresolved. Status describes the capture engine, not successful output from every light.</p>
 
       <div id="scene-field" class="field" hidden>
         <label for="scene" data-i18n="scene">Scene</label>
@@ -52,7 +52,20 @@
         <label for="brightness-step" data-i18n="brightnessStep">Step (%p)</label>
         <input id="brightness-step" type="number" min="1" max="100" step="1" inputmode="numeric" aria-describedby="brightness-help" disabled>
       </div>
-      <p id="brightness-help" class="hint" data-i18n="brightnessHelp" hidden>Change per key press, in percentage points (1–100). Default: 5.</p>
+      <p id="brightness-help" class="hint" data-i18n="brightnessHelp" hidden>Change per key press, in percentage points (1–100). Default: 5. Desktop may switch the light off at 0% or on when increasing brightness from OFF.</p>
+
+      <div id="preset-field" class="field" hidden>
+        <label for="brightness-preset" data-i18n="brightnessPreset">Brightness (%)</label>
+        <input id="brightness-preset" type="number" min="0" max="100" step="1" inputmode="numeric" aria-describedby="preset-help" disabled>
+      </div>
+      <div id="preset-off-field" class="field" hidden>
+        <label for="preset-when-off" data-i18n="presetWhenOff">When the light is off</label>
+        <select id="preset-when-off" aria-describedby="preset-help" disabled>
+          <option value="keep-off" data-i18n="presetKeepOff">Keep off; skip the preset</option>
+          <option value="apply" data-i18n="presetApply">Apply preset; turn on above 0%</option>
+        </select>
+      </div>
+      <p id="preset-help" class="hint" data-i18n="presetHelp" hidden>Set a fixed brightness from 0 to 100%. Default: 50%. By default an OFF light stays off. Applying 0% may turn the light off. This policy applies only to this preset key.</p>
 
       <div id="display-field" class="field" hidden>
         <label for="display-mode" data-i18n="displayMode">Display</label>
@@ -73,7 +86,7 @@
         </select>
       </div>
       <p id="brightness-text-size-help" class="hint" data-i18n="brightnessTextSizeHelp" hidden>Size of the brightness percentage on the touch strip in all three display styles. Large keeps the original size. This changes only the display, not the light.</p>
-      <p id="scene-browser-help" class="hint" data-i18n="sceneBrowserHelp" hidden>Press the dial or tap its touch-strip section to open the saved scene list. Turn to select a scene, then press or tap again to play it. Up to three scene names appear at a time. Selection is temporary and is not saved in your profile.</p>
+      <p id="scene-browser-help" class="hint" data-i18n="sceneBrowserHelp" hidden>Press or tap to open the saved scene list; turn to select, then press or tap to play. Hold the touch strip to refresh without playing. Refresh follows this dial's app-launch setting and preserves the selected name when available.</p>
 
       <div class="button-row">
         <button id="refresh" type="button" data-i18n="refresh" disabled>Refresh lists</button>
@@ -85,6 +98,16 @@
         <span data-i18n="autoLaunch">Launch the app if closed, then control the light</span>
       </label>
       <p id="launch-help" class="help" data-i18n="launchHelp">When you press this key, launch Nanoleaf Desktop if it is closed, then perform the requested light action. Applies only to this key; off by default. If this option is off and the app is closed, light control is unavailable. Opening these settings or refreshing never opens the app.</p>
+      <section class="diagnostics" aria-labelledby="diagnostics-heading">
+        <p id="diagnostics-heading" data-i18n="diagnosticsHeading">Connection check</p>
+        <p class="diagnostics-help" data-i18n="diagnosticsHelp">Read-only check. It never launches Desktop or changes the light. The summary excludes device identifiers, scene names and personal paths.</p>
+        <div class="button-row">
+          <button id="diagnostics-run" type="button" data-i18n="diagnosticsRun" disabled>Check connection</button>
+          <button id="diagnostics-copy" type="button" data-i18n="diagnosticsCopy" disabled>Copy summary</button>
+        </div>
+        <p id="diagnostics-status" role="status" aria-live="polite"></p>
+        <textarea id="diagnostics-summary" aria-labelledby="diagnostics-heading" readonly rows="9" hidden></textarea>
+      </section>
       <p class="footer" data-i18n="privacy">Settings stay in your Stream Deck profile. No AI account or API key is needed.</p>
     </main>
   </body>

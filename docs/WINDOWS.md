@@ -1,5 +1,7 @@
 # Windows support and acceptance
 
+**Development note — 2026-11-20:** v0.7.0-beta.1 is an unreleased development candidate; v0.6.0-beta.3 remains the public download. Source improvements and automated CI do not complete Windows hardware acceptance. The maintainer's hardware-test deferral remains in force for both versions. See [current status](STATUS.md) and the [candidate record](releases/v0.7.0-beta.1.md). The dated beta.3 evidence below is preserved without being relabelled as candidate verification.
+
 ## Status — v0.6.0-beta.3, 2026-10-28
 
 **Hardware testing deferred by the maintainer on 2026-10-28:** Windows physical-device validation cannot currently be performed and is excluded from active work priorities until the maintainer indicates it can resume. The checklist below is retained for later use; no pending result becomes a pass. Automated Windows CI, package/security checks and the published experimental-beta download remain unchanged.

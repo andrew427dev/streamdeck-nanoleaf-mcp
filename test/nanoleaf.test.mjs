@@ -690,3 +690,19 @@ test('shared initialization keeps its client-wide deadline, cleans up and permit
   assert.equal(attempts, 2);
   assert.equal(backend.calls.filter(call => call.request.method === 'tools/call').length, 1);
 });
+
+test('brightness presets send one explicit request and retain current-input guards', async () => {
+  const s = server(request => json(rpc(request, tool(device({})))));
+  await s.client.setBrightnessPreset(DEVICE, 50, false);
+  await s.client.setBrightnessPreset(DEVICE, 75, true);
+  assert.deepEqual(s.calls.filter(c => c.request.method === 'tools/call').map(c => c.request.params.arguments), [
+    { states: [{ device: DEVICE, brightness: 50 }] },
+    { states: [{ device: DEVICE, brightness: 75, power: true }] },
+  ]);
+  const count = s.calls.length;
+  for (const [value, power] of [[-1, false], [101, false], [50.5, false], [0, true], [50, 'true']]) {
+    await assert.rejects(s.client.setBrightnessPreset(DEVICE, value, power), { code: 'INVALID_ARGUMENT' });
+  }
+  await assert.rejects(s.client.setBrightnessPreset(DEVICE, 50, true, { isCurrent: () => false }), { code: 'BUSY' });
+  assert.equal(s.calls.length, count);
+});
