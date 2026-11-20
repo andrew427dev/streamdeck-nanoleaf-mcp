@@ -98,6 +98,15 @@
         <span data-i18n="autoLaunch">Launch the app if closed, then control the light</span>
       </label>
       <p id="launch-help" class="help" data-i18n="launchHelp">When you press this key, launch Nanoleaf Desktop if it is closed, then perform the requested light action. Applies only to this key; off by default. If this option is off and the app is closed, light control is unavailable. Opening these settings or refreshing never opens the app.</p>
+      <section class="diagnostics" aria-labelledby="control-heading">
+        <p id="control-heading" data-i18n="controlHeading">Before quitting Desktop</p>
+        <p class="help" data-i18n="controlHelp">Prepare app quit pauses this plugin's requests; wait for the result before quitting Desktop yourself. It does not intercept ⌘Q, close the app, or pause other plugins, including a separately installed QA/original copy. Pause survives Stream Deck restart. After Desktop finishes quitting, choose Resume control, then press a key. Resume never launches the app or replays old inputs.</p>
+        <div class="button-row">
+          <button id="prepare-quit" type="button" data-i18n="prepareQuit" disabled>Prepare app quit</button>
+          <button id="resume-control" type="button" data-i18n="resumeControl" disabled>Resume control</button>
+        </div>
+        <p id="control-status" role="status" aria-live="polite"></p>
+      </section>
       <section class="diagnostics" aria-labelledby="diagnostics-heading">
         <p id="diagnostics-heading" data-i18n="diagnosticsHeading">Connection check</p>
         <p class="diagnostics-help" data-i18n="diagnosticsHelp">Read-only check. It never launches Desktop or changes the light. The summary excludes device identifiers, scene names and personal paths.</p>
@@ -108,7 +117,7 @@
         <p id="diagnostics-status" role="status" aria-live="polite"></p>
         <textarea id="diagnostics-summary" aria-labelledby="diagnostics-heading" readonly rows="9" hidden></textarea>
       </section>
-      <p class="footer" data-i18n="privacy">Settings stay in your Stream Deck profile. No AI account or API key is needed.</p>
+      <p class="footer" data-i18n="privacy">Action settings stay in your Stream Deck profile; pause status is saved in local plugin settings. No AI account or API key is needed.</p>
     </main>
   </body>
 </html>

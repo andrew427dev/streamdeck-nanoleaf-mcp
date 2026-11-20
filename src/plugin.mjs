@@ -12,16 +12,44 @@ import { ScreenMirror } from './screen-mirror.mjs';
 import { randomUUID } from 'node:crypto';
 import metadata from '../package.json' with { type: 'json' };
 import { connectionDiagnostics } from './diagnostics.mjs';
+import { ControlSession } from './control-session.mjs';
 
 // Keep SDK wire-level settings/device payloads out of normal log output.
 streamDeck.logger.setLevel('error');
-const client = new NanoleafClient();
+const actions = [];
+let initialized;
+const initialization = new Promise(resolve => { initialized = resolve; });
+async function settingsRequest(task) {
+  let timer;
+  try {
+    return await Promise.race([task(), new Promise((_, reject) => {
+      timer = setTimeout(() => reject(new Error('SETTINGS_TIMEOUT')), 5000);
+    })]);
+  } finally { clearTimeout(timer); }
+}
+const control = new ControlSession({
+  load: async () => (await settingsRequest(() => streamDeck.settings.getGlobalSettings())).controlPaused === true,
+  save: async paused => {
+    const settings = await settingsRequest(() => streamDeck.settings.getGlobalSettings());
+    await settingsRequest(() => streamDeck.settings.setGlobalSettings({ ...settings, controlPaused: paused }));
+    const saved = await settingsRequest(() => streamDeck.settings.getGlobalSettings());
+    if (saved.controlPaused !== paused) throw new Error('SETTINGS_UNCONFIRMED');
+  },
+  onPause: () => actions.forEach(action => action.refreshViews()),
+  onResume: () => actions.forEach(action => action.refreshViews()),
+});
+const client = new NanoleafClient({ requestGate: control });
+const launchApp = createAppLauncher();
 const controller = new LightController({
   client,
-  launchApp: createAppLauncher(),
+  launchApp: options => control.request(() => launchApp({ ...options,
+    isCurrent: () => { control.check(); return options?.isCurrent?.() ?? true; } })),
 });
-const mirror = new ScreenMirror({ client, controller });
-const live = new LiveState({ read: deviceId => controller.inspectState(deviceId) });
+// Recurring observation is independent of the input that scheduled it. Old
+// user commands keep their original scope and can never be replayed on resume.
+const schedule = (callback, delay) => setTimeout(() => control.detached(callback), delay);
+const mirror = new ScreenMirror({ client, controller, schedule });
+const live = new LiveState({ read: deviceId => control.run(() => controller.inspectState(deviceId)), schedule });
 async function execute(kind, settings, options) {
   live.begin(settings?.deviceId);
   try { return await controller.execute(kind, settings, options); }
@@ -44,7 +72,13 @@ class LightAction extends SingletonAction {
   #visible = new Map();
   // Bounded, display-only metadata. No title text, device identifiers or profile writes.
   #titles = new Map();
-  constructor(kind) { super(); this.kind = kind; }
+  constructor(kind) { super(); this.kind = kind; actions.push(this); }
+
+  refreshViews() {
+    for (const view of this.#visible.values()) {
+      this.#watch({ action: view.action, payload: { settings: view.settings } });
+    }
+  }
 
   #status(context, state, errorCode, expectedSequence) {
     // A previous command may finish after a newer press was rejected as BUSY.
@@ -104,7 +138,7 @@ class LightAction extends SingletonAction {
     brightness.cancelContext(ev.action.id);
     if (this.kind === 'screen-mirror') mirror.forget(ev.action.id);
     this.#visible.get(ev.action.id)?.browser?.dispose();
-    const token = { settings: ev.payload.settings, state: undefined,
+    const token = { action: ev.action, settings: ev.payload.settings, state: undefined,
       presentation: this.#titles.get(ev.action.id) ?? titlePresentation(undefined, ev.action.isDial() ? 'Encoder' : 'Keypad') };
     this.#visible.set(ev.action.id, token);
     if (this.kind === 'screen-mirror') {
@@ -189,7 +223,7 @@ class LightAction extends SingletonAction {
     const attempt = this.#status(ev.action.id, 'running');
     let result;
     try {
-      result = await task();
+      result = await control.run(task);
     } catch (error) {
       if (this.#visible.get(ev.action.id) !== token) return;
       // Log only an allowlisted code: no backend strings, settings, or device identifiers.
@@ -301,6 +335,19 @@ class LightAction extends SingletonAction {
     });
   }
   async onSendToPlugin(ev) {
+    if (['controlStatus', 'prepareQuit', 'resumeControl'].includes(ev.payload?.event)) {
+      const { event, requestId } = ev.payload;
+      if (typeof requestId !== 'string' || !requestId || requestId.length > 2048
+        || streamDeck.ui.action?.id !== ev.action.id) return;
+      await initialization;
+      if (streamDeck.ui.action?.id !== ev.action.id) return;
+      const status = event === 'prepareQuit' ? await control.pause()
+        : event === 'resumeControl' ? await control.resume() : control.status;
+      if (streamDeck.ui.action?.id === ev.action.id) {
+        await streamDeck.ui.sendToPropertyInspector({ event, requestId, control: status }).catch(() => {});
+      }
+      return;
+    }
     if (ev.payload?.event === 'commandStatus') {
       const requestId = ev.payload.requestId;
       if (requestId !== undefined && (typeof requestId !== 'string' || !requestId || requestId.length > 2048)) return;
@@ -328,7 +375,16 @@ class LightAction extends SingletonAction {
       if (streamDeck.ui.action?.id === ev.action.id) await streamDeck.ui.sendToPropertyInspector(response).catch(() => {});
       return;
     }
-    const response = await controller.inspect(ev.payload);
+    // The complete multi-read inspector operation shares one generation.
+    let response;
+    try { response = await control.run(() => controller.inspect(ev.payload)); }
+    catch (error) {
+      if (['devices', 'scenes'].includes(ev.payload?.event) && typeof ev.payload.requestId === 'string'
+        && ev.payload.requestId && ev.payload.requestId.length <= 2048) {
+        response = { event: ev.payload.event, requestId: ev.payload.requestId,
+          error: safeError(error).message, errorCode: safeError(error).code };
+      }
+    }
     if (response && streamDeck.ui.action?.id === ev.action.id) {
       await streamDeck.ui.sendToPropertyInspector(response).catch(() => {});
     }
@@ -350,3 +406,6 @@ for (const kind of ['brightness-up', 'brightness-down', 'brightness-dial', 'brig
   streamDeck.actions.registerAction(new BrightnessAction());
 }
 await streamDeck.connect();
+await control.initialize();
+initialized();
+actions.forEach(action => action.refreshViews());

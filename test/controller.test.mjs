@@ -65,7 +65,7 @@ test('a state read succeeding at or after the readiness deadline never changes p
       let time = 0;
       const { controller, calls } = setup({ getState: async () => { time = elapsed; return { power: false }; } });
       controller.now = () => time;
-      await assert.rejects(controller.execute('power', { deviceId: device.id, powerMode }), { code: 'APP_TIMEOUT' });
+      await assert.rejects(controller.execute('power', { deviceId: device.id, powerMode }), { code: 'APP_NOT_READY' });
       assert.equal(calls.length, 0);
     }
   }
@@ -75,7 +75,7 @@ test('USB readiness never retries connection, timeout, protocol, or unknown fail
     let reads = 0;
     const failure = Object.assign(new Error('private backend data'), { code });
     const { controller, calls } = setup({ getState: async () => { reads++; throw failure; } });
-    await assert.rejects(controller.execute('power', { deviceId: device.id, powerMode: 'on' }), error => error === failure);
+    await assert.rejects(controller.execute('power', { deviceId: device.id, powerMode: 'on' }), error => code === 'APP_TIMEOUT' ? error.code === 'APP_NOT_READY' : error === failure);
     assert.equal(reads, 1);
     assert.equal(calls.length, 0);
   }
@@ -155,7 +155,7 @@ test('late USB readiness never changes brightness', async () => {
   } });
   controller.now = () => time;
   await assert.rejects(controller.execute('brightness', { deviceId: device.id, brightnessDelta: 5 }),
-    { code: 'APP_TIMEOUT' });
+    { code: 'APP_NOT_READY' });
   assert.equal(calls.length, 0);
 });
 test('brightness keeps the same-device lock through its read and write', async () => {
@@ -334,7 +334,7 @@ test('an idle-window probe cannot authorize a write at or after the original dea
     const settings = { deviceId: device.id, powerMode: 'on', autoLaunch: true };
     await controller.execute('power', settings);
     time = 14_000;
-    await assert.rejects(controller.execute('power', settings), { code: 'APP_TIMEOUT' });
+    await assert.rejects(controller.execute('power', settings), { code: 'APP_NOT_READY' });
     assert.equal(writes, 1, 'a late successful probe must not send the second command');
   }
 });
@@ -457,7 +457,7 @@ test('an idle discovery window never relaunches after a non-connection failure',
     await controller.execute('power', settings);
     const failure = Object.assign(new Error('Synthetic ambiguous response'), { code });
     client.listDevices = async () => { throw failure; };
-    await assert.rejects(controller.execute('power', settings), error => error === failure);
+    await assert.rejects(controller.execute('power', settings), error => code === 'APP_TIMEOUT' ? error.code === 'APP_NOT_READY' : error === failure);
     assert.equal(launches, 1);
     assert.equal(writes, 1);
   }
@@ -535,7 +535,7 @@ test('other devices cannot allow a late selected-device discovery to mutate a li
     controller.now = () => time;
     controller.sleep = async ms => { time += ms; };
     await assert.rejects(controller.execute(kind,
-      { deviceId: device.id, powerMode: 'on', sceneName: 'Example Scene', autoLaunch: true }), { code: 'APP_TIMEOUT' });
+      { deviceId: device.id, powerMode: 'on', sceneName: 'Example Scene', autoLaunch: true }), { code: 'APP_NOT_READY' });
     assert.equal(reads, 3);
     assert.equal(calls.length, 0);
   }
@@ -557,7 +557,7 @@ test('later startup buttons inherit the original discovery deadline instead of e
   const inspector = await controller.inspect({ event: 'scenes', requestId: 'no-wait', deviceId: missing.deviceId });
   assert.equal(inspector.errorCode, 'DEVICE_MISSING');
   assert.equal(time, 14_900);
-  await assert.rejects(controller.execute('power', missing), { code: 'APP_TIMEOUT' });
+  await assert.rejects(controller.execute('power', missing), { code: 'APP_NOT_READY' });
   assert.equal(time, 15_000);
   assert.equal(budgets.at(-1), 100);
   await assert.rejects(controller.execute('power', missing), { code: 'DEVICE_MISSING' });
@@ -588,7 +588,7 @@ test('discovery after startup is bounded and inspector calls do not join or laun
     { event: 'devices', requestId: 'during-startup', devices: [] });
   await assert.rejects(controller.execute('power', { deviceId: device.id, powerMode: 'off' }), { code: 'BUSY' });
   releaseSleep();
-  await assert.rejects(running, { code: 'APP_TIMEOUT' });
+  await assert.rejects(running, { code: 'APP_NOT_READY' });
   assert.equal(time, 15_000);
   assert.equal(timeouts.length, 60);
   assert.equal(timeouts[0], 8000);
@@ -607,7 +607,7 @@ test('a late startup discovery result never sends power or scene commands', asyn
     } });
     controller.now = () => time;
     await assert.rejects(controller.execute(kind,
-      { deviceId: device.id, powerMode: 'on', sceneName: 'Example Scene', autoLaunch: true }), { code: 'APP_TIMEOUT' });
+      { deviceId: device.id, powerMode: 'on', sceneName: 'Example Scene', autoLaunch: true }), { code: 'APP_NOT_READY' });
     assert.equal(calls.length, 0);
   }
 });

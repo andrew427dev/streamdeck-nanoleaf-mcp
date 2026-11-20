@@ -81,6 +81,19 @@ function server(handler, { session, version = '2025-03-26' } = {}) {
   return { client: new NanoleafClient({ fetchImpl }), calls, fetchImpl };
 }
 
+test('scene timeout guidance distinguishes preparation from an already dispatched mutation', async () => {
+  for (const stalledTool of ['list_scenes', 'play_scene']) {
+    const backend = server(request => request.params.name === stalledTool
+      ? new Response(new ReadableStream(), { headers: { 'content-type': 'application/json' } })
+      : json(rpc(request, tool(scenes(['Example Scene'])))));
+    const client = new NanoleafClient({ fetchImpl: backend.fetchImpl, timeoutMs: 40 });
+    await assert.rejects(client.playScene(DEVICE, 'Example Scene'),
+      { code: stalledTool === 'list_scenes' ? 'APP_NOT_READY' : 'APP_TIMEOUT' });
+    assert.equal(backend.calls.filter(call => call.request.params?.name === 'play_scene').length,
+      stalledTool === 'list_scenes' ? 0 : 1);
+  }
+});
+
 function openStream(bytes, { hangingCancel = false } = {}) {
   let cancelled = 0;
   let streamController;

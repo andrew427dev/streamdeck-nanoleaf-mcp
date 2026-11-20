@@ -7,6 +7,13 @@
   const REQUEST_TIMEOUT_MS = 15_000;
   const translations = {
     en: {
+      controlHeading: "Before quitting Desktop", prepareQuit: "Prepare app quit", resumeControl: "Resume control",
+      controlHelp: "Prepare app quit pauses this plugin's requests; wait for the result before quitting Desktop yourself. It does not intercept ⌘Q, close the app, or pause other plugins, including a separately installed QA/original copy. Pause survives Stream Deck restart. After Desktop finishes quitting, choose Resume control, then press a key. Resume never launches the app or replays old inputs.",
+      controlActive: "Control enabled.", controlWaiting: "Blocking new inputs and waiting for already accepted requests… Do not quit Desktop yet.",
+      controlResuming: "Restoring control…", controlUnknown: "Unable to confirm pause status. Do not assume quit preparation is complete; reopen these settings.",
+      controlPaused: "This plugin is paused; responses to its requests were received. Other clients and Desktop's internal cleanup are outside this check.",
+      controlUncertain: "This plugin is paused, but some request outcomes are unconfirmed (or it restarted while paused). App quit readiness is not confirmed. Check Desktop before quitting.",
+      controlSaveError: "Pause state could not be saved or verified. Current requests remain blocked; do not rely on pause surviving restart. Reopen settings and retry.",
       diagnosticsHeading: "Connection check", diagnosticsRun: "Check connection", diagnosticsCopy: "Copy summary",
       diagnosticsHelp: "Read-only check. It never launches Desktop or changes the light. The summary excludes device identifiers, scene names and personal paths.",
       diagnosticsLoading: "Checking the local connection…", diagnosticsReady: "Connection check complete.",
@@ -38,7 +45,7 @@
       toggle: "Toggle on / off", on: "On", off: "Off", refresh: "Refresh lists",
       autoLaunch: "Launch the app if closed, then control the light",
       launchHelp: "When you press this key, launch Nanoleaf Desktop if it is closed, then perform the requested light action. Applies only to this key; off by default. If this option is off and the app is closed, light control is unavailable. Opening these settings or refreshing never opens the app.",
-      privacy: "Settings stay in your Stream Deck profile. No AI account or API key is needed.",
+      privacy: "Action settings stay in your Stream Deck profile; pause status is saved in local plugin settings. No AI account or API key is needed.",
       connecting: "Connecting to Stream Deck…", loading: "Reading available devices and scenes…",
       selectDevice: "Select a device…", selectScene: "Select a scene…",
       savedDevice: "Saved device", saved: "saved", unavailable: "unavailable",
@@ -57,6 +64,9 @@
       commandRunning: "Running this key’s command…",
       commandSuccess: "This key’s last command completed.",
       errors: {
+        CONTROL_PAUSED: "Control is paused for app quit preparation. Choose Resume control after Desktop has finished quitting.",
+        CONTROL_CANCELLED: "Quit preparation cancelled this earlier input. Press again after explicitly resuming control.",
+        APP_NOT_READY: "Desktop was not ready in time; no light-changing command was sent by this input. If you just quit the app, wait for it to fully exit before retrying. A closed window does not prove the process exited.",
         LIGHT_OFF: "Light is off; brightness was not applied.",
         APP_BUSY: "Another light or screen-mirror command is running. Wait before pressing again.",
         MIRROR_UNSUPPORTED: "This Desktop version does not provide all screen-mirror commands.",
@@ -81,6 +91,13 @@
       },
     },
     ko: {
+      controlHeading: "Desktop 앱을 종료하기 전에", prepareQuit: "앱 종료 준비", resumeControl: "제어 재개",
+      controlHelp: "‘앱 종료 준비’는 이 플러그인의 요청을 멈춥니다. 결과를 확인한 뒤 Desktop을 직접 종료해 주세요. ⌘Q를 자동 감지하거나 앱을 종료하지 않으며, 별도 설치된 QA·기존 플러그인 등 다른 프로그램의 조회는 멈추지 않습니다. 일시중지는 Stream Deck 재시작 후에도 유지됩니다. Desktop 종료가 끝나면 ‘제어 재개’ 후 버튼을 새로 눌러 주세요. 재개 자체는 앱을 실행하거나 이전 입력을 다시 실행하지 않습니다.",
+      controlActive: "제어가 활성화되어 있습니다.", controlWaiting: "새 입력을 막고 이미 접수한 요청의 응답을 기다리고 있습니다. 아직 Desktop을 종료하지 마세요.",
+      controlResuming: "제어를 재개하는 중입니다…", controlUnknown: "일시중지 상태를 확인하지 못했습니다. 종료 준비가 끝났다고 판단하지 마시고 설정 화면을 다시 열어 주세요.",
+      controlPaused: "이 플러그인은 일시중지되었으며 요청 응답을 모두 받았습니다. 다른 프로그램의 조회와 Desktop 내부 정리 완료는 확인 범위에 포함되지 않습니다.",
+      controlUncertain: "이 플러그인은 일시중지되었지만 일부 요청 결과를 확인하지 못했거나 중지 상태에서 재시작되었습니다. 앱 종료 준비 완료를 확인할 수 없으니 Desktop 상태를 먼저 확인해 주세요.",
+      controlSaveError: "일시중지 상태를 저장·확인하지 못했습니다. 현재 요청은 차단되어 있지만 재시작 후 유지 여부는 보장할 수 없습니다. 설정을 다시 열어 재시도해 주세요.",
       diagnosticsHeading: "연결 진단", diagnosticsRun: "연결 확인", diagnosticsCopy: "요약 복사",
       diagnosticsHelp: "앱을 실행하거나 조명을 바꾸지 않는 조회입니다. 요약에는 장치 식별자·씬 이름·개인 경로를 포함하지 않습니다.",
       diagnosticsLoading: "로컬 연결을 확인하는 중입니다…", diagnosticsReady: "연결 진단을 마쳤습니다.",
@@ -112,7 +129,7 @@
       toggle: "켜기 / 끄기 전환", on: "켜기", off: "끄기", refresh: "목록 새로고침",
       autoLaunch: "앱이 꺼져 있으면 실행 후 제어",
       launchHelp: "키를 누를 때 Nanoleaf Desktop이 꺼져 있으면 앱을 실행한 뒤 요청한 조명 동작을 수행합니다. 이 버튼에만 적용되며 기본값은 꺼짐입니다. 이 옵션을 끈 상태에서 앱도 종료되어 있으면 제어할 수 없습니다. 설정 화면을 열거나 목록을 새로고침해도 앱은 열리지 않습니다.",
-      privacy: "설정은 Stream Deck 프로필에 저장됩니다. AI 계정이나 API 키는 필요하지 않습니다.",
+      privacy: "일시중지 여부는 로컬 플러그인 공통 설정에 저장됩니다. 설정은 Stream Deck 프로필에 저장됩니다. AI 계정이나 API 키는 필요하지 않습니다.",
       connecting: "Stream Deck에 연결 중입니다…", loading: "장치와 씬 목록을 읽는 중입니다…",
       selectDevice: "장치를 선택해 주세요…", selectScene: "씬을 선택해 주세요…",
       savedDevice: "저장된 장치", saved: "저장됨", unavailable: "현재 없음",
@@ -131,6 +148,9 @@
       commandRunning: "이 키의 명령을 처리 중입니다…",
       commandSuccess: "이 키의 마지막 명령을 완료했습니다.",
       errors: {
+        CONTROL_PAUSED: "앱 종료 준비로 제어가 일시중지되어 있습니다. Desktop 종료가 끝난 뒤 ‘제어 재개’를 눌러 주세요.",
+        CONTROL_CANCELLED: "종료 준비로 이전 입력이 취소되었습니다. ‘제어 재개’ 후 버튼을 새로 눌러 주세요.",
+        APP_NOT_READY: "앱 준비 시간이 초과되어 이번 입력의 조명 변경 명령은 전송하지 않았습니다. 방금 앱을 종료했다면 완전히 종료될 때까지 기다린 뒤 다시 시도해 주세요. 창이 닫혔다고 앱 프로세스까지 종료된 것은 아닙니다.",
         LIGHT_OFF: "조명이 꺼져 있어 밝기를 적용하지 않았습니다.",
         APP_BUSY: "조명 또는 화면 미러링 명령을 처리 중입니다. 잠시 기다린 뒤 다시 눌러 주세요.",
         MIRROR_UNSUPPORTED: "현재 Desktop 버전은 필요한 화면 미러링 명령을 모두 제공하지 않습니다.",
@@ -207,6 +227,7 @@
   };
   const element = (id) => document.getElementById(id);
   const ui = {
+    prepareQuit: element("prepare-quit"), resumeControl: element("resume-control"), controlStatus: element("control-status"),
     device: element("device"), scene: element("scene"), mode: element("power-mode"),
     sceneField: element("scene-field"), powerField: element("power-field"),
     brightnessField: element("brightness-field"), brightnessStep: element("brightness-step"), brightnessHelp: element("brightness-help"),
@@ -247,6 +268,8 @@
   let devicesLoaded = false;
   let scenesLoaded = false;
   const pending = new Map();
+  let controlPhase = "starting";
+  const controlEvents = ["controlStatus", "prepareQuit", "resumeControl"];
 
   function normalizeSettings(value) {
     const data = value && typeof value === "object" ? value : {};
@@ -331,6 +354,9 @@
 
   function controls() {
     const ready = connected();
+    const controlPending = controlEvents.some(event => pending.has(event));
+    ui.prepareQuit.disabled = !ready || controlPending || ["starting", "pausing", "resuming"].includes(controlPhase);
+    ui.resumeControl.disabled = !ready || controlPending || controlPhase !== "paused";
     ui.device.disabled = !ready || pending.has("devices");
     ui.scene.disabled = !ready || !settings.deviceId || pending.has("scenes") || pending.has("devices");
     ui.mode.disabled = !ready;
@@ -435,13 +461,17 @@
       if (pending.get(event)?.requestId !== requestId) return;
       pending.delete(event);
       controls();
-      if (event === "diagnostics") ui.diagnosticsStatus.textContent = words.timeout;
+      if (controlEvents.includes(event)) { controlPhase = "unknown"; ui.controlStatus.textContent = words.controlUnknown; }
+      else if (event === "diagnostics") ui.diagnosticsStatus.textContent = words.timeout;
       else status(words.timeout, true);
-    }, REQUEST_TIMEOUT_MS);
+      controls();
+    }, controlEvents.includes(event) ? 30_000 : REQUEST_TIMEOUT_MS);
     pending.set(event, { requestId, deviceId, timer });
     const payload = { event, requestId };
     if (deviceId) payload.deviceId = deviceId;
     if (!send("sendToPlugin", payload)) cancel(event);
+    else if (controlEvents.includes(event)) ui.controlStatus.textContent = event === "prepareQuit" ? words.controlWaiting
+      : event === "resumeControl" ? words.controlResuming : words.controlUnknown;
     else if (event === "diagnostics") ui.diagnosticsStatus.textContent = words.diagnosticsLoading;
     else status(words.loading);
     controls();
@@ -460,6 +490,23 @@
     const requestState = pending.get(payload.event);
     if (!requestState || payload.requestId !== requestState.requestId) return;
     cancel(payload.event);
+    if (controlEvents.includes(payload.event)) {
+      const state = payload.control;
+      if (!state || !["starting", "active", "pausing", "paused", "resuming"].includes(state.phase)
+        || typeof state.uncertain !== "boolean" || typeof state.persistenceError !== "boolean"
+        || !Number.isSafeInteger(state.activeRequests) || state.activeRequests < 0
+        || state.phase === "paused" && state.activeRequests !== 0) {
+        controlPhase = "unknown"; ui.controlStatus.textContent = words.controlUnknown;
+      } else {
+        controlPhase = state.phase;
+        ui.controlStatus.textContent = state.persistenceError ? words.controlSaveError
+          : state.phase === "active" ? words.controlActive
+          : state.phase === "pausing" ? words.controlWaiting
+          : state.phase === "resuming" ? words.controlResuming
+          : state.phase === "paused" ? state.uncertain ? words.controlUncertain : words.controlPaused : words.controlUnknown;
+      }
+      controls(); return;
+    }
     if (payload.event === "diagnostics") { receiveDiagnostics(payload.diagnostics); return; }
     if (payload.event === "scenes" && requestState.deviceId !== settings.deviceId) {
       controls();
@@ -529,6 +576,13 @@
     controls();
   }
 
+  for (const [button, event] of [[ui.prepareQuit, "prepareQuit"], [ui.resumeControl, "resumeControl"]]) {
+    button.addEventListener("click", () => {
+      if (button.disabled) return;
+      for (const previous of controlEvents) cancel(previous);
+      request(event);
+    });
+  }
   ui.diagnosticsRun.addEventListener("click", () => {
     if (ui.diagnosticsRun.disabled) return;
     ui.diagnosticsSummary.value = "";
@@ -685,6 +739,7 @@
           socket.send(JSON.stringify({ event: registerEvent, uuid }));
           registered = true;
           requestCommandStatus("");
+          request("controlStatus");
           refresh();
         } catch {
           registered = false;

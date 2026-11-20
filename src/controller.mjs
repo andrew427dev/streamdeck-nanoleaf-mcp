@@ -5,6 +5,9 @@ const POLL_MS = 250;
 const READ_TIMEOUT_MS = 8000;
 
 export const ERROR_MESSAGES = Object.freeze({
+  CONTROL_PAUSED: 'Control is paused for app quit preparation. Open any action settings and choose Resume control after Desktop has finished quitting.',
+  CONTROL_CANCELLED: 'This earlier input was cancelled by quit preparation. Press again after explicitly resuming control.',
+  APP_NOT_READY: 'Nanoleaf Desktop was not ready in time; no light-changing command was sent by this input. If you just quit the app, wait for it to fully exit before retrying. A closed window does not prove the process exited.',
   APP_CONNECTION: 'Open Nanoleaf Desktop and enable its MCP server, then try again.',
   APP_TIMEOUT: 'Nanoleaf Desktop timed out. The command may already have been applied. Check the actual light state before pressing again.',
   APP_ERROR: 'Nanoleaf Desktop could not complete the request. Check the app.',
@@ -29,6 +32,10 @@ export const ERROR_MESSAGES = Object.freeze({
 });
 
 function fail(code) { return Object.assign(new Error(ERROR_MESSAGES[code]), { code }); }
+async function prepare(task) {
+  try { return await task(); }
+  catch (error) { if (error?.code === 'APP_TIMEOUT') throw fail('APP_NOT_READY'); throw error; }
+}
 const alwaysCurrent = () => true;
 function checkCurrent(isCurrent) { if (!isCurrent()) throw fail('BUSY'); }
 export function safeError(error) {
@@ -142,7 +149,7 @@ export class LightController {
         startup.ready = Promise.resolve().then(async () => {
           checkCurrent(launchIsCurrent);
           try { await this.launchApp({ isCurrent: launchIsCurrent }); } catch (error) {
-            throw fail(['BUSY', 'LAUNCH_NOT_FOUND', 'LAUNCH_AMBIGUOUS', 'PLATFORM_UNSUPPORTED'].includes(error?.code)
+            throw fail(['BUSY', 'CONTROL_PAUSED', 'CONTROL_CANCELLED', 'LAUNCH_NOT_FOUND', 'LAUNCH_AMBIGUOUS', 'PLATFORM_UNSUPPORTED'].includes(error?.code)
               ? error.code : 'LAUNCH_FAILED');
           }
           startup.deadline = this.now() + APP_READY_MS;
@@ -264,13 +271,13 @@ export class LightController {
     if (this.#busy.has(deviceId)) throw fail('BUSY');
     this.#busy.add(deviceId);
     try {
-      await this.#checkDevice(deviceId, autoLaunch === true, isCurrent);
+      await prepare(() => this.#checkDevice(deviceId, autoLaunch === true, isCurrent));
       checkCurrent();
       if (kind === 'scene') {
         if (isCurrent) await this.client.playScene(deviceId, sceneName, { isCurrent });
         else await this.client.playScene(deviceId, sceneName);
       } else {
-        const state = await this.#readyState(deviceId, isCurrent);
+        const state = await prepare(() => this.#readyState(deviceId, isCurrent));
         checkCurrent();
         if (kind === 'brightness-preset') {
           if (typeof state.power !== 'boolean') throw fail('PROTOCOL_ERROR');

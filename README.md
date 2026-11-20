@@ -1,5 +1,7 @@
 # Nanoleaf MCP for Stream Deck
 
+**Local unreleased follow-up:** explicit **Prepare app quit / Resume control** and stage-aware timeout guidance are implemented and locally tested; existing installs are unchanged. This does not automatically protect ordinary Command-Q. See [scope, verification and remaining acceptance](docs/QUIT-PREPARATION.md).
+
 **Public downloads: v0.6.0-beta.3 — Mac beta / Windows 11 x64 experimental beta.** The current source is the **unreleased v0.7.0-beta.1 development line**. Development changes do not update an installed plugin. See [Status](docs/STATUS.md) for the current release/install/development split and [Validation](docs/VALIDATION.md) for dated evidence.
 
 Control the **USB-connected Nanoleaf PC Screen Mirror Lightstrip (NL82K2)** from Stream Deck: power, brightness and saved scenes. This unofficial project has a macOS version and an experimental Windows preview. It is specifically for this non-Wi-Fi model—not a Wi-Fi/LAN Nanoleaf plugin or a controller for every USB model. Screen Mirror remains Mac-only with known limitations.
@@ -27,7 +29,7 @@ The app-launch setting is labelled **Launch the app if closed, then control the 
 
 ### Development additions — v0.7.0-beta.1, not in the beta.3 downloads
 
-These changes are being prepared and verified in the development source. The public installers and the retained Mac installation are still beta.3; this section does not announce a release or hardware pass.
+These changes are being prepared and verified in the development source. The public installers and the retained original Mac installation are still beta.3. A separate-identity QA copy has [limited Mac physical results](docs/MAC-QA-2026-11-21.md); this section does not announce a release or full hardware acceptance.
 
 - **Brightness Preset:** a separate key sets a saved value from 0 to 100%. By default, **Keep off** leaves an OFF light unchanged and reports that the preset was skipped without a failure alert. The optional **Apply** policy applies the value while OFF; a positive value requests power ON and brightness together in one command. A 0% preset does not force power ON. Desktop may still apply its own power behavior at 0%. Existing brightness up/down/dial behavior is unchanged.
 - **Scene Browser refresh:** long-touch its display area to reload saved scenes without playing one. Keep the selected name if it still exists. This is an explicit input and follows that dial's app-launch preference; it can open Desktop when enabled. Short touch or dial press keeps its existing open/confirm meaning.

@@ -45,7 +45,7 @@ function fixture(input, { platform = 'darwin', autoLaunch = false } = {}) {
     schedule: fn => { const id = ++nextTimer; scheduled.set(id, fn); return id; },
     cancel: id => scheduled.delete(id) });
   const LightAction = vm.runInNewContext(actionClass + '\nLightAction', {
-    SingletonAction: class {}, randomUUID, streamDeck: { ui: {}, logger: { error() {} } },
+    actions: [], control: { run: task => task() }, SingletonAction: class {}, randomUUID, streamDeck: { ui: {}, logger: { error() {} } },
     mirror: { forget() {} }, live: { forget() {}, watch() {} },
     brightness, controller, execute, safeError, SceneBrowser, process: { platform },
     keyDisplayImage: () => '', titlePresentation: () => ({}),
@@ -109,7 +109,7 @@ for (const kind of ['power', 'scene', 'brightness-up', 'brightness-down', 'brigh
       const brightness = new BrightnessQueue({ execute: (settings, options) => execute('brightness', settings, options),
         schedule: fn => { startTimer = fn; return 1; }, cancel: () => {} });
       const LightAction = vm.runInNewContext(actionClass + '\nLightAction', {
-        SingletonAction: class {}, randomUUID, streamDeck: { ui: {}, logger: { error() {} } },
+        actions: [], control: { run: task => task() }, SingletonAction: class {}, randomUUID, streamDeck: { ui: {}, logger: { error() {} } },
         mirror: { forget() {} }, live: { forget() {}, watch() {} },
         brightness, controller, execute, safeError,
         keyDisplayImage: () => '', titlePresentation: () => ({}), dialDisplayFeedback: () => ({}),

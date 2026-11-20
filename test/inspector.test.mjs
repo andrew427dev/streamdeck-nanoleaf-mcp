@@ -10,6 +10,39 @@ const ACTION = "io.github.andrew427dev.nanoleaf-mcp.scene";
 const DEVICE_A = { id: "TEST-DEVICE-A", name: "Test light A", model: "TEST-MODEL" };
 const DEVICE_B = { id: "TEST-DEVICE-B", name: "Test light B", model: "TEST-MODEL" };
 
+test("quit preparation and resume use correlated messages without changing action settings", () => {
+  for (const language of ["ko", "en"]) {
+    const ui = inspector({ language });
+    assert.equal(ui.elements.get("prepare-quit").disabled, false);
+    assert.equal(ui.elements.get("resume-control").disabled, true);
+    ui.click("prepare-quit");
+    assert.equal(ui.elements.get("prepare-quit").disabled, true);
+    assert.equal(ui.elements.get("resume-control").disabled, true);
+    ui.respond("prepareQuit", { control: { phase: "paused", uncertain: false, persistenceError: false, activeRequests: 0 } });
+    assert.match(ui.elements.get("control-status").textContent, language === "ko" ? /내부 정리 완료는 확인 범위/ : /internal cleanup are outside/);
+    ui.click("resume-control");
+    ui.respond("resumeControl", { control: { phase: "active", uncertain: false, persistenceError: false, activeRequests: 0 } });
+    assert.equal(ui.elements.get("resume-control").disabled, true);
+    assert.equal(ui.commands("setSettings").length, 0);
+    assert.equal(ui.commands("setGlobalSettings").length, 0);
+  }
+});
+
+test("unconfirmed requests, persistence failures and malformed pause status never claim completion", () => {
+  for (const detail of [{ uncertain: true }, { persistenceError: true }, { activeRequests: 1 }]) {
+    const ui = inspector({ language: "ko" });
+    ui.click("prepare-quit");
+    ui.respond("prepareQuit", { control: { phase: "paused", uncertain: false, persistenceError: false, activeRequests: 0, ...detail } });
+    assert.doesNotMatch(ui.elements.get("control-status").textContent, /응답을 모두 받았습니다/);
+    assert.equal(ui.commands("setSettings").length, 0);
+  }
+  const ui = inspector({ language: "ko" });
+  ui.click("prepare-quit"); ui.flushTimers();
+  assert.match(ui.elements.get("control-status").textContent, /확인하지 못했습니다/);
+  ui.respond("prepareQuit", { control: { phase: "paused", uncertain: false, persistenceError: false, activeRequests: 0 } });
+  assert.match(ui.elements.get("control-status").textContent, /확인하지 못했습니다/);
+});
+
 test("preset inspector defaults to keeping OFF and only saves explicit valid changes", () => {
   for (const language of ["ko", "en"]) {
     const ui = inspector({ action: ACTION.replace(/scene$/, "brightness-preset"), language,
@@ -35,7 +68,7 @@ test("preset inspector defaults to keeping OFF and only saves explicit valid cha
     }
     ui.change("preset-when-off", "apply");
     assert.equal(ui.commands("setSettings").at(-1).payload.presetWhenOff, "apply");
-    assert.equal(ui.commands("sendToPlugin").some(m => !["commandStatus", "devices"].includes(m.payload.event)), false);
+    assert.equal(ui.commands("sendToPlugin").some(m => !["commandStatus", "controlStatus", "devices"].includes(m.payload.event)), false);
   }
 });
 
@@ -53,7 +86,7 @@ test("preset controls stay hidden and cannot modify another existing action", ()
 test("mirror inspector has global scope and reads only status without settings writes", () => {
   for (const language of ["ko", "en"]) {
     const ui = inspector({ action: ACTION.replace(/scene$/, "screen-mirror"), language });
-    assert.deepEqual(ui.commands("sendToPlugin").map(m => m.payload.event), ["commandStatus", "mirrorStatus"]);
+    assert.deepEqual(ui.commands("sendToPlugin").map(m => m.payload.event), ["commandStatus", "controlStatus", "mirrorStatus"]);
     assert.equal(ui.elements.get("device-field").hidden, true);
     assert.equal(ui.elements.get("power-field").hidden, true);
     assert.equal(ui.elements.get("scene-field").hidden, true);
@@ -145,6 +178,7 @@ function inspector({ settings = {}, action = ACTION, language = "en", clipboard 
     payload: { event, requestId: request.payload.requestId, ...body },
   });
   respond("commandStatus", { actionContext: "TEST-ACTION-CONTEXT", session: "synthetic-plugin-session", sequence: 0, state: "idle" });
+  respond("controlStatus", { control: { phase: "active", uncertain: false, persistenceError: false, activeRequests: 0 } });
   return {
     elements, document, translated, socket, timers, commands, requests, respond,
     change(id, value) {
@@ -199,7 +233,7 @@ test("launch wording explains launch then control, per-action scope, and the off
         : /If this option is off and the app is closed, light control is unavailable/);
       assert.equal(ui.elements.get("auto-launch").checked, false);
       assert.equal(ui.commands("setSettings").length, 0);
-      assert.deepEqual(ui.commands("sendToPlugin").map(message => message.payload.event), ["commandStatus", "devices"]);
+      assert.deepEqual(ui.commands("sendToPlugin").map(message => message.payload.event), ["commandStatus", "controlStatus", "devices"]);
     }
   }
 });
@@ -269,7 +303,7 @@ test("manual selection saves settings through the inspector context and only rea
   ui.change("auto-launch", true);
   assert.deepEqual(ui.commands("setSettings").at(-1).payload,
     { deviceId: DEVICE_A.id, sceneName: "Synthetic scene", powerMode: "toggle", autoLaunch: true });
-  assert.deepEqual(ui.commands("sendToPlugin").map((message) => message.payload.event), ["commandStatus", "devices", "scenes"]);
+  assert.deepEqual(ui.commands("sendToPlugin").map((message) => message.payload.event), ["commandStatus", "controlStatus", "devices", "scenes"]);
 });
 
 test("ignores unmatched and stale responses after the selected device changes", () => {
@@ -358,7 +392,7 @@ test("command timeout warns that the light may already have changed before anoth
     assert.doesNotMatch(message, /PRIVATE|raw backend/);
     assert.equal(ui.elements.get("command-status").dataset.kind, "error");
     assert.equal(ui.commands("setSettings").length, 0);
-    assert.deepEqual(ui.commands("sendToPlugin").map(message => message.payload.event), ["commandStatus", "devices"]);
+    assert.deepEqual(ui.commands("sendToPlugin").map(message => message.payload.event), ["commandStatus", "controlStatus", "devices"]);
   }
 });
 
@@ -715,7 +749,7 @@ test("scene browser shows only device, launch, and instructions without reading 
   assert.equal(ui.requests("scenes").length, 0, "changing the device must not fetch scenes from the inspector");
   ui.click("refresh");
   ui.respond("devices", { devices: [DEVICE_A, DEVICE_B] });
-  assert.deepEqual(ui.commands("sendToPlugin").map(message => message.payload.event), ["commandStatus", "devices", "devices"]);
+  assert.deepEqual(ui.commands("sendToPlugin").map(message => message.payload.event), ["commandStatus", "controlStatus", "devices", "devices"]);
   ui.settings({ deviceId: DEVICE_A.id, autoLaunch: true, sceneName: "Ignored selection" });
   assert.equal(ui.requests("scenes").length, 0, "receiving settings must not fetch scene choices");
   assert.equal(ui.commands("setSettings").length, 2);

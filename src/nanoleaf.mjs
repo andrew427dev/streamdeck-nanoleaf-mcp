@@ -11,6 +11,7 @@ const POLL_MS = 250;
 const MESSAGES = {
   APP_CONNECTION: 'Cannot connect to Nanoleaf Desktop. Open the app and enable its MCP server.',
   APP_TIMEOUT: 'Nanoleaf Desktop did not respond in time. Check the device before repeating a command.',
+  APP_NOT_READY: 'Nanoleaf Desktop was not ready in time. No light-changing command was sent by this input.',
   APP_ERROR: 'Nanoleaf Desktop could not complete the request.',
   PROTOCOL_ERROR: 'Nanoleaf Desktop returned an unsupported or invalid response.',
   DEVICE_ERROR: 'The Nanoleaf device did not complete the request. Check its connection.',
@@ -179,18 +180,25 @@ export class NanoleafClient {
   #sessionId;
   #sessionEpoch = 0;
   #serverVersion;
+  #requestGate;
 
   constructor({ fetchImpl = globalThis.fetch, timeoutMs = 8000,
-    sleep = ms => new Promise(resolve => setTimeout(resolve, ms)), now = () => performance.now() } = {}) {
+    sleep = ms => new Promise(resolve => setTimeout(resolve, ms)), now = () => performance.now(),
+    requestGate = { run: task => task(), request: task => task() } } = {}) {
     if (typeof fetchImpl !== 'function' || typeof sleep !== 'function' || typeof now !== 'function'
       || !Number.isFinite(timeoutMs) || timeoutMs <= 0) throw fail('INVALID_ARGUMENT');
     this.#fetch = fetchImpl;
     this.#timeoutMs = timeoutMs;
     this.#sleep = sleep;
     this.#now = now;
+    this.#requestGate = requestGate;
   }
 
-  async #post(method, params, { notification = false, timeoutMs = this.#timeoutMs, initialize = false } = {}) {
+  #post(method, params, options) {
+    return this.#requestGate.request(() => this.#send(method, params, options));
+  }
+
+  async #send(method, params, { notification = false, timeoutMs = this.#timeoutMs, initialize = false } = {}) {
     const id = notification ? undefined : randomUUID();
     const controller = new AbortController();
     const epoch = this.#sessionEpoch;
@@ -255,7 +263,11 @@ export class NanoleafClient {
       if (error instanceof NanoleafError) throw error;
       // Do not retain backend errors in `cause`: logs must remain safe to share.
       if (epoch === this.#sessionEpoch) this.#resetSession();
-      throw fail('APP_CONNECTION');
+      const connectionError = fail('APP_CONNECTION');
+      // Connection refusal proves this HTTP request was never accepted. Other
+      // transport errors may occur after dispatch and remain uncertain.
+      if (error?.cause?.code === 'ECONNREFUSED') connectionError.requestNotSent = true;
+      throw connectionError;
     } finally {
       clearTimeout(timer);
       cancelReader(reader);
@@ -308,7 +320,11 @@ export class NanoleafClient {
     await this.#initializing;
   }
 
-  async #call(name, args, timeoutMs = this.#timeoutMs,
+  #call(name, args, timeoutMs, options) {
+    return this.#requestGate.run(() => this.#callActive(name, args, timeoutMs, options));
+  }
+
+  async #callActive(name, args, timeoutMs = this.#timeoutMs,
     { isCurrent, method = 'tools/call', parse = resultsFrom } = {}) {
     if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) throw fail('INVALID_ARGUMENT');
     const deadline = this.#now() + timeoutMs;
@@ -340,7 +356,11 @@ export class NanoleafClient {
     }
   }
 
-  async inspectConnection() {
+  inspectConnection() {
+    return this.#requestGate.run(() => this.#inspectConnection());
+  }
+
+  async #inspectConnection() {
     const deadline = this.#now() + this.#timeoutMs;
     const remaining = () => {
       const ms = deadline - this.#now();
@@ -375,7 +395,11 @@ export class NanoleafClient {
     throw fail('PROTOCOL_ERROR');
   }
 
-  async requireScreenMirrorSupport({ isCurrent } = {}) {
+  requireScreenMirrorSupport(options) {
+    return this.#requestGate.run(() => this.#requireScreenMirrorSupport(options));
+  }
+
+  async #requireScreenMirrorSupport({ isCurrent } = {}) {
     const required = new Set(['get_screen_mirror_status', 'start_screen_mirror', 'stop_screen_mirror']);
     const seen = new Set();
     const deadline = this.#now() + this.#timeoutMs;
@@ -481,9 +505,20 @@ export class NanoleafClient {
     }, this.#timeoutMs, options), deviceId);
   }
 
-  async playScene(deviceId, scene, { isCurrent } = {}) {
+  playScene(deviceId, scene, options) {
+    return this.#requestGate.run(() => this.#playScene(deviceId, scene, options));
+  }
+
+  async #playScene(deviceId, scene, { isCurrent } = {}) {
     checkedText(deviceId);
     checkedText(scene);
+    try { await this.#prepareScene(deviceId, scene, isCurrent); }
+    catch (error) { if (error?.code === 'APP_TIMEOUT') throw fail('APP_NOT_READY'); throw error; }
+    deviceResult(await this.#call('play_scene', { scenes: [{ device: deviceId, name: scene }] },
+      this.#timeoutMs, { isCurrent }), deviceId);
+  }
+
+  async #prepareScene(deviceId, scene, isCurrent) {
     checkCurrent(isCurrent);
     await this.#initialize();
     checkCurrent(isCurrent);
@@ -505,7 +540,5 @@ export class NanoleafClient {
     }
     checkCurrent(isCurrent);
     if (!ready || this.#now() >= deadline) throw fail('SCENE_NOT_READY');
-    deviceResult(await this.#call('play_scene', { scenes: [{ device: deviceId, name: scene }] },
-      this.#timeoutMs, { isCurrent }), deviceId);
   }
 }

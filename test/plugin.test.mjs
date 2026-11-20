@@ -292,8 +292,16 @@ for (const simulatedPlatform of ['darwin', 'win32']) test('built plugin handles 
     const webSocketMessages = mailbox();
     const ipc = mailbox();
     const connected = once(server, 'connection', { signal: AbortSignal.timeout(2500) });
+    let globalSettings = { preserved: 'untouched', controlPaused: true };
     server.on('connection', socket => socket.on('message', bytes => {
-      try { webSocketMessages.push(JSON.parse(bytes.toString())); }
+      try {
+        const message = JSON.parse(bytes.toString());
+        if (message.event === 'setGlobalSettings') globalSettings = message.payload;
+        if (message.event === 'getGlobalSettings') socket.send(JSON.stringify({
+          event: 'didReceiveGlobalSettings', payload: { settings: globalSettings },
+        }));
+        webSocketMessages.push(message);
+      }
       catch { webSocketMessages.push({ event: 'invalid-json' }); }
     }));
 
@@ -339,6 +347,17 @@ for (const simulatedPlatform of ['darwin', 'win32']) test('built plugin handles 
     const powerContext = 'TEST-POWER-CONTEXT';
     send(actionEvent('willAppear', 'power', powerContext));
     send({ event: 'propertyInspectorDidAppear', action: `${PLUGIN}.power`, context: powerContext, device: STREAM_DECK });
+    const controlMessage = (event, requestId = event) => send({ event: 'sendToPlugin', action: `${PLUGIN}.power`,
+      context: powerContext, payload: { event, requestId } });
+    const controlResult = requestId => webSocketMessages.wait(message => message.event === 'sendToPropertyInspector'
+      && message.payload?.requestId === requestId, 'control-session response ' + requestId);
+    controlMessage('controlStatus');
+    assert.equal((await controlResult('controlStatus')).payload.control.phase, 'paused');
+    assert.equal(ipc.messages.length, 0, 'a saved pause blocks startup traffic');
+    controlMessage('resumeControl');
+    assert.equal((await controlResult('resumeControl')).payload.control.phase, 'active');
+    assert.deepEqual(globalSettings, { preserved: 'untouched', controlPaused: false });
+
     send({ event: 'sendToPlugin', action: `${PLUGIN}.power`, context: powerContext,
       payload: { event: 'unknown-event', requestId: 'ignored-request' } });
     send(actionEvent('willAppear', 'unknown', 'TEST-UNKNOWN-CONTEXT'));
@@ -1107,6 +1126,52 @@ for (const simulatedPlatform of ['darwin', 'win32']) test('built plugin handles 
     send(actionEvent('willDisappear', 'screen-mirror', mirrorContext));
     }
 
+    from = webSocketMessages.messages.length;
+    // Exercise the actual installed bundle's transport gate, not a mock pause.
+    send({ event: 'propertyInspectorDidAppear', action: `${PLUGIN}.power`, context: powerContext, device: STREAM_DECK });
+    child.send({ type: 'hold-next-power' });
+    await ipc.wait(m => m.type === 'control-ready' && m.command === 'hold-next-power', 'held quit-preparation write', ipc.messages.length - 1);
+    const heldFrom = ipc.messages.length;
+    send(actionEvent('keyDown', 'power', powerContext, powerSettings));
+    await ipc.wait(m => m.type === 'power-held', 'in-flight power before pause', heldFrom);
+    controlMessage('prepareQuit', 'pause-draining');
+    controlMessage('controlStatus', 'during-drain');
+    assert.equal((await controlResult('during-drain')).payload.control.phase, 'pausing');
+    assert.equal(webSocketMessages.messages.some(m => m.payload?.requestId === 'pause-draining'), false,
+      'a held request must not be reported as drained');
+    const blockedFrom = webSocketMessages.messages.length;
+    send(actionEvent('keyDown', 'power', powerContext, powerSettings));
+    await webSocketMessages.wait(m => m.event === 'sendToPropertyInspector'
+      && m.payload?.errorCode === 'CONTROL_PAUSED', 'paused physical input', blockedFrom);
+    child.send({ type: 'release-power' });
+    const pausedResult = (await controlResult('pause-draining')).payload.control;
+    assert.equal(pausedResult.phase, 'paused');
+    assert.equal(pausedResult.activeRequests, 0);
+    assert.equal(pausedResult.uncertain, true, 'earlier lost mutation reply must not become confirmed by pausing');
+    assert.deepEqual(globalSettings, { preserved: 'untouched', controlPaused: true });
+    await syncIPC();
+    const requestsAtPause = ipc.messages.filter(m => m.type === 'mcp-request').length;
+    send({ event: 'sendToPlugin', action: `${PLUGIN}.power`, context: powerContext,
+      payload: { event: 'diagnostics', requestId: 'paused-diagnostics' } });
+    send({ event: 'sendToPlugin', action: `${PLUGIN}.power`, context: powerContext,
+      payload: { event: 'devices', requestId: 'paused-devices' } });
+    assert.equal((await controlResult('paused-diagnostics')).payload.diagnostics.errorCode, 'CONTROL_PAUSED');
+    assert.equal((await controlResult('paused-devices')).payload.errorCode, 'CONTROL_PAUSED');
+    await new Promise(resolve => setTimeout(resolve, 2200));
+    await syncIPC();
+    assert.equal(ipc.messages.filter(m => m.type === 'mcp-request').length, requestsAtPause,
+      'no live reads, inspector reads or writes while paused');
+    const writesAtPause = ipc.messages.filter(m => ['set_light_state', 'play_scene'].includes(m.request?.params?.name)).length;
+    controlMessage('resumeControl', 'resume-new-input');
+    assert.equal((await controlResult('resume-new-input')).payload.control.phase, 'active');
+    await syncIPC();
+    assert.equal(ipc.messages.filter(m => ['set_light_state', 'play_scene'].includes(m.request?.params?.name)).length, writesAtPause,
+      'resume never replays a cancelled input');
+    const freshFrom = webSocketMessages.messages.length;
+    send(actionEvent('keyDown', 'power', powerContext, powerSettings));
+    await webSocketMessages.wait(m => m.event === 'sendToPropertyInspector' && m.payload?.state === 'success',
+      'fresh input after resume', freshFrom);
+    assert.deepEqual(globalSettings, { preserved: 'untouched', controlPaused: false });
     from = webSocketMessages.messages.length;
     const writesBeforeOffline = ipc.messages.filter(message => message.request?.params?.name === 'set_light_state').length;
     child.send({ type: 'offline' });

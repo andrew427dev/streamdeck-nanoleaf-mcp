@@ -1,6 +1,18 @@
 # Nanoleaf MCP validation record
 
+## Local quit-preparation mitigation — 2026-11-21
+
+**385/385 local automated tests passed**, zero failed/cancelled/skipped, including the actual bundle under both simulated platform paths; official Elgato validation passed. One isolated Mac trial confirmed no new requests after pause, full Desktop exit in 838 ms and explicit-resume relaunch, with light/scenes/mirror readback unchanged. This source is not installed in the original or QA plugin, has no new native CI result, and is not a general Command-Q fix. Full procedure, incomplete harness attempts and remaining physical checks: [Quit preparation](QUIT-PREPARATION.md).
+
 For the current public/downloaded/installed/development distinction, use [STATUS.md](STATUS.md). Sections below are dated evidence, not claims that the currently installed or edited build passed every historical test.
+
+## Mac shutdown/query overlap diagnosis — 2026-11-21 KST
+
+The follow-up isolated the failed quit path across ten comparison conditions (seven observed normal exits, three native-HID-cleanup stalls). Read-only 2-second state polling during normal app quit reproduced it without Stream Deck, scenes, hidden launch or a second command; stopping reads before quit passed. Three native samples, precise evidence limits, one-time targeted recovery and final 50-payload/46-profile preservation are recorded in the [diagnosis report](MAC-QUIT-DIAGNOSIS-2026-11-21.md). These are diagnostic results, not a runtime fix, complete early-window restart acceptance or a new release.
+
+## Separate-identity Mac QA — 2026-11-21 KST
+
+The separately installed QA build now has limited physical acceptance for presets, Scene Browser refresh/playback and brightness-dial gestures, plus actual inspector/preview checks. The retained original plugin remains beta.3. Build transformation, current environment, individual evidence sources, preservation and the failed quit/relaunch trial with manual recovery are in the [Mac QA record](MAC-QA-2026-11-21.md). This later authorized QA phase supersedes earlier “not installed” statements only for the separate QA identity; it is not a public-UUID upgrade or release.
 
 ## v0.7.0-beta.1 integrated local verification — 2026-11-20
 
