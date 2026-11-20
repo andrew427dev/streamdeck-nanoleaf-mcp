@@ -4,6 +4,8 @@
 
 Commit `70e19e5` passed 385 tests on each native CI platform and both packaging jobs. The separately installed Mac QA build passed the explicit quit, resume and physical scene-key relaunch sequence on Stream Deck +. A separate restart trial confirmed saved pause, rejection of a physical 25% preset, and 52% readback after resume. The public and daily-use Mac version is v0.6.0-beta.3. [QA evidence and outstanding checks](QUIT-PREPARATION.md)
 
+**Latest installed QA result.** Ordinary Command-Q followed by a physical scene press at 14 seconds failed to relaunch Desktop. The listener closed and the old process remained. A clean exit followed by successful relaunch inside the original 15-second window remains unverified. Leaving a temporary QA folder during cold startup did cancel the pending Ocean effect, and a fresh press applied Ocean. Both checks used the Mac QA build. [Timed physical trials and preservation](QUIT-PREPARATION.md#timed-ordinary-quit-and-folder-exit-on-mac-qa)
+
 Last reconciled: **2026-11-21 KST**. This is the authoritative current status; [Validation](VALIDATION.md) keeps dated evidence and release notes describe their exact published build. Historical counts and pass reports below retain their original scope.
 
 ## Current development — v0.7.0-beta.1, separate Mac QA installed; not released

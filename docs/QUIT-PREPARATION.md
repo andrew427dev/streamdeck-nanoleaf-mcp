@@ -67,8 +67,30 @@ With Desktop still running and the light at 52%, the tester’s Mac QA instance 
 
 The pause notice reported unconfirmed outcomes both before and after this restart. Its text covers earlier uncertain requests as well as a restart while paused. This trial verifies persistence and input blocking. It cannot attribute the warning to a specific prior request. Final file comparison matched all 50 daily-use plugin files, all 54 QA payload files and all 46 profile files to the pre-restart snapshot. The QA plugin was left active.
 
+## Timed ordinary quit and folder exit on Mac QA
+
+The two checks used the installed QA runtime from `70e19e5`, Stream Deck + and Nanoleaf Desktop 3.0.3. A local observer sampled the Desktop main process, helper count and listener roughly every 0.3 seconds. An open listener alone does not establish USB readiness or successful playback. The tester used physical keys. Exact key-down times were not available in the process trace.
+
+**Ordinary Command-Q.** The tester reported playback after the initial launch and relaunch. The first observation contained three distinct Desktop main processes, with sampled start-to-start intervals of 19.7 and 16.1 seconds. The service went away and returned, and the light subsequently read ON at 52% with Vaporwave selected. The QA log also contained two `BUSY` and two `APP_NOT_READY` errors during the sequence. These records cannot be mapped one-to-one to physical inputs, so this observation does not establish a clean 15-second pass.
+
+During setup for a separate timed trial, a normal Command-Q closed the listener but left the main process and helpers present for about 65 seconds. With the tester’s approval, only the unresponsive Desktop main process was force-quit. Its helpers exited and the listener remained closed. This recovery was outside the timed trial.
+
+In the stopwatch retry the tester reported about 18 seconds, an alert on the immediate post-quit press, then successful launch and playback on a further press about 1–2 seconds later. The two process starts were 18.1 seconds apart. The first main process disappeared after 9.0 seconds; all helpers were gone by 14.7 seconds. Readback after the later press showed ON/Vaporwave/52%. This verifies eventual recovery with another input, while the immediate input did not deliver the expected result.
+
+A further trial started from Ocean, and the Desktop dashboard showed Vaporwave after the first key. The tester made the second press at 12 seconds and could not confirm whether an alert appeared. The normal quit happened late: full exit was sampled 14.1 seconds after the first main process appeared. The 12-second press was not verified as a post-exit input, so that round is excluded from relaunch acceptance.
+
+**14-second physical input: failed to relaunch.** In the fixed-time trial the tester pressed the key at 0 and 14 seconds with no retry. The Desktop dashboard showed Vaporwave before the ordinary Command-Q. Its listener initially opened about 2.1 seconds after the first main process was observed, then closed at 11.5 seconds. The first main process and three helpers persisted, no second main process appeared, and the listener stayed closed for about 64 seconds until targeted recovery. The second input therefore occurred during shutdown, and the expected user-visible relaunch did not happen. This is a failure of the requested end-to-end sequence. It does not measure relaunch latency *after a clean exit*, or establish what the physical alert looked like. The trace did not sample native stacks in this trial.
+
+**Folder exit during cold scene preparation.** All keys on the existing QA page were occupied and it had no folder. A disposable QA profile used the same installed QA Scene action with automatic launch enabled and Ocean as its target. It contained Stream Deck’s native folder and back actions. The starting light state was ON/Vaporwave/52% and Desktop was fully closed.
+
+The tester pressed the physical Ocean key and immediately left the folder. Desktop did start. The editor showed the parent page again before the observer first recorded an open listener; this is an observation of the UI and process, not an HTTP trace. The tester still saw Vaporwave after waiting 30 seconds. Readback about 33 seconds after launch confirmed ON/Vaporwave/52%, all 16 saved scene names and mirror OFF. No delayed Ocean effect was observed.
+
+On re-entering the folder, the tester pressed the same Ocean key once and stayed in the folder. The tester observed the light change and readback confirmed ON/Ocean/52% on the same Desktop process. The cancellation and fresh-input recovery check **passed for this scene key in one cold-start trial**. It does not imply that leaving the folder cancels an app launch already sent.
+
+**Cleanup and cross-checks.** The temporary profile was removed from Stream Deck and the original QA profile was selected again. Stream Deck offered a session-backup restore during the final restart. The prompt was dismissed, and the resulting files were compared directly. All 50 daily-use plugin files, 54 QA plugin files and 46 existing profile files matched the before-trial SHA-256 inventory, with zero additions, missing files or changed contents (logs excluded). Final light readback returned ON/Vaporwave/52%; the original QA display also showed ON and 52%. Three targeted local regression suites (action lifecycle, control session and controller) passed 142/142. These automated tests do not override the observed native relaunch failure.
+
 ## Remaining acceptance
 
-- Measure repeated fast quit/relaunch in the initial startup window and cancellation when a control disappears mid-request.
+- Retest immediate ordinary quit/relaunch after the shutdown issue is addressed, including a confirmed clean exit and a successful second input inside the first 15 seconds. Exercise cancellation with other controls, delays and already-dispatched operations separately.
 - Test simultaneous readers from multiple plugin identities separately. Each instance controls its own requests.
 - The native HID cleanup issue with ordinary Command-Q remains open. Windows hardware, sleep/wake, USB recovery, mirror improvements and Marketplace submission remain deferred.

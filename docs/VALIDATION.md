@@ -4,6 +4,8 @@
 
 The Mac and Windows jobs for `70e19e5` each passed 385 tests and produced their packages. The Mac CI installer supplied the separate QA installation. An on-device trial confirmed full Desktop exit followed by launch and scene playback from the existing QA scene key after explicit resume. In a separate Stream Deck restart, pause persisted across actions and blocked the physical 25% preset. Explicit resume restored live feedback at 52%. [GitHub Actions run 44775803091](https://github.com/andrew427dev/streamdeck-nanoleaf-mcp/actions/runs/44775803091) · [Installed QA observations and scope](QUIT-PREPARATION.md)
 
+The installed QA build then failed the ordinary Command-Q sequence with a physical second press at 14 seconds. The listener closed, but the original Desktop process remained and no replacement appeared. A separate cold-start folder-exit trial passed: the light stayed on Vaporwave after leaving, then changed to Ocean on a fresh press inside the folder. [Timing, recovery and file checks](QUIT-PREPARATION.md#timed-ordinary-quit-and-folder-exit-on-mac-qa)
+
 For the current public/downloaded/installed/development distinction, use [STATUS.md](STATUS.md). Sections below are dated evidence, not claims that the currently installed or edited build passed every historical test.
 
 ## Mac shutdown/query overlap diagnosis — 2026-11-21 KST
