@@ -66,4 +66,4 @@ All **50 original installed payload files and all 46 current profile files**, in
 
 ## Later mitigation follow-up
 
-The explicit instance-scoped pause/drain/resume design has now been implemented locally and checked with 385 automated tests plus one native isolated trial. See [Quit preparation](QUIT-PREPARATION.md). The original diagnostic findings remain historical evidence. The new path requires explicit preparation; it does not make ordinary Command-Q safe or resolve the native HID cleanup defect. Installed original/QA payloads remain unchanged.
+The explicit pause and resume controls reached the verification branch in `70e19e5`. Mac and Windows CI and an installed Mac QA trial passed for that revision. The native cleanup ordering and ordinary Command-Q failure remain open. [Quit preparation and installed QA results](QUIT-PREPARATION.md)

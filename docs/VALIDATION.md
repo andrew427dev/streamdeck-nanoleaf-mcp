@@ -1,8 +1,8 @@
 # Nanoleaf MCP validation record
 
-## Local quit-preparation mitigation — 2026-11-21
+## Quit preparation on Mac QA — 2026-11-21 KST
 
-**385/385 local automated tests passed**, zero failed/cancelled/skipped, including the actual bundle under both simulated platform paths; official Elgato validation passed. One isolated Mac trial confirmed no new requests after pause, full Desktop exit in 838 ms and explicit-resume relaunch, with light/scenes/mirror readback unchanged. This source is not installed in the original or QA plugin, has no new native CI result, and is not a general Command-Q fix. Full procedure, incomplete harness attempts and remaining physical checks: [Quit preparation](QUIT-PREPARATION.md).
+The Mac and Windows jobs for `70e19e5` each passed 385 tests and produced their packages. The Mac CI installer supplied the separate QA installation. An on-device trial confirmed full Desktop exit followed by launch and scene playback from the existing QA scene key after explicit resume. In a separate Stream Deck restart, pause persisted across actions and blocked the physical 25% preset. Explicit resume restored live feedback at 52%. [GitHub Actions run 44775803091](https://github.com/andrew427dev/streamdeck-nanoleaf-mcp/actions/runs/44775803091) · [Installed QA observations and scope](QUIT-PREPARATION.md)
 
 For the current public/downloaded/installed/development distinction, use [STATUS.md](STATUS.md). Sections below are dated evidence, not claims that the currently installed or edited build passed every historical test.
 

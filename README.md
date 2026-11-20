@@ -1,6 +1,6 @@
 # Nanoleaf MCP for Stream Deck
 
-**Local unreleased follow-up:** explicit **Prepare app quit / Resume control** and stage-aware timeout guidance are implemented and locally tested; existing installs are unchanged. This does not automatically protect ordinary Command-Q. See [scope, verification and remaining acceptance](docs/QUIT-PREPARATION.md).
+**Mac QA preview.** The Stream Deck + scene key successfully launched Desktop after explicit quit preparation, full exit and manual resume. The latest public download is listed below. [Quit preparation and QA results](docs/QUIT-PREPARATION.md)
 
 **Public downloads: v0.6.0-beta.3 — Mac beta / Windows 11 x64 experimental beta.** The current source is the **unreleased v0.7.0-beta.1 development line**. Development changes do not update an installed plugin. See [Status](docs/STATUS.md) for the current release/install/development split and [Validation](docs/VALIDATION.md) for dated evidence.
 

@@ -1,6 +1,6 @@
-# Explicit quit preparation — local, unreleased implementation
+# Explicit quit preparation on Mac QA
 
-This is an opt-in mitigation for the [Mac quit investigation](MAC-QUIT-DIAGNOSIS-2026-11-21.md), not an automatic fix for normal Command-Q. It is implemented in the local working tree after the CI-tested candidate commit. The original Mac beta.3 installation and the separate 0.7 QA installation have not been replaced. Version labels still identify the existing candidate; this working-tree change is not a newly published release or a tested installer upgrade.
+Revision `70e19e5` adds an opt-in workaround for the [Mac quit investigation](MAC-QUIT-DIAGNOSIS-2026-11-21.md). The verification branch and the separately installed QA plugin contain this revision. The public release is v0.6.0-beta.3.
 
 ## Intended use
 
@@ -38,12 +38,37 @@ This trial used isolated local diagnostic code, not the installed QA inspector o
 
 Local evidence is kept outside the repository in the task's `quit-preparation-20261121` output directory. It is not included in the public package. Production code contains no diagnostic quit/kill commands.
 
+**Isolated trial preservation:** all 50 original installed payload files, all 54 separate QA payload files, and all 46 profile files are byte-identical to the pre-implementation/native-test snapshot. Log output is excluded. No global pause setting was written to either installed plugin; the isolated diagnostic used in-memory preference storage.
+
+## CI and installed Mac QA on 2026-11-21 KST
+
+Source `70e19e576bcf91378c7f012c3698e541785b4ba9` passed the security job, the macOS and Windows test and package jobs, and Required checks. Each OS passed all 385 tests. [GitHub Actions run 44775803091](https://github.com/andrew427dev/streamdeck-nanoleaf-mcp/actions/runs/44775803091)
+
+The Apple Silicon installer from the macOS job matched its SHA-256 checksum, `8e42442b73c097462ba44ccad707c6fa08150f49230fdbf173ea41db2270069d`. The QA copy kept the existing QA action identifiers. Elgato validation and readback of all 54 staged payload files passed. Developer mode was off on the test Mac, so Stream Deck ignored the CLI restart request despite its success message. A normal Stream Deck restart loaded the new QA runtime.
+
+| Step on the installed Mac QA profile | Observation |
+| --- | --- |
+| Select Prepare app quit on the scene key | The inspector reported a pause with all responses received. Power and brightness feedback changed to unknown. |
+| Quit Desktop | The main process, helpers and local listener disappeared. |
+| Select Resume control | The inspector reported active control. Desktop remained closed until the next input. |
+| Press the existing physical scene key once | The tester confirmed automatic launch and scene playback. The key reported success. The local listener returned, and readback confirmed the selected scene, power ON and 52% brightness. |
+
+Original installation and profiles matched the pre-trial baseline (50 original payload files and 46 profile files). Five of 54 QA payload files changed during the QA update.
+
+## Pause across a Stream Deck restart
+
+With Desktop still running and the light at 52%, the tester’s Mac QA instance entered quit preparation from the Scene inspector. Stream Deck then quit fully and reopened the same QA profile. The following observations cover one restart of the installed QA build.
+
+| Check | Observed result |
+| --- | --- |
+| Open another action’s inspector after restart | Power and brightness feedback showed unknown. Connection diagnostics on the 25% preset returned `CONTROL_PAUSED`. Desktop remained running. |
+| Press the physical 25% preset once | The tester observed no brightness change. The preset’s last-command display reported that control was paused. |
+| Resume from the Scene inspector | The inspector reported active control. Power ON and 52% returned to the display. Independent readback still showed the same scene and brightness. The rejected 25% input had no observed effect after resume. |
+
+The pause notice reported unconfirmed outcomes both before and after this restart. Its text covers earlier uncertain requests as well as a restart while paused. This trial verifies persistence and input blocking. It cannot attribute the warning to a specific prior request. Final file comparison matched all 50 daily-use plugin files, all 54 QA payload files and all 46 profile files to the pre-restart snapshot. The QA plugin was left active.
+
 ## Remaining acceptance
 
-- Install a newly identified QA candidate only when that step is authorized, preserving original profiles. Verify both new inspector controls and persistence on actual Stream Deck.
-- Repeat quit preparation → full quit → explicit resume → physical input, including fast timing, pending input cancellation and folder changes. Direct Command-Q without preparation remains unprotected.
-- Exercise multiple installed identities/other readers: each must be stopped separately. This feature does not provide cross-process coordination.
-- Run native Mac/Windows CI for the new source before release. Earlier candidate CI/installer results do not validate this working-tree change.
-- Windows hardware, USB reconnection/sleep recovery, mirror improvements, a new GitHub release and Marketplace submission remain deferred.
-
-**Preservation readback:** all 50 original installed payload files, all 54 separate QA payload files, and all 46 profile files are byte-identical to the pre-implementation/native-test snapshot. Log output is excluded. No global pause setting was written to either installed plugin; the isolated diagnostic used in-memory preference storage.
+- Measure repeated fast quit/relaunch in the initial startup window and cancellation when a control disappears mid-request.
+- Test simultaneous readers from multiple plugin identities separately. Each instance controls its own requests.
+- The native HID cleanup issue with ordinary Command-Q remains open. Windows hardware, sleep/wake, USB recovery, mirror improvements and Marketplace submission remain deferred.
